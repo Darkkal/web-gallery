@@ -12,6 +12,37 @@ export class ScraperRunner {
         if (!fs.existsSync(basePath)) {
             fs.mkdirSync(basePath, { recursive: true });
         }
+        this.ensureConfig();
+    }
+
+    private ensureConfig() {
+        const configPath = path.join(process.cwd(), 'gallery-dl.conf');
+        if (!fs.existsSync(configPath)) {
+            const configContent = JSON.stringify({
+                "output": {
+                    "logfile": {
+                        "path": "./gallery-dl.log",
+                        "level": "debug"
+                    }
+                },
+                "extractor": {
+                    "base-directory": "./public/downloads",
+                    "archive": "./gallery-dl-archive.sqlite3",
+                    "postprocessors": [{
+                        "name": "metadata",
+                        "event": "post",
+                        "filename": "{tweet_id|id|filename}.json"
+                    }],
+                    "sleep": "2.0-4.0",
+                    "cookies": ["firefox"]
+                },
+                "downloader": {
+                    "rate-limit": "5M",
+                    "retries": 3
+                }
+            }, null, 4);
+            fs.writeFileSync(configPath, configContent);
+        }
     }
 
     async run(tool: 'gallery-dl' | 'yt-dlp', options: ScraperOptions): Promise<ScrapeResult> {

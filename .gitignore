@@ -42,5 +42,8 @@ next-env.d.ts
 
 
 public/downloads/*
+gallery-dl.conf
 gallery-dl.log
+*.sqlite3
 sqlite.db
+sqlite.db-journal
