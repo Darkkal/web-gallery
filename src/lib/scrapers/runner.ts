@@ -20,12 +20,10 @@ export class ScraperRunner {
 
             // Basic configuration for json output
             if (tool === 'gallery-dl') {
-                // gallery-dl specific args
-                // We want to download AND get metadata. 
-                // gallery-dl prints json for each file if we use -j? No, -j is just metadata without download.
-                // Usually we run normally and parse filenames, or use --exec to log.
-                // For now, let's just run it standard and maybe capture stdout?
-                // Simpler: Use --json to get metadata, then run again to download? Or trust the tool.
+                // Use isolated config
+                args.push('--config-ignore');
+                args.push('--config', path.join(process.cwd(), 'gallery-dl.conf'));
+
                 args.push(options.url);
                 args.push('--directory', this.basePath);
             } else {
@@ -44,7 +42,7 @@ export class ScraperRunner {
 
             console.log(`Starting ${tool} with args:`, args);
 
-            const child = spawn(tool, args, { shell: true });
+            const child = spawn(tool, args, { shell: true, cwd: process.cwd() });
 
             let stdout = '';
             let stderr = '';
