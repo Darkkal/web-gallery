@@ -5,7 +5,7 @@ import { sources, mediaItems } from '@/lib/db/schema';
 import { ScraperRunner } from '@/lib/scrapers/runner';
 import { revalidatePath } from 'next/cache';
 import path from 'path';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, ne } from 'drizzle-orm';
 import { syncLibrary } from '@/lib/library/scanner';
 
 
@@ -73,6 +73,7 @@ export async function scanLibrary() {
 
 export async function getMediaItems() {
     return await db.query.mediaItems.findMany({
+        where: ne(mediaItems.mediaType, 'text'),
         orderBy: [desc(mediaItems.capturedAt), desc(mediaItems.createdAt)],
     });
 }
