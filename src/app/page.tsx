@@ -1,4 +1,5 @@
 import styles from './page.module.css';
+import Link from 'next/link';
 
 export default function Home() {
   return (
@@ -11,22 +12,22 @@ export default function Home() {
       </header>
 
       <div className={styles.grid}>
-        <div className={styles.card}>
+        <Link href="/gallery" className={styles.card}>
           <h2>Gallery &rarr;</h2>
           <p>Browse your collected images and videos.</p>
-        </div>
-        <div className={styles.card}>
+        </Link>
+        <Link href="/timeline" className={styles.card}>
           <h2>Timeline &rarr;</h2>
           <p>View content in chronological order.</p>
-        </div>
+        </Link>
         <div className={styles.card}>
           <h2>Playlists &rarr;</h2>
           <p>Organize your favorites.</p>
         </div>
-        <div className={styles.card}>
+        <Link href="/sources" className={styles.card}>
           <h2>Sources &rarr;</h2>
           <p>Manage scraped URLs and creators.</p>
-        </div>
+        </Link>
       </div>
     </main>
   );

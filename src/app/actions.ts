@@ -5,7 +5,9 @@ import { sources, mediaItems } from '@/lib/db/schema';
 import { ScraperRunner } from '@/lib/scrapers/runner';
 import { revalidatePath } from 'next/cache';
 import path from 'path';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
+import { syncLibrary } from '@/lib/library/scanner';
+
 
 const DOWNLOAD_DIR = path.join(process.cwd(), 'public', 'downloads');
 
@@ -61,4 +63,16 @@ export async function scrapeSource(sourceId: number) {
 export async function deleteSource(id: number) {
     await db.delete(sources).where(eq(sources.id, id));
     revalidatePath('/sources');
+}
+
+export async function scanLibrary() {
+    await syncLibrary();
+    revalidatePath('/gallery');
+    revalidatePath('/');
+}
+
+export async function getMediaItems() {
+    return await db.query.mediaItems.findMany({
+        orderBy: [desc(mediaItems.capturedAt), desc(mediaItems.createdAt)],
+    });
 }
