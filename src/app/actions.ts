@@ -45,15 +45,18 @@ export async function scrapeSource(sourceId: number) {
         url: source.url,
     });
 
-    if (result.success) {
-        // Update last scraped time
+    console.log('Scraper result:', result.success, result.output.length);
+
+    // Update last scraped time if successful OR if we got some output (partial success)
+    if (result.success || result.output.length > 0) {
+        console.log('Updating lastScrapedAt for source:', sourceId);
         await db.update(sources)
             .set({ lastScrapedAt: new Date() })
             .where(eq(sources.id, sourceId));
+    }
 
-        // TODO: Parse result.items and insert into mediaItems
-        // For now, we trust the files are on disk. 
-        // real implementation would parse the output or scan the directory.
+    if (!result.success) {
+        console.error('Scraper failed:', result.error);
     }
 
     revalidatePath('/sources');

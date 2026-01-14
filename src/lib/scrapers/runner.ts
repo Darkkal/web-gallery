@@ -28,6 +28,7 @@ export class ScraperRunner {
                 "extractor": {
                     "base-directory": "./public/downloads",
                     "archive": "./gallery-dl-archive.sqlite3",
+                    "filename": "{tweet_id|id|filename}.{extension}",
                     "postprocessors": [{
                         "name": "metadata",
                         "event": "post",
