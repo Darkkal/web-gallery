@@ -39,20 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-public/downloads/1971586678864376283_1.jpg
-public/downloads/1972995765518971370_1.jpg
-public/downloads/1972995765518971370_2.jpg
-public/downloads/1972995765518971370_2.jpg.json
-public/downloads/1973656485227012345_1.jpg
-public/downloads/1973656485227012345_1.jpg.json
-public/downloads/1980138223662961073_1.jpg
-public/downloads/1980138223662961073_1.jpg.json
-public/downloads/1983737530580398500_1.jpg
-public/downloads/1983737530580398500_1.jpg.json
-public/downloads/2000759934288351405_1.jpg
-public/downloads/2000759934288351405_1.jpg.json
-public/downloads/2002504026974531897_1.jpg
-public/downloads/2002504026974531897_1.jpg.json
-public/downloads/2010897432683634843_1.jpg
-public/downloads/2010897432683634843_1.jpg.json
-public/downloads/metadata.json
+
+
+public/downloads/*
+gallery-dl*
+sqlite.db
