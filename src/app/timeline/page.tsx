@@ -17,11 +17,12 @@ export default function TimelinePage() {
     }
 
     // Group items by month
-    const grouped = items.reduce((acc, item) => {
+    const grouped = items.reduce((acc, row) => {
+        const item = row.item;
         const date = item.capturedAt ? new Date(item.capturedAt) : new Date(item.createdAt);
         const key = date.toLocaleString('default', { month: 'long', year: 'numeric' });
         if (!acc[key]) acc[key] = [];
-        acc[key].push(item);
+        acc[key].push(row); // Keep the whole row so we have metadata if needed
         return acc;
     }, {} as Record<string, any[]>);
 
@@ -37,20 +38,23 @@ export default function TimelinePage() {
                     <div key={date} className={styles.group}>
                         <h2 className={styles.dateHeader}>{date}</h2>
                         <div className={styles.grid}>
-                            {(groupItems as any[]).map((item) => (
-                                <div key={item.id} className={styles.item}>
-                                    {item.mediaType === 'video' ? (
-                                        <video src={item.filePath} className={styles.media} controls />
-                                    ) : (
-                                        <img src={item.filePath} alt={item.title} className={styles.media} loading="lazy" />
-                                    )}
-                                    <div className={styles.info}>
-                                        <p className={styles.itemDate}>
-                                            {new Date(item.capturedAt || item.createdAt).toLocaleDateString()}
-                                        </p>
+                            {(groupItems as any[]).map((row) => {
+                                const item = row.item;
+                                return (
+                                    <div key={item.id} className={styles.item}>
+                                        {item.mediaType === 'video' ? (
+                                            <video src={item.filePath} className={styles.media} controls />
+                                        ) : (
+                                            <img src={item.filePath} alt={item.title} className={styles.media} loading="lazy" />
+                                        )}
+                                        <div className={styles.info}>
+                                            <p className={styles.itemDate}>
+                                                {new Date(item.capturedAt || item.createdAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                )
+                            })}
                         </div>
                     </div>
                 ))}

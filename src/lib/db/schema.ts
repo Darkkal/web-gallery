@@ -35,3 +35,49 @@ export const collectionItems = sqliteTable('collection_items', {
     mediaItemId: integer('media_item_id').references(() => mediaItems.id).notNull(),
     addedAt: integer('added_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
+
+export const twitterUsers = sqliteTable('twitter_users', {
+    id: text('id').primaryKey(), // Twitter User ID is big, keep as text
+    name: text('name'),
+    nick: text('nick'),
+    location: text('location'),
+    date: text('date'), // "2024-10-02 02:03:45"
+    verified: integer('verified', { mode: 'boolean' }),
+    protected: integer('protected', { mode: 'boolean' }),
+    profileBanner: text('profile_banner'),
+    profileImage: text('profile_image'),
+    favouritesCount: integer('favourites_count'),
+    followersCount: integer('followers_count'),
+    friendsCount: integer('friends_count'),
+    listedCount: integer('listed_count'),
+    mediaCount: integer('media_count'),
+    statusesCount: integer('statuses_count'),
+    description: text('description'),
+});
+
+export const twitterTweets = sqliteTable('twitter_tweets', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    tweetId: text('tweet_id').notNull(),
+    mediaItemId: integer('media_item_id').references(() => mediaItems.id),
+    retweetId: text('retweet_id'),
+    quoteId: text('quote_id'),
+    replyId: text('reply_id'),
+    conversationId: text('conversation_id'),
+    sourceId: text('source_id'),
+    date: text('date'),
+    userId: text('user_id').references(() => twitterUsers.id),
+    lang: text('lang'),
+    source: text('source'),
+    sensitive: integer('sensitive', { mode: 'boolean' }),
+    sensitiveFlags: text('sensitive_flags', { mode: 'json' }), // JSON array
+    favoriteCount: integer('favorite_count'),
+    quoteCount: integer('quote_count'),
+    replyCount: integer('reply_count'),
+    retweetCount: integer('retweet_count'),
+    bookmarkCount: integer('bookmark_count'),
+    viewCount: integer('view_count'),
+    content: text('content'),
+    count: integer('count'), // Not sure what this is, maybe media count in tweet?
+    category: text('category'),
+    subcategory: text('subcategory'),
+});
