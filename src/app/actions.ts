@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { sources, mediaItems } from '@/lib/db/schema';
+import { sources, mediaItems, twitterUsers, twitterTweets } from '@/lib/db/schema';
 import { ScraperRunner } from '@/lib/scrapers/runner';
 import { revalidatePath } from 'next/cache';
 import path from 'path';
@@ -74,9 +74,42 @@ export async function scanLibrary() {
     revalidatePath('/');
 }
 
-export async function getMediaItems() {
-    return await db.query.mediaItems.findMany({
-        where: ne(mediaItems.mediaType, 'text'),
-        orderBy: [desc(mediaItems.capturedAt), desc(mediaItems.createdAt)],
+export async function getMediaItems(
+    filters?: {
+        username?: string;
+        minFavorites?: number;
+    }
+) {
+    let conditions = ne(mediaItems.mediaType, 'text');
+
+    const query = db.select({
+        item: mediaItems,
+        tweet: twitterTweets,
+        user: twitterUsers
+    })
+        .from(mediaItems)
+        .leftJoin(twitterTweets, eq(mediaItems.id, twitterTweets.mediaItemId))
+        .leftJoin(twitterUsers, eq(twitterTweets.userId, twitterUsers.id))
+        .where(conditions)
+        .orderBy(desc(mediaItems.capturedAt), desc(mediaItems.createdAt));
+
+    const results = await query;
+
+    return results.filter(row => {
+        if (filters?.username) {
+            // Check username, name, nick
+            const search = filters.username.toLowerCase();
+            const u = row.user;
+            if (!u) return false;
+            if (!u.name?.toLowerCase().includes(search) &&
+                !u.nick?.toLowerCase().includes(search) &&
+                !u.id.toLowerCase().includes(search)) {
+                return false;
+            }
+        }
+        if (filters?.minFavorites) {
+            if ((row.tweet?.favoriteCount || 0) < filters.minFavorites) return false;
+        }
+        return true;
     });
 }

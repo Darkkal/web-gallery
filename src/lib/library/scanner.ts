@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { db } from '@/lib/db';
-import { mediaItems } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { mediaItems, twitterUsers, twitterTweets } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 
 const DOWNLOAD_DIR = path.join(process.cwd(), 'public', 'downloads');
 
@@ -126,7 +126,7 @@ export async function syncLibrary() {
         if (['.mp3', '.wav', '.m4a'].includes(ext)) type = 'audio';
 
         if (!existing) {
-            await db.insert(mediaItems).values({
+            const newItem = await db.insert(mediaItems).values({
                 filePath: urlPath,
                 mediaType: type,
                 title,
@@ -134,11 +134,90 @@ export async function syncLibrary() {
                 originalUrl,
                 capturedAt,
                 metadata: metadataJson,
-            });
+            }).returning();
+
+            // Handle Twitter Metadata
+            if (metadataJson && (
+                (metadataJson.includes('"tweet_id"') || metadataJson.includes('"extractor": "twitter"'))
+            )) {
+                try {
+                    const meta = JSON.parse(metadataJson);
+                    const isTwitter = meta.category === 'twitter' || meta.extractor_key === 'Twitter' || meta.extractor === 'twitter' || (meta.tweet_id !== undefined);
+
+                    if (isTwitter) {
+                        // 1. Upsert User
+                        const userObj = meta.user || meta.author || {};
+                        const userId = userObj.id || meta.user_id || meta.uploader_id;
+
+                        if (userId) {
+                            const existingUser = await db.query.twitterUsers.findFirst({
+                                where: eq(twitterUsers.id, String(userId))
+                            });
+
+                            const userData = {
+                                id: String(userId),
+                                name: userObj.name || meta.uploader,
+                                nick: userObj.nick,
+                                location: userObj.location,
+                                date: userObj.date,
+                                verified: userObj.verified,
+                                protected: userObj.protected,
+                                profileBanner: userObj.profile_banner,
+                                profileImage: userObj.profile_image,
+                                favouritesCount: userObj.favourites_count,
+                                followersCount: userObj.followers_count,
+                                friendsCount: userObj.friends_count,
+                                listedCount: userObj.listed_count,
+                                mediaCount: userObj.media_count,
+                                statusesCount: userObj.statuses_count,
+                                description: userObj.description
+                            };
+
+                            if (existingUser) {
+                                await db.update(twitterUsers).set(userData).where(eq(twitterUsers.id, String(userId)));
+                            } else {
+                                await db.insert(twitterUsers).values(userData);
+                            }
+                        }
+
+                        // 2. Insert Tweet
+                        const tweetId = meta.tweet_id || meta.id;
+                        if (tweetId) {
+                            // We insert a new row for this media item, linking it to the tweet info.
+                            await db.insert(twitterTweets).values({
+                                tweetId: String(tweetId),
+                                mediaItemId: newItem[0].id,
+                                retweetId: meta.retweet_id ? String(meta.retweet_id) : null,
+                                quoteId: meta.quote_id ? String(meta.quote_id) : null,
+                                replyId: meta.reply_id ? String(meta.reply_id) : null,
+                                conversationId: meta.conversation_id ? String(meta.conversation_id) : null,
+                                sourceId: meta.source_id ? String(meta.source_id) : null,
+                                date: meta.date,
+                                userId: userId ? String(userId) : null,
+                                lang: meta.lang,
+                                source: meta.source,
+                                sensitive: meta.sensitive,
+                                sensitiveFlags: meta.sensitive_flags,
+                                favoriteCount: meta.favorite_count,
+                                quoteCount: meta.quote_count,
+                                replyCount: meta.reply_count,
+                                retweetCount: meta.retweet_count,
+                                bookmarkCount: meta.bookmark_count,
+                                viewCount: meta.view_count,
+                                content: meta.content,
+                                count: meta.count,
+                                category: meta.category,
+                                subcategory: meta.subcategory
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error processing twitter metadata", e);
+                }
+            }
+
         } else {
-            // Optional: Update existing items if we want to sync metadata changes?
-            // For now, let's assume if it exists, it's good. 
-            // BUT, user just complained about nulls. So we SHOULD update if nulls exist.
+            // Update existing items
             if (!existing.metadata && metadataJson) {
                 await db.update(mediaItems).set({
                     title,
@@ -147,6 +226,92 @@ export async function syncLibrary() {
                     capturedAt,
                     metadata: metadataJson
                 }).where(eq(mediaItems.id, existing.id));
+            }
+
+            // Backfill Twitter Metadata if needed
+            // Check if we have metadata but no twitter entry
+            // Backfill Twitter Metadata if needed
+            if (metadataJson) {
+                try {
+                    const meta = JSON.parse(metadataJson);
+                    const isTwitter = meta.category === 'twitter' || meta.extractor_key === 'Twitter' || meta.extractor === 'twitter' || (meta.tweet_id !== undefined);
+
+                    if (isTwitter) {
+                        const existingTweetForMedia = await db.query.twitterTweets.findFirst({
+                            where: eq(twitterTweets.mediaItemId, existing.id)
+                        });
+
+                        if (!existingTweetForMedia) {
+                            // 1. Upsert User
+                            const userObj = meta.user || meta.author || {};
+                            const userId = userObj.id || meta.user_id || meta.uploader_id;
+
+                            if (userId) {
+                                const existingUser = await db.query.twitterUsers.findFirst({
+                                    where: eq(twitterUsers.id, String(userId))
+                                });
+
+                                const userData = {
+                                    id: String(userId),
+                                    name: userObj.name || meta.uploader,
+                                    nick: userObj.nick,
+                                    location: userObj.location,
+                                    date: userObj.date,
+                                    verified: userObj.verified,
+                                    protected: userObj.protected,
+                                    profileBanner: userObj.profile_banner,
+                                    profileImage: userObj.profile_image,
+                                    favouritesCount: userObj.favourites_count,
+                                    followersCount: userObj.followers_count,
+                                    friendsCount: userObj.friends_count,
+                                    listedCount: userObj.listed_count,
+                                    mediaCount: userObj.media_count,
+                                    statusesCount: userObj.statuses_count,
+                                    description: userObj.description
+                                };
+
+                                if (existingUser) {
+                                    await db.update(twitterUsers).set(userData).where(eq(twitterUsers.id, String(userId)));
+                                } else {
+                                    await db.insert(twitterUsers).values(userData);
+                                }
+                            }
+
+                            // 2. Insert Tweet
+                            const tweetId = meta.tweet_id || meta.id;
+                            if (tweetId) {
+                                await db.insert(twitterTweets).values({
+                                    tweetId: String(tweetId),
+                                    mediaItemId: existing.id,
+                                    retweetId: meta.retweet_id ? String(meta.retweet_id) : null,
+                                    quoteId: meta.quote_id ? String(meta.quote_id) : null,
+                                    replyId: meta.reply_id ? String(meta.reply_id) : null,
+                                    conversationId: meta.conversation_id ? String(meta.conversation_id) : null,
+                                    sourceId: meta.source_id ? String(meta.source_id) : null,
+                                    date: meta.date,
+                                    userId: userId ? String(userId) : null,
+                                    lang: meta.lang,
+                                    source: meta.source,
+                                    sensitive: meta.sensitive,
+                                    sensitiveFlags: meta.sensitive_flags,
+                                    favoriteCount: meta.favorite_count,
+                                    quoteCount: meta.quote_count,
+                                    replyCount: meta.reply_count,
+                                    retweetCount: meta.retweet_count,
+                                    bookmarkCount: meta.bookmark_count,
+                                    viewCount: meta.view_count,
+                                    content: meta.content,
+                                    count: meta.count,
+                                    category: meta.category,
+                                    subcategory: meta.subcategory
+                                });
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // ignore parse error or non-json
+                    console.error("Backfill error", e);
+                }
             }
         }
     }
