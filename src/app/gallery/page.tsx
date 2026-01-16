@@ -11,6 +11,7 @@ export default function GalleryPage() {
     const [items, setItems] = useState<any[]>([]);
     const [scanning, setScanning] = useState(false);
     const [filters, setFilters] = useState({ username: '', minFavorites: 0 });
+    const [sortBy, setSortBy] = useState('date-newest');
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [columnCount, setColumnCount] = useState(4);
 
@@ -23,8 +24,12 @@ export default function GalleryPage() {
         loadItems();
     }, []);
 
+    useEffect(() => {
+        loadItems();
+    }, [sortBy]);
+
     async function loadItems() {
-        const data = await getMediaItems(filters.username || filters.minFavorites ? filters : undefined);
+        const data = await getMediaItems(filters.username || filters.minFavorites || sortBy !== 'date-newest' ? { ...filters, sortBy } : undefined);
         setItems(data);
     }
 
@@ -155,6 +160,18 @@ export default function GalleryPage() {
                     onChange={e => setFilters({ ...filters, minFavorites: parseInt(e.target.value) || 0 })}
                     className={styles.input}
                 />
+                <select
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value)}
+                    className={styles.input}
+                >
+                    <option value="date-newest">Date: Newest First</option>
+                    <option value="date-oldest">Date: Oldest First</option>
+                    <option value="favorites-most">Favorites: Most First</option>
+                    <option value="favorites-least">Favorites: Least First</option>
+                    <option value="filename-asc">Filename: A-Z</option>
+                    <option value="filename-desc">Filename: Z-A</option>
+                </select>
                 <button onClick={loadItems} className={styles.button}>Apply Filters</button>
                 <div className={styles.separator} />
                 <div className={styles.sliderContainer}>

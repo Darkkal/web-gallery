@@ -101,11 +101,12 @@ export async function getMediaItems(
     filters?: {
         username?: string;
         minFavorites?: number;
+        sortBy?: string;
     }
 ) {
     let conditions = ne(mediaItems.mediaType, 'text');
 
-    const query = db.select({
+    const results = await db.select({
         item: mediaItems,
         tweet: twitterTweets,
         user: twitterUsers
@@ -113,12 +114,10 @@ export async function getMediaItems(
         .from(mediaItems)
         .leftJoin(twitterTweets, eq(mediaItems.id, twitterTweets.mediaItemId))
         .leftJoin(twitterUsers, eq(twitterTweets.userId, twitterUsers.id))
-        .where(conditions)
-        .orderBy(desc(mediaItems.capturedAt), desc(mediaItems.createdAt));
+        .where(conditions);
 
-    const results = await query;
-
-    return results.filter(row => {
+    // Filter results
+    let filtered = results.filter(row => {
         if (filters?.username) {
             // Check username, name, nick
             const search = filters.username.toLowerCase();
@@ -135,6 +134,42 @@ export async function getMediaItems(
         }
         return true;
     });
+
+    // Apply sorting
+    const sortBy = filters?.sortBy || 'date-newest';
+
+    filtered.sort((a, b) => {
+        switch (sortBy) {
+            case 'date-oldest':
+                const dateA = new Date(a.item.capturedAt || a.item.createdAt || 0).getTime();
+                const dateB = new Date(b.item.capturedAt || b.item.createdAt || 0).getTime();
+                return dateA - dateB; // Ascending: older (smaller) dates first
+
+            case 'date-newest':
+            default:
+                const dateA2 = new Date(a.item.capturedAt || a.item.createdAt || 0).getTime();
+                const dateB2 = new Date(b.item.capturedAt || b.item.createdAt || 0).getTime();
+                return dateB2 - dateA2; // Descending: newer (larger) dates first
+
+            case 'favorites-most':
+                const favA = a.tweet?.favoriteCount || 0;
+                const favB = b.tweet?.favoriteCount || 0;
+                return favB - favA; // Descending: higher favorites first
+
+            case 'favorites-least':
+                const favA2 = a.tweet?.favoriteCount || 0;
+                const favB2 = b.tweet?.favoriteCount || 0;
+                return favA2 - favB2; // Ascending: lower favorites first
+
+            case 'filename-asc':
+                return a.item.filePath.localeCompare(b.item.filePath);
+
+            case 'filename-desc':
+                return b.item.filePath.localeCompare(a.item.filePath);
+        }
+    });
+
+    return filtered;
 }
 
 export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
