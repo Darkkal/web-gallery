@@ -27,8 +27,9 @@ class ScraperManager {
     }
 
     async startScrape(sourceId: number, type: 'gallery-dl' | 'yt-dlp', url: string, downloadDir: string) {
+        console.log(`[ScraperManager] STARTING scrape for source ID: ${sourceId} (${type}) - URL: ${url}`);
         if (this.activeScrapes.has(sourceId)) {
-            console.warn(`Scrape already in progress for source ${sourceId}`);
+            console.warn(`[ScraperManager] Scrape already in progress for source ${sourceId}`);
             return;
         }
 
@@ -61,7 +62,11 @@ class ScraperManager {
         this.activeScrapes.set(sourceId, { process: child, status });
 
         promise.then((result) => {
-            console.log(`Scrape finished for source ${sourceId}:`, result.success);
+            let logMsg = result.error || result.output || '';
+            if (logMsg.length > 200) {
+                logMsg = logMsg.substring(0, 200) + '...';
+            }
+            console.log(`[ScraperManager] FINISHED scrape for source ID: ${sourceId} - Result: ${result.success ? 'Success' : 'Failed'} ${logMsg}`);
             const current = this.activeScrapes.get(sourceId);
             if (current) {
                 current.status.isFinished = true;
@@ -73,7 +78,7 @@ class ScraperManager {
                 }, 30000); // 30 seconds
             }
         }).catch(err => {
-            console.error(`Scrape failed for source ${sourceId}:`, err);
+            console.error(`[ScraperManager] ERROR for source ID: ${sourceId}:`, err);
             this.activeScrapes.delete(sourceId);
         });
     }
@@ -90,6 +95,7 @@ class ScraperManager {
         const active = this.activeScrapes.get(sourceId);
         if (active) {
             const pid = active.process.pid;
+            console.log(`[ScraperManager] STOPPING scrape for source ID: ${sourceId} (PID: ${pid})`);
             if (pid) {
                 if (process.platform === 'win32') {
                     // On Windows, spawn with shell: true creates a process tree.
@@ -102,6 +108,7 @@ class ScraperManager {
             this.activeScrapes.delete(sourceId);
             return true;
         }
+        console.log(`[ScraperManager] STOP requested for source ID: ${sourceId} but no active scrape found.`);
         return false;
     }
 }
