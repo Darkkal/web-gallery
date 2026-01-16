@@ -3,6 +3,7 @@
 import { db } from '@/lib/db';
 import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems } from '@/lib/db/schema';
 import { ScraperRunner } from '@/lib/scrapers/runner';
+import { scraperManager, ScrapingStatus } from '@/lib/scrapers/manager';
 import { revalidatePath } from 'next/cache';
 import path from 'path';
 import { eq, desc, ne, inArray } from 'drizzle-orm';
@@ -41,27 +42,21 @@ export async function scrapeSource(sourceId: number) {
         throw new Error('Source not found');
     }
 
-    const runner = new ScraperRunner(DOWNLOAD_DIR);
-    const result = await runner.run(source.type as any, {
-        url: source.url,
-    });
-
-    console.log('Scraper result:', result.success, result.output.length);
-
-    // Update last scraped time if successful OR if we got some output (partial success)
-    if (result.success || result.output.length > 0) {
-        console.log('Updating lastScrapedAt for source:', sourceId);
-        await db.update(sources)
-            .set({ lastScrapedAt: new Date() })
-            .where(eq(sources.id, sourceId));
-    }
-
-    if (!result.success) {
-        console.error('Scraper failed:', result.error);
-    }
+    // Start in background via Manager
+    await scraperManager.startScrape(sourceId, source.type as any, source.url, DOWNLOAD_DIR);
 
     revalidatePath('/sources');
-    return result;
+    return { success: true, message: 'Scrape started in background' };
+}
+
+export async function getScrapingStatuses(): Promise<ScrapingStatus[]> {
+    return scraperManager.getAllStatuses();
+}
+
+export async function stopScrapingSource(sourceId: number) {
+    const success = scraperManager.stopScrape(sourceId);
+    revalidatePath('/sources');
+    return { success };
 }
 
 export async function deleteSource(id: number) {

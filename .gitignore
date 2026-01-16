@@ -47,3 +47,5 @@ gallery-dl.log
 *.sqlite3
 sqlite.db
 sqlite.db-journal
+gallery-dl-archive.sqlite3-shm
+gallery-dl-archive.sqlite3-wal

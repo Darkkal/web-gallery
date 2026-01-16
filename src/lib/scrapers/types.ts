@@ -1,3 +1,12 @@
+export interface ScrapeProgress {
+    downloadedCount: number;
+    speed: string; // e.g., "5.2MiB/s"
+    totalSize: string; // e.g., "120MiB"
+    errorCount: number;
+    isRateLimited: boolean;
+    isFinished: boolean;
+}
+
 export interface ScrapeResult {
     success: boolean;
     output: string; // JSON or raw output
@@ -17,4 +26,5 @@ export interface ScrapedMediaItem {
 export interface ScraperOptions {
     url: string;
     downloadPath?: string;
+    onProgress?: (progress: ScrapeProgress) => void;
 }

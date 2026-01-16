@@ -1,20 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { addSource, getSources, scrapeSource, deleteSource } from '../actions';
+import { addSource, getSources, scrapeSource, deleteSource, getScrapingStatuses, stopScrapingSource } from '../actions';
+import { ScrapingStatus } from '@/lib/scrapers/manager';
 import styles from './page.module.css';
-
-// Using client component for simplicity with server actions interactions
-// In a fuller app, we might use a server component for the list and client for interactions.
 
 export default function SourcesPage() {
   const [sources, setSources] = useState<any[]>([]);
   const [newUrl, setNewUrl] = useState('');
   const [loading, setLoading] = useState(false);
-  const [scrapingId, setScrapingId] = useState<number | null>(null);
+  const [scrapingStatuses, setScrapingStatuses] = useState<ScrapingStatus[]>([]);
 
   useEffect(() => {
     loadSources();
+    const interval = setInterval(async () => {
+      const statuses = await getScrapingStatuses();
+      setScrapingStatuses(statuses);
+    }, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   async function loadSources() {
@@ -34,7 +37,6 @@ export default function SourcesPage() {
   }
 
   async function handleScrape(id: number) {
-    setScrapingId(id);
     try {
       await scrapeSource(id);
       await loadSources();
@@ -42,7 +44,16 @@ export default function SourcesPage() {
       console.error(err);
       alert('Failed to scrape: ' + err);
     }
-    setScrapingId(null);
+  }
+
+  async function handleStop(id: number) {
+    try {
+      await stopScrapingSource(id);
+      await loadSources();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to stop scrape: ' + err);
+    }
   }
 
   async function handleDelete(id: number) {
@@ -78,33 +89,80 @@ export default function SourcesPage() {
       </form>
 
       <div className={styles.list}>
-        {sources.map((source) => (
-          <div key={source.id} className={styles.sourceItem}>
-            <div className={styles.sourceInfo}>
-              <h3>{source.name || source.url}</h3>
-              <div className={styles.meta}>
-                <span className={styles.badge}>{source.type}</span>
-                <span>Last Scraped: {source.lastScrapedAt ? new Date(source.lastScrapedAt).toLocaleString() : 'Never'}</span>
+        {sources.map((source) => {
+          const status = scrapingStatuses.find(s => s.sourceId === source.id);
+          const isScraping = !!status && !status.isFinished;
+
+          return (
+            <div key={source.id} className={styles.sourceItem} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className={styles.sourceInfo}>
+                  <h3>{source.name || source.url}</h3>
+                  <div className={styles.meta}>
+                    <span className={styles.badge}>{source.type}</span>
+                    <span>Last Scraped: {source.lastScrapedAt ? new Date(source.lastScrapedAt).toLocaleString() : 'Never'}</span>
+                  </div>
+                </div>
+                <div className={styles.actions}>
+                  {isScraping ? (
+                    <button
+                      className={styles.stopButton}
+                      onClick={() => handleStop(source.id)}
+                    >
+                      Stop
+                    </button>
+                  ) : (
+                    <button
+                      className={styles.button}
+                      onClick={() => handleScrape(source.id)}
+                    >
+                      Scrape Now
+                    </button>
+                  )}
+                  <button
+                    className={styles.secondaryButton}
+                    onClick={() => handleDelete(source.id)}
+                    disabled={isScraping}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
+
+              {status && (
+                <div className={styles.progressInfo}>
+                  <div className={styles.progressRows}>
+                    <div className={styles.progressItem}>
+                      <span className={styles.progressLabel}>Status:</span>
+                      <span>
+                        {status.isFinished ? 'Finished' : 'Scraping...'}
+                        {status.isRateLimited && <span className={styles.rateLimit}>Rate Limited</span>}
+                      </span>
+                    </div>
+                    <div className={styles.progressItem}>
+                      <span className={styles.progressLabel}>Downloaded:</span>
+                      <span>{status.downloadedCount} posts/files</span>
+                    </div>
+                    <div className={styles.progressItem}>
+                      <span className={styles.progressLabel}>Speed:</span>
+                      <span>{status.speed}</span>
+                    </div>
+                    <div className={styles.progressItem}>
+                      <span className={styles.progressLabel}>Total Size:</span>
+                      <span>{status.totalSize}</span>
+                    </div>
+                    {status.errorCount > 0 && (
+                      <div className={styles.progressItem}>
+                        <span className={styles.progressLabel}>Errors:</span>
+                        <span className={styles.errorItem}>{status.errorCount}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-            <div className={styles.actions}>
-              <button
-                className={styles.button}
-                onClick={() => handleScrape(source.id)}
-                disabled={scrapingId === source.id}
-              >
-                {scrapingId === source.id ? 'Scraping...' : 'Scrape Now'}
-              </button>
-              <button
-                className={styles.secondaryButton}
-                onClick={() => handleDelete(source.id)}
-                disabled={scrapingId === source.id}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
         {sources.length === 0 && (
           <p style={{ textAlign: 'center', color: '#64748b' }}>No sources added yet.</p>
         )}
