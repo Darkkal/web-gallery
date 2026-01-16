@@ -23,6 +23,13 @@ export class ScraperRunner {
                     "logfile": {
                         "path": "./gallery-dl.log",
                         "level": "debug"
+                    },
+                    "mode": {
+                        "start": "[start] {0}\n",
+                        "success": "[success] {0}\n",
+                        "skip": "[skip] {0}\n",
+                        "progress": "[progress] {0} | {1} | {2} | {3}\n",
+                        "progress-total": "[progress] {0} | {1} | {2} | {3}\n"
                     }
                 },
                 "extractor": {
@@ -35,64 +42,145 @@ export class ScraperRunner {
                         "filename": "{tweet_id|id|filename}.json"
                     }],
                     "sleep": "2.0-4.0",
-                    "cookies": ["firefox"]
+                    "cookies": ["firefox"],
+                    "directory": ["{category}"]
                 },
                 "downloader": {
                     "rate-limit": "5M",
-                    "retries": 3
+                    "retries": 3,
+                    "progress": 0
                 }
             }, null, 4);
             fs.writeFileSync(configPath, configContent);
         }
     }
 
-    async run(tool: 'gallery-dl' | 'yt-dlp', options: ScraperOptions): Promise<ScrapeResult> {
-        return new Promise((resolve) => {
+    run(tool: 'gallery-dl' | 'yt-dlp', options: ScraperOptions): {
+        promise: Promise<ScrapeResult>,
+        child: import('child_process').ChildProcess
+    } {
+        let childProcess: import('child_process').ChildProcess;
+        const promise = new Promise<ScrapeResult>((resolve) => {
             const args: string[] = [];
 
-            // Basic configuration for json output
             if (tool === 'gallery-dl') {
-                // Use isolated config
                 args.push('--config-ignore');
                 args.push('--config', path.join(process.cwd(), 'gallery-dl.conf'));
-
                 args.push(options.url);
-                args.push('--directory', this.basePath);
+                args.push('--destination', this.basePath);
             } else {
-                // yt-dlp specific args
                 args.push(options.url);
                 args.push('-P', this.basePath);
-                args.push('-j'); // Print JSON info
-                // We might want to actually download too, so maybe don't use -j solely for info?
-                // yt-dlp prints JSON line by line for each video with -j *and* downloads if we don't say --simulate.
-                // No, -j implies simulate usually? No, "Simulate, quiet but print JSON info".
-                // To download and get JSON: `yt-dlp URL --print-json --no-simulate` ?
-                // or just `-j` which defaults to simulate?
-                // Let's check docs or assume defaults for now.
-                // Use -P for path.
+                // yt-dlp shows progress by default for files.
+                args.push('--newline'); // Easier to parse line by line
             }
 
             console.log(`Starting ${tool} with args:`, args);
 
             const child = spawn(tool, args, { shell: true, cwd: process.cwd() });
+            childProcess = child;
 
             let stdout = '';
             let stderr = '';
+            let downloadedCount = 0;
+            let currentSpeed = '0B/s';
+            let currentTotalSize = '0B';
+            let errorCount = 0;
+            let isRateLimited = false;
 
-            child.stdout.on('data', (data) => {
-                stdout += data.toString();
+            const parseProgress = (line: string) => {
+                if (line.includes('API rate limit exceeded') || line.includes('rate limit')) {
+                    isRateLimited = true;
+                }
+                if (line.includes('[download][error]') || line.includes('[error]')) {
+                    errorCount++;
+                }
+
+                if (tool === 'yt-dlp') {
+                    const match = line.match(/\[download\]\s+(\d+\.\d+)%\s+of\s+([\d\.]+\w+)\s+at\s+([\d\.]+\w+\/s)/);
+                    if (match) {
+                        const [_, percent, size, speed] = match;
+                        currentSpeed = speed;
+                        currentTotalSize = size;
+
+                        if (line.includes('[download] Destination:')) {
+                            downloadedCount++;
+                        }
+                    }
+                } else if (tool === 'gallery-dl') {
+                    if (line.startsWith('[progress]')) {
+                        // Custom format: [progress] {0} | {1} | {2} | {3}
+                        // {0}: bytes, {1}: speed, {2}: total, {3}: percent
+                        const parts = line.replace('[progress]', '').split('|').map(p => p.trim());
+                        if (parts.length >= 3) {
+                            currentSpeed = parts[1];
+                            currentTotalSize = parts[2];
+                        }
+                    } else if (line.startsWith('[success]')) {
+                        downloadedCount++;
+                    } else if (line.includes('public/downloads/') || line.includes('public\\downloads\\')) {
+                        if (!line.endsWith('.json') && !line.includes('[debug]') && !line.includes('[info]') && !line.includes('[warning]')) {
+                            if (currentSpeed === '0B/s') {
+                                downloadedCount++;
+                            }
+                        }
+                    }
+                }
+
+                if (options.onProgress) {
+                    options.onProgress({
+                        downloadedCount,
+                        speed: currentSpeed,
+                        totalSize: currentTotalSize,
+                        errorCount,
+                        isRateLimited,
+                        isFinished: false
+                    });
+                }
+            };
+
+            child.stdout?.on('data', (data: Buffer) => {
+                const text = data.toString();
+                stdout += text;
+                text.split('\n').forEach((line: string) => {
+                    if (line.trim()) parseProgress(line);
+                });
             });
 
-            child.stderr.on('data', (data) => {
-                stderr += data.toString();
+            child.stderr?.on('data', (data: Buffer) => {
+                const text = data.toString();
+                stderr += text;
+                // Sometimes progress goes to stderr
+                text.split('\n').forEach((line: string) => {
+                    if (line.trim()) parseProgress(line);
+                });
             });
 
             child.on('close', (code) => {
+                if (options.onProgress) {
+                    options.onProgress({
+                        downloadedCount,
+                        speed: '0B/s',
+                        totalSize: currentTotalSize,
+                        errorCount,
+                        isRateLimited,
+                        isFinished: true
+                    });
+                }
+
                 if (code === 0) {
                     resolve({
                         success: true,
                         output: stdout,
-                        items: [], // Parsing implementation needed
+                        items: [],
+                    });
+                } else if (code === null) {
+                    // Process was killed
+                    resolve({
+                        success: false,
+                        output: stdout,
+                        error: 'Process was terminated',
+                        items: [],
                     });
                 } else {
                     resolve({
@@ -104,5 +192,7 @@ export class ScraperRunner {
                 }
             });
         });
+
+        return { promise, child: childProcess! };
     }
 }
