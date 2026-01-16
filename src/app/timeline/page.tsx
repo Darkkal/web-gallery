@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { getMediaItems } from '../actions';
+import Lightbox from '../../components/Lightbox';
 import styles from './page.module.css';
 
 export default function TimelinePage() {
     const [items, setItems] = useState<any[]>([]);
+    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
     useEffect(() => {
         loadItems();
@@ -41,7 +43,7 @@ export default function TimelinePage() {
                             {(groupItems as any[]).map((row) => {
                                 const item = row.item;
                                 return (
-                                    <div key={item.id} className={styles.item}>
+                                    <div key={item.id} className={styles.item} onClick={() => setSelectedIndex(items.findIndex(i => i.item.id === item.id))}>
                                         {item.mediaType === 'video' ? (
                                             <video src={item.filePath} className={styles.media} controls />
                                         ) : (
@@ -60,6 +62,19 @@ export default function TimelinePage() {
                 ))}
                 {items.length === 0 && <p className={styles.empty}>No items found.</p>}
             </div>
-        </div>
+
+            {
+                selectedIndex !== null && items[selectedIndex] && (
+                    <Lightbox
+                        item={items[selectedIndex].item}
+                        tweet={items[selectedIndex].tweet}
+                        user={items[selectedIndex].user}
+                        onClose={() => setSelectedIndex(null)}
+                        onNext={selectedIndex < items.length - 1 ? () => setSelectedIndex(selectedIndex + 1) : undefined}
+                        onPrev={selectedIndex > 0 ? () => setSelectedIndex(selectedIndex - 1) : undefined}
+                    />
+                )
+            }
+        </div >
     );
 }

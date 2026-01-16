@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { getMediaItems, scanLibrary } from '../actions';
+import Link from 'next/link';
+import Lightbox from '../../components/Lightbox';
 import styles from './page.module.css';
 
 export default function GalleryPage() {
     const [items, setItems] = useState<any[]>([]);
     const [scanning, setScanning] = useState(false);
     const [filters, setFilters] = useState({ username: '', minFavorites: 0 });
+    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
     useEffect(() => {
         loadItems();
@@ -67,7 +70,7 @@ export default function GalleryPage() {
                 {items.map((row) => {
                     const item = row.item;
                     return (
-                        <div key={item.id} className={styles.item}>
+                        <div key={item.id} className={styles.item} onClick={() => setSelectedIndex(items.indexOf(row))}>
                             {item.mediaType === 'video' ? (
                                 <>
                                     <video src={item.filePath} className={styles.media} muted loop onMouseOver={e => e.currentTarget.play()} onMouseOut={e => e.currentTarget.pause()} />
@@ -91,6 +94,19 @@ export default function GalleryPage() {
                     </div>
                 )}
             </div>
-        </div>
+
+            {
+                selectedIndex !== null && items[selectedIndex] && (
+                    <Lightbox
+                        item={items[selectedIndex].item}
+                        tweet={items[selectedIndex].tweet}
+                        user={items[selectedIndex].user}
+                        onClose={() => setSelectedIndex(null)}
+                        onNext={selectedIndex < items.length - 1 ? () => setSelectedIndex(selectedIndex + 1) : undefined}
+                        onPrev={selectedIndex > 0 ? () => setSelectedIndex(selectedIndex - 1) : undefined}
+                    />
+                )
+            }
+        </div >
     );
 }
