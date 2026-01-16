@@ -206,6 +206,7 @@
 }
 
 .iconButton {
+    position: relative;
     background: rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: white;
@@ -223,6 +224,29 @@
 .iconButton:hover {
     background: rgba(255, 255, 255, 0.1);
     transform: scale(1.05);
+}
+
+.deleteDBButton:hover {
+    background: rgba(245, 158, 11, 0.8) !important;
+    /* Orange */
+}
+
+.deleteDiskButton:hover {
+    background: rgba(239, 68, 68, 0.8) !important;
+    /* Red */
+}
+
+.buttonBadge {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    background: #000;
+    color: #fff;
+    font-size: 8px;
+    padding: 1px 3px;
+    border-radius: 4px;
+    font-weight: bold;
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .navButton {

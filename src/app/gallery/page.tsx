@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getMediaItems, scanLibrary } from '../actions';
+import { getMediaItems, scanLibrary, deleteMediaItems } from '../actions';
 import Link from 'next/link';
 import Lightbox from '../../components/Lightbox';
 import MasonryGrid from '../../components/MasonryGrid';
@@ -14,6 +14,11 @@ export default function GalleryPage() {
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [columnCount, setColumnCount] = useState(4);
 
+    // Selection state
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+    const [deleting, setDeleting] = useState(false);
+
     useEffect(() => {
         loadItems();
     }, []);
@@ -23,10 +28,6 @@ export default function GalleryPage() {
         setItems(data);
     }
 
-    // Debounce filter changes or apply on submit?
-    // Let's apply on "Apply" button or blur for simplicity, or effect with delay.
-    // For now, let's add a "Filter" button.
-
     async function handleScan() {
         setScanning(true);
         await scanLibrary();
@@ -34,11 +35,78 @@ export default function GalleryPage() {
         setScanning(false);
     }
 
+    function toggleSelection(id: number) {
+        const newSelected = new Set(selectedIds);
+        if (newSelected.has(id)) {
+            newSelected.delete(id);
+        } else {
+            newSelected.add(id);
+        }
+        setSelectedIds(newSelected);
+    }
+
+    function selectAll() {
+        const allIds = items.map(row => row.item.id);
+        setSelectedIds(new Set(allIds));
+    }
+
+    async function handleBulkDelete(deleteFiles: boolean) {
+        if (selectedIds.size === 0) return;
+
+        const message = deleteFiles
+            ? `Permanently delete ${selectedIds.size} files from disk and database?`
+            : `Delete ${selectedIds.size} records from the database? (Files stay on disk)`;
+
+        if (!confirm(message)) return;
+
+        setDeleting(true);
+        try {
+            await deleteMediaItems(Array.from(selectedIds), deleteFiles);
+            setSelectedIds(new Set());
+            setSelectionMode(false);
+            await loadItems();
+        } catch (err) {
+            alert("Failed to delete items: " + err);
+        } finally {
+            setDeleting(false);
+        }
+    }
+
+    async function handleDeleteItem(id: number, deleteFile: boolean) {
+        setDeleting(true);
+        try {
+            await deleteMediaItems([id], deleteFile);
+            setSelectedIndex(null);
+            await loadItems();
+        } catch (err) {
+            alert("Failed to delete item: " + err);
+        } finally {
+            setDeleting(false);
+        }
+    }
+
     return (
         <div className={styles.container}>
             <header className={styles.header}>
                 <h1 className={styles.title}>Gallery</h1>
                 <div className={styles.controls}>
+                    <button
+                        className={selectionMode ? styles.activeButton : styles.secondaryButton}
+                        onClick={() => {
+                            setSelectionMode(!selectionMode);
+                            if (selectionMode) setSelectedIds(new Set());
+                        }}
+                    >
+                        {selectionMode ? 'Cancel Selection' : 'Select Items'}
+                    </button>
+                    {selectionMode && (
+                        <button
+                            className={styles.secondaryButton}
+                            onClick={selectAll}
+                        >
+                            Select All ({items.length})
+                        </button>
+                    )}
                     <button
                         className={styles.button}
                         onClick={handleScan}
@@ -49,6 +117,28 @@ export default function GalleryPage() {
                     <a href="/" className={styles.secondaryButton}>Back to Home</a>
                 </div>
             </header>
+
+            {selectionMode && selectedIds.size > 0 && (
+                <div className={styles.bulkActionBar}>
+                    <span>{selectedIds.size} items selected</span>
+                    <div className={styles.bulkActionButtons}>
+                        <button
+                            className={styles.secondaryDeleteButton}
+                            onClick={() => handleBulkDelete(false)}
+                            disabled={deleting}
+                        >
+                            {deleting ? '...' : 'Delete from DB'}
+                        </button>
+                        <button
+                            className={styles.deleteButton}
+                            onClick={() => handleBulkDelete(true)}
+                            disabled={deleting}
+                        >
+                            {deleting ? 'Deleting...' : 'Delete from Disk & DB'}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className={styles.filterBar}>
                 <input
@@ -86,8 +176,24 @@ export default function GalleryPage() {
                 columnCount={columnCount}
                 renderItem={(row: any, index: number) => {
                     const item = row.item;
+                    const isSelected = selectedIds.has(item.id);
                     return (
-                        <div key={item.id} className={styles.item} onClick={() => setSelectedIndex(index)}>
+                        <div
+                            key={item.id}
+                            className={`${styles.item} ${isSelected ? styles.selectedItem : ''}`}
+                            onClick={() => {
+                                if (selectionMode) {
+                                    toggleSelection(item.id);
+                                } else {
+                                    setSelectedIndex(index);
+                                }
+                            }}
+                        >
+                            {selectionMode && (
+                                <div className={styles.checkbox}>
+                                    {isSelected ? '✓' : ''}
+                                </div>
+                            )}
                             {item.mediaType === 'video' ? (
                                 <>
                                     <video src={item.filePath} className={styles.media} muted loop onMouseOver={e => e.currentTarget.play()} onMouseOut={e => e.currentTarget.pause()} />
@@ -121,6 +227,7 @@ export default function GalleryPage() {
                         onClose={() => setSelectedIndex(null)}
                         onNext={selectedIndex < items.length - 1 ? () => setSelectedIndex(selectedIndex + 1) : undefined}
                         onPrev={selectedIndex > 0 ? () => setSelectedIndex(selectedIndex - 1) : undefined}
+                        onDelete={handleDeleteItem}
                     />
                 )
             }

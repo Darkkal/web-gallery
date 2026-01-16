@@ -10,10 +10,26 @@ interface LightboxProps {
     onClose: () => void;
     onNext?: () => void;
     onPrev?: () => void;
+    onDelete?: (id: number, deleteFile: boolean) => void;
 }
 
-export default function Lightbox({ item, tweet, user, onClose, onNext, onPrev }: LightboxProps) {
+export default function Lightbox({ item, tweet, user, onClose, onNext, onPrev, onDelete }: LightboxProps) {
     const [showInfo, setShowInfo] = useState(true);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    async function handleDeleteDB() {
+        if (!onDelete) return;
+        if (confirm("Delete this record from the database? (File will stay on disk)")) {
+            onDelete(item.id, false);
+        }
+    }
+
+    async function handleDeleteDisk() {
+        if (!onDelete) return;
+        if (confirm("Permanently delete this file from disk and database?")) {
+            onDelete(item.id, true);
+        }
+    }
 
     // Keyboard navigation
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -80,6 +96,26 @@ export default function Lightbox({ item, tweet, user, onClose, onNext, onPrev }:
                 )}
 
                 <div className={styles.controls}>
+                    {onDelete && (
+                        <>
+                            <button
+                                className={`${styles.iconButton} ${styles.deleteDBButton}`}
+                                onClick={(e) => { e.stopPropagation(); handleDeleteDB(); }}
+                                title="Delete from DB ONLY"
+                            >
+                                🗑
+                                <span className={styles.buttonBadge}>DB</span>
+                            </button>
+                            <button
+                                className={`${styles.iconButton} ${styles.deleteDiskButton}`}
+                                onClick={(e) => { e.stopPropagation(); handleDeleteDisk(); }}
+                                title="Delete from Disk & DB"
+                            >
+                                🗑
+                                <span className={styles.buttonBadge}>P</span>
+                            </button>
+                        </>
+                    )}
                     <button
                         className={styles.iconButton}
                         onClick={(e) => { e.stopPropagation(); setShowInfo(!showInfo); }}

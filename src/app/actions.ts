@@ -1,12 +1,13 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { sources, mediaItems, twitterUsers, twitterTweets } from '@/lib/db/schema';
+import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems } from '@/lib/db/schema';
 import { ScraperRunner } from '@/lib/scrapers/runner';
 import { revalidatePath } from 'next/cache';
 import path from 'path';
-import { eq, desc, ne } from 'drizzle-orm';
+import { eq, desc, ne, inArray } from 'drizzle-orm';
 import { syncLibrary } from '@/lib/library/scanner';
+import fs from 'fs/promises';
 
 
 const DOWNLOAD_DIR = path.join(process.cwd(), 'public', 'downloads');
@@ -139,4 +140,64 @@ export async function getMediaItems(
         }
         return true;
     });
+}
+
+export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
+    try {
+        console.log(`[deleteMediaItems] Deleting ${ids.length} items (deleteFiles: ${deleteFiles})`);
+
+        if (ids.length === 0) return { success: true };
+
+        // 1. Get file paths if we need to delete files
+        if (deleteFiles) {
+            const itemsToDelete = await db.select({ filePath: mediaItems.filePath })
+                .from(mediaItems)
+                .where(inArray(mediaItems.id, ids));
+
+            for (const item of itemsToDelete) {
+                try {
+                    // filePath is likely relative to public, e.g., /downloads/...
+                    const absolutePath = path.join(process.cwd(), 'public', item.filePath);
+                    console.log(`[deleteMediaItems] Unlinking media: ${absolutePath}`);
+                    await fs.unlink(absolutePath);
+
+                    // Also try to delete associated .json metadata file
+                    const ext = path.extname(item.filePath);
+                    const jsonPathStr = item.filePath.substring(0, item.filePath.length - ext.length) + '.json';
+                    const absoluteJsonPath = path.join(process.cwd(), 'public', jsonPathStr);
+
+                    try {
+                        await fs.access(absoluteJsonPath);
+                        console.log(`[deleteMediaItems] Unlinking metadata: ${absoluteJsonPath}`);
+                        await fs.unlink(absoluteJsonPath);
+                    } catch {
+                        // Metadata might not exist, ignore
+                    }
+                } catch (err: any) {
+                    console.error(`[deleteMediaItems] Failed to delete file: ${item.filePath}`, err.message);
+                }
+            }
+        }
+
+        // 2. Delete related records
+        console.log(`[deleteMediaItems] Deleting related tweets...`);
+        db.delete(twitterTweets).where(inArray(twitterTweets.mediaItemId, ids)).run();
+
+        console.log(`[deleteMediaItems] Deleting collection associations...`);
+        db.delete(collectionItems).where(inArray(collectionItems.mediaItemId, ids)).run();
+
+        // 3. Delete media items
+        console.log(`[deleteMediaItems] Deleting media records...`);
+        const result = db.delete(mediaItems).where(inArray(mediaItems.id, ids)).run();
+        console.log(`[deleteMediaItems] DB Result:`, result);
+
+        revalidatePath('/gallery');
+        revalidatePath('/timeline');
+        revalidatePath('/');
+
+        return { success: true, count: result.changes };
+    } catch (error) {
+        console.error(`[deleteMediaItems] FAILED:`, error);
+        throw error;
+    }
 }
