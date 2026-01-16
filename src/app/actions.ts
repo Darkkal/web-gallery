@@ -64,8 +64,35 @@ export async function scrapeSource(sourceId: number) {
 }
 
 export async function deleteSource(id: number) {
-    await db.delete(sources).where(eq(sources.id, id));
-    revalidatePath('/sources');
+    try {
+        const numericId = Number(id);
+        console.log(`[deleteSource] Attempting to delete source with ID: ${numericId} (original: ${id})`);
+
+        if (isNaN(numericId)) {
+            throw new Error(`Invalid source ID: ${id}`);
+        }
+
+        // Orphan linked media items first to avoid foreign key constraint error
+        console.log(`[deleteSource] Nullifying sourceId for linked media items...`);
+        const updateResult = db.update(mediaItems)
+            .set({ sourceId: null })
+            .where(eq(mediaItems.sourceId, numericId))
+            .run();
+        console.log(`[deleteSource] Media items update result:`, updateResult);
+
+        console.log(`[deleteSource] Deleting source record...`);
+        const deleteResult = db.delete(sources)
+            .where(eq(sources.id, numericId))
+            .run();
+        console.log(`[deleteSource] Source deletion result:`, deleteResult);
+
+        revalidatePath('/sources');
+        console.log(`[deleteSource] Success.`);
+        return { success: true };
+    } catch (error) {
+        console.error(`[deleteSource] FAILED:`, error);
+        throw error;
+    }
 }
 
 export async function scanLibrary() {

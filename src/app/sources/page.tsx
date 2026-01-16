@@ -25,7 +25,7 @@ export default function SourcesPage() {
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!newUrl) return;
-    
+
     setLoading(true);
     await addSource(newUrl);
     setNewUrl('');
@@ -47,8 +47,13 @@ export default function SourcesPage() {
 
   async function handleDelete(id: number) {
     if (!confirm('Are you sure?')) return;
-    await deleteSource(id);
-    await loadSources();
+    try {
+      await deleteSource(id);
+      await loadSources();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete source: ' + err);
+    }
   }
 
   return (
@@ -83,14 +88,14 @@ export default function SourcesPage() {
               </div>
             </div>
             <div className={styles.actions}>
-              <button 
+              <button
                 className={styles.button}
                 onClick={() => handleScrape(source.id)}
                 disabled={scrapingId === source.id}
               >
                 {scrapingId === source.id ? 'Scraping...' : 'Scrape Now'}
               </button>
-              <button 
+              <button
                 className={styles.secondaryButton}
                 onClick={() => handleDelete(source.id)}
                 disabled={scrapingId === source.id}
