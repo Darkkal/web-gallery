@@ -36,20 +36,18 @@
     color: hsl(var(--secondary-foreground));
 }
 
-.grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1rem;
-}
+/* .grid removed as it is replaced by MasonryGrid which handles its own layout */
 
 .item {
     position: relative;
-    aspect-ratio: 1;
+    /* aspect-ratio: 1;  REMOVED for waterfall */
     background: hsl(var(--card));
     border-radius: var(--radius);
     overflow: hidden;
     cursor: pointer;
     transition: transform 0.2s;
+    /* Ensure it doesn't stretch weirdly in flex column */
+    width: 100%;
 }
 
 .item:hover {
@@ -59,8 +57,10 @@
 
 .media {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    height: auto;
+    /* changed from 100% to auto to preserve aspect ratio */
+    display: block;
+    /* removes bottom whitespace for inline images */
 }
 
 .videoBadge {
@@ -99,4 +99,27 @@
     border-radius: var(--radius);
     background: hsl(var(--background));
     color: hsl(var(--foreground));
+}
+
+.separator {
+    width: 1px;
+    height: 24px;
+    background: hsl(var(--border));
+    margin: 0 0.5rem;
+}
+
+.sliderContainer {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.slider {
+    cursor: pointer;
 }

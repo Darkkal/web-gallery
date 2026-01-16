@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { getMediaItems, scanLibrary } from '../actions';
 import Link from 'next/link';
 import Lightbox from '../../components/Lightbox';
+import MasonryGrid from '../../components/MasonryGrid';
 import styles from './page.module.css';
 
 export default function GalleryPage() {
@@ -11,6 +12,7 @@ export default function GalleryPage() {
     const [scanning, setScanning] = useState(false);
     const [filters, setFilters] = useState({ username: '', minFavorites: 0 });
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+    const [columnCount, setColumnCount] = useState(4);
 
     useEffect(() => {
         loadItems();
@@ -64,13 +66,28 @@ export default function GalleryPage() {
                     className={styles.input}
                 />
                 <button onClick={loadItems} className={styles.button}>Apply Filters</button>
+                <div className={styles.separator} />
+                <div className={styles.sliderContainer}>
+                    <label htmlFor="columns" className={styles.label}>Columns: {columnCount}</label>
+                    <input
+                        id="columns"
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={columnCount}
+                        onChange={e => setColumnCount(parseInt(e.target.value))}
+                        className={styles.slider}
+                    />
+                </div>
             </div>
 
-            <div className={styles.grid}>
-                {items.map((row) => {
+            <MasonryGrid
+                items={items}
+                columnCount={columnCount}
+                renderItem={(row: any, index: number) => {
                     const item = row.item;
                     return (
-                        <div key={item.id} className={styles.item} onClick={() => setSelectedIndex(items.indexOf(row))}>
+                        <div key={item.id} className={styles.item} onClick={() => setSelectedIndex(index)}>
                             {item.mediaType === 'video' ? (
                                 <>
                                     <video src={item.filePath} className={styles.media} muted loop onMouseOver={e => e.currentTarget.play()} onMouseOut={e => e.currentTarget.pause()} />
@@ -87,13 +104,13 @@ export default function GalleryPage() {
                             )}
                         </div>
                     )
-                })}
-                {items.length === 0 && (
-                    <div className={styles.emptyState}>
-                        <p>No media found. Add sources and scrape them, or click "Scan Library" if files exist.</p>
-                    </div>
-                )}
-            </div>
+                }}
+            />
+            {items.length === 0 && (
+                <div className={styles.emptyState}>
+                    <p>No media found. Add sources and scrape them, or click "Scan Library" if files exist.</p>
+                </div>
+            )}
 
             {
                 selectedIndex !== null && items[selectedIndex] && (
