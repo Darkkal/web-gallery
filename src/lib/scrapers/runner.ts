@@ -141,18 +141,35 @@ export class ScraperRunner {
 
             child.stdout?.on('data', (data: Buffer) => {
                 const text = data.toString();
-                stdout += text;
                 text.split('\n').forEach((line: string) => {
-                    if (line.trim()) parseProgress(line);
+                    if (!line.trim()) return;
+
+                    // Filter out high-frequency progress logs from being stored in memory
+                    // This prevents dumping them into the final result/error message
+                    if (!line.startsWith('[progress]') && !line.startsWith('[download]')) {
+                        stdout += line + '\n';
+                    }
+
+                    parseProgress(line);
                 });
             });
 
             child.stderr?.on('data', (data: Buffer) => {
                 const text = data.toString();
-                stderr += text;
-                // Sometimes progress goes to stderr
                 text.split('\n').forEach((line: string) => {
-                    if (line.trim()) parseProgress(line);
+                    if (!line.trim()) return;
+
+                    // Filter out high-frequency progress logs
+                    if (!line.startsWith('[progress]') && !line.startsWith('[download]')) {
+                        stderr += line + '\n';
+                    }
+
+                    // Log errors to the server console for better visibility
+                    if (line.includes('[error]') || line.includes('ERROR:')) {
+                        console.error(`[ScraperRunner] ${tool} Error:`, line.trim());
+                    }
+
+                    parseProgress(line);
                 });
             });
 

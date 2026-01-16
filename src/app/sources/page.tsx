@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { addSource, getSources, scrapeSource, deleteSource, getScrapingStatuses, stopScrapingSource } from '../actions';
 import { ScrapingStatus } from '@/lib/scrapers/manager';
 import styles from './page.module.css';
@@ -11,14 +11,60 @@ export default function SourcesPage() {
   const [loading, setLoading] = useState(false);
   const [scrapingStatuses, setScrapingStatuses] = useState<ScrapingStatus[]>([]);
 
-  useEffect(() => {
-    loadSources();
-    const interval = setInterval(async () => {
+  const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const lastActiveTimeRef = React.useRef<number>(Date.now());
+
+  const stopPolling = React.useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  }, []);
+
+  const startPolling = React.useCallback(() => {
+    if (pollingIntervalRef.current) return;
+
+    console.log('[SourcesPage] Starting status polling...');
+    lastActiveTimeRef.current = Date.now();
+
+    pollingIntervalRef.current = setInterval(async () => {
       const statuses = await getScrapingStatuses();
       setScrapingStatuses(statuses);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
+
+      const hasActive = statuses.some(s => !s.isFinished);
+      if (hasActive) {
+        lastActiveTimeRef.current = Date.now();
+      } else {
+        // If nothing is active, check if we should stop polling
+        if (Date.now() - lastActiveTimeRef.current > 30000) {
+          console.log('[SourcesPage] No active scrapes for 30s, stopping polling.');
+          stopPolling();
+        }
+      }
+    }, 5000);
+  }, [stopPolling]);
+
+  useEffect(() => {
+    loadSources();
+
+    // Initial check: if there are any active scrapes from a previous session, start polling
+    getScrapingStatuses().then(statuses => {
+      setScrapingStatuses(statuses);
+      if (statuses.some(s => !s.isFinished)) {
+        startPolling();
+      }
+    });
+
+    return () => stopPolling();
+  }, [startPolling, stopPolling]);
+
+  async function triggerStatusUpdate() {
+    const statuses = await getScrapingStatuses();
+    setScrapingStatuses(statuses);
+    if (statuses.some(s => !s.isFinished)) {
+      startPolling();
+    }
+  }
 
   async function loadSources() {
     const data = await getSources();
@@ -40,6 +86,7 @@ export default function SourcesPage() {
     try {
       await scrapeSource(id);
       await loadSources();
+      await triggerStatusUpdate();
     } catch (err) {
       console.error(err);
       alert('Failed to scrape: ' + err);
