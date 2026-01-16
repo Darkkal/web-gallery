@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Personal Web Gallery
+
+A self-hosted web application designed to empower individuals to own and manage their local archive of social media and creator-driven media.
+
+## The Vision
+
+In an era of digital volatility—where websites go down, creators are banned, and users lose access to their favorite content—**Personal Web Gallery** aims to provide a safe haven for your media collection.
+
+By leveraging powerful scraping tools like `gallery-dl` and `yt-dlp`, this application allows you to create a local, permanent copy of the content you value. It provides a beautiful, organized interface to browse, search, and discover your media, free from the risks of censorship or data lockout.
+
+## Features
+
+- **Automated Scraping**: Seamlessly download media from various social media, streaming, and gallery sites using `gallery-dl` (with `yt-dlp` integration planned).
+- **Multiple Viewing Modes**:
+  - **Waterfall Gallery**: A modern masonry layout that preserves the original aspect ratio of your images and videos.
+  - **Chronological Timeline**: View your collected items in the order they were originally posted or captured.
+  - **Collections**: Curate and organize media into logical groups, regardless of their source or type.
+- **Deep Metadata Integration**: Automatically extracts and stores rich metadata (e.g., Twitter user profiles, tweet details, timestamps) in a local SQLite database for advanced search.
+- **Smart Management**:
+  - Isolated scraper configurations to keep your system clean.
+  - Automatic synchronization between your local disk and the database.
+  - Support for continuing long-running backfills and historical data extraction.
+- **Privacy & Ownership**: Everything is stored locally on your machine. You own the data, the metadata, and the archive.
+
+## Technology Stack
+
+- **Framework**: [Next.js](https://nextjs.org/) (App Router)
+- **Database**: [SQLite](https://www.sqlite.org/) with [Drizzle ORM](https://orm.drizzle.team/)
+- **Scraper Engine**: [gallery-dl](https://github.com/mikf/gallery-dl)
+- **Styling**: Vanilla CSS
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (LTS version recommended)
+- [gallery-dl](https://github.com/mikf/gallery-dl) installed and available in your PATH.
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/web-gallery.git
+   cd web-gallery
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Initialize the database:
+   ```bash
+   npm run db:push
+   ```
+
+### Running the Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Roadmap
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- [ ] `yt-dlp` integration for video-heavy sources.
+- [ ] Scheduled scraping tasks for automated updates.
+- [ ] Advanced tagging and categorization for individual posts.
+- [ ] Rate limiting and proxy support for heavy scraping sessions.
 
-## Learn More
+## Disclaimer
 
-To learn more about Next.js, take a look at the following resources:
+**Personal Web Gallery** is a tool intended for personal use and the archival of content for which you have legal access. The developers of this software are not responsible for how you use the tool, nor for any content you choose to scrape or store. 
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Users are responsible for:
+- Complying with the Terms of Service of any website they scrape.
+- Adhering to local and international copyright laws.
+- Ensuring their use of the software is legal in their jurisdiction.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+This software is provided "as is," without warranty of any kind.
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
