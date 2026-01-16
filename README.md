@@ -8,6 +8,14 @@ In an era of digital volatility—where websites go down, creators are banned, a
 
 By leveraging powerful scraping tools like `gallery-dl` and `yt-dlp`, this application allows you to create a local, permanent copy of the content you value. It provides a beautiful, organized interface to browse, search, and discover your media, free from the risks of censorship or data lockout.
 
+## Project Status
+
+> [!IMPORTANT]
+> This project is currently in an **Early Alpha** stage. 
+> - Most implemented features provide only basic functionality.
+> - Many features listed in the roadmap have not yet been started.
+> - Expect bugs, breaking changes, and incomplete UI.
+
 ## Features
 
 - **Automated Scraping**: Seamlessly download media from various social media, streaming, and gallery sites using `gallery-dl` (with `yt-dlp` integration planned).
@@ -71,6 +79,8 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Disclaimer
 
+### Tool & AI Usage Disclaimer
+
 **Personal Web Gallery** is a tool intended for personal use and the archival of content for which you have legal access. The developers of this software are not responsible for how you use the tool, nor for any content you choose to scrape or store. 
 
 Users are responsible for:
@@ -79,6 +89,9 @@ Users are responsible for:
 - Ensuring their use of the software is legal in their jurisdiction.
 
 This software is provided "as is," without warranty of any kind.
+
+### AI Assistance Notice
+Large portions of this codebase have been generated or assisted by AI models. While the author has provided oversight, manual verification, and architectural direction, please be aware that AI-generated code may contain bugs, security vulnerabilities, or suboptimal patterns that differ from human-written code. Use with appropriate caution.
 
 ## License
 
