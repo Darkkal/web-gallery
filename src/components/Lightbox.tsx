@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import styles from './Lightbox.module.css';
 
 interface LightboxProps {
@@ -16,6 +16,23 @@ interface LightboxProps {
 export default function Lightbox({ item, tweet, user, onClose, onNext, onPrev, onDelete }: LightboxProps) {
     const [showInfo, setShowInfo] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    // Handle video playback errors
+    useEffect(() => {
+        if (item.mediaType === 'video' && videoRef.current) {
+            const playVideo = async () => {
+                try {
+                    await videoRef.current?.play();
+                } catch (err: any) {
+                    if (err.name !== 'AbortError') {
+                        console.error('Video playback error:', err);
+                    }
+                }
+            };
+            playVideo();
+        }
+    }, [item.id, item.mediaType, item.filePath]);
 
     async function handleDeleteDB() {
         if (!onDelete) return;
@@ -73,10 +90,10 @@ export default function Lightbox({ item, tweet, user, onClose, onNext, onPrev, o
                 <div className={styles.mediaWrapper}>
                     {item.mediaType === 'video' ? (
                         <video
+                            ref={videoRef}
                             src={item.filePath}
                             className={styles.video}
                             controls
-                            autoPlay
                             onClick={(e) => e.stopPropagation()}
                         />
                     ) : (

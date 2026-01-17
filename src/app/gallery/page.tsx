@@ -213,7 +213,20 @@ export default function GalleryPage() {
                             )}
                             {item.mediaType === 'video' ? (
                                 <>
-                                    <video src={item.filePath} className={styles.media} muted loop onMouseOver={e => e.currentTarget.play()} onMouseOut={e => e.currentTarget.pause()} />
+                                    <video
+                                        src={item.filePath}
+                                        className={styles.media}
+                                        muted
+                                        loop
+                                        onMouseOver={async e => {
+                                            try {
+                                                await e.currentTarget.play();
+                                            } catch (err: any) {
+                                                if (err.name !== 'AbortError') console.error(err);
+                                            }
+                                        }}
+                                        onMouseOut={e => e.currentTarget.pause()}
+                                    />
                                     <div className={styles.videoBadge}>VIDEO</div>
                                 </>
                             ) : (
