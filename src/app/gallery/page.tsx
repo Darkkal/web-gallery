@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getMediaItems, scanLibrary, deleteMediaItems } from '../actions';
+import { getMediaItems, deleteMediaItems } from '../actions';
 import Link from 'next/link';
 import Lightbox from '../../components/Lightbox';
 import MasonryGrid from '../../components/MasonryGrid';
@@ -9,7 +9,7 @@ import styles from './page.module.css';
 
 export default function GalleryPage() {
     const [items, setItems] = useState<any[]>([]);
-    const [scanning, setScanning] = useState(false);
+
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState('created-desc');
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -42,12 +42,7 @@ export default function GalleryPage() {
         setItems(data);
     }
 
-    async function handleScan() {
-        setScanning(true);
-        await scanLibrary();
-        await loadItems();
-        setScanning(false);
-    }
+
 
     function toggleSelection(id: number) {
         const newSelected = new Set(selectedIds);
@@ -120,13 +115,7 @@ export default function GalleryPage() {
                             Select All ({items.length})
                         </button>
                     )}
-                    <button
-                        className={styles.button}
-                        onClick={handleScan}
-                        disabled={scanning}
-                    >
-                        {scanning ? 'Scanning...' : 'Scan Library'}
-                    </button>
+
                 </div>
             </div>
 

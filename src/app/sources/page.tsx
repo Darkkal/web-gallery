@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { addSource, getSources, scrapeSource, deleteSource, getScrapingStatuses, stopScrapingSource, getSourcesWithHistory } from '../actions';
+import { addSource, getSources, scrapeSource, deleteSource, getScrapingStatuses, stopScrapingSource, getSourcesWithHistory, scanLibrary } from '../actions';
 import { ScrapingStatus } from '@/lib/scrapers/manager';
 import styles from './page.module.css';
 
@@ -9,6 +9,7 @@ export default function SourcesPage() {
   const [sources, setSources] = useState<any[]>([]);
   const [newUrl, setNewUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [scrapingStatuses, setScrapingStatuses] = useState<ScrapingStatus[]>([]);
 
   const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -57,6 +58,12 @@ export default function SourcesPage() {
 
     return () => stopPolling();
   }, [startPolling, stopPolling]);
+
+  async function handleScan() {
+    setScanning(true);
+    await scanLibrary();
+    setScanning(false);
+  }
 
   async function triggerStatusUpdate() {
     const statuses = await getScrapingStatuses();
@@ -153,6 +160,14 @@ export default function SourcesPage() {
         />
         <button type="submit" className={styles.button} disabled={loading}>
           {loading ? 'Adding...' : 'Add Source'}
+        </button>
+        <button
+          type="button"
+          className={styles.secondaryButton}
+          onClick={handleScan}
+          disabled={scanning}
+        >
+          {scanning ? 'Scanning...' : 'Scan Library'}
         </button>
       </form>
 
