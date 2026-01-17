@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems, scrapeHistory } from '@/lib/db/schema';
+import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems, scrapeHistory, pixivUsers, pixivIllusts, tags, pixivIllustTags } from '@/lib/db/schema';
 import { ScraperRunner } from '@/lib/scrapers/runner';
 import { scraperManager, ScrapingStatus } from '@/lib/scrapers/manager';
 import { revalidatePath } from 'next/cache';
@@ -12,6 +12,18 @@ import fs from 'fs/promises';
 
 
 const DOWNLOAD_DIR = path.join(process.cwd(), 'public', 'downloads');
+
+export async function getPixivTags(illustId: number) {
+    const illustTags = await db.select({
+        name: tags.name,
+        // type: tags.type // Optional
+    })
+        .from(pixivIllustTags)
+        .innerJoin(tags, eq(pixivIllustTags.tagId, tags.id))
+        .where(eq(pixivIllustTags.illustId, illustId));
+
+    return illustTags;
+}
 
 export async function addSource(url: string) {
     // Simple heuristic to determine type
@@ -133,11 +145,15 @@ export async function getMediaItems(
     const results = await db.select({
         item: mediaItems,
         tweet: twitterTweets,
-        user: twitterUsers
+        user: twitterUsers,
+        pixiv: pixivIllusts,
+        pixivUser: pixivUsers
     })
         .from(mediaItems)
         .leftJoin(twitterTweets, eq(mediaItems.id, twitterTweets.mediaItemId))
         .leftJoin(twitterUsers, eq(twitterTweets.userId, twitterUsers.id))
+        .leftJoin(pixivIllusts, eq(mediaItems.id, pixivIllusts.mediaItemId))
+        .leftJoin(pixivUsers, eq(pixivIllusts.userId, pixivUsers.id))
         .where(conditions);
 
     // Filter results

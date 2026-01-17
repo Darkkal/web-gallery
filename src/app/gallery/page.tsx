@@ -254,6 +254,8 @@ export default function GalleryPage() {
                         item={items[selectedIndex].item}
                         tweet={items[selectedIndex].tweet}
                         user={items[selectedIndex].user}
+                        pixiv={items[selectedIndex].pixiv}
+                        pixivUser={items[selectedIndex].pixivUser}
                         onClose={() => setSelectedIndex(null)}
                         onNext={selectedIndex < items.length - 1 ? () => setSelectedIndex(selectedIndex + 1) : undefined}
                         onPrev={selectedIndex > 0 ? () => setSelectedIndex(selectedIndex - 1) : undefined}

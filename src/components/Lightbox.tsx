@@ -1,22 +1,35 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getPixivTags } from '@/app/actions';
 import styles from './Lightbox.module.css';
 
 interface LightboxProps {
     item: any; // Using any for now matching the page usage
     tweet?: any;
     user?: any;
+    pixiv?: any;
+    pixivUser?: any;
     onClose: () => void;
     onNext?: () => void;
     onPrev?: () => void;
     onDelete?: (id: number, deleteFile: boolean) => void;
 }
 
-export default function Lightbox({ item, tweet, user, onClose, onNext, onPrev, onDelete }: LightboxProps) {
+export default function Lightbox({ item, tweet, user, pixiv, pixivUser, onClose, onNext, onPrev, onDelete }: LightboxProps) {
     const [showInfo, setShowInfo] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [tags, setTags] = useState<{ name: string }[]>([]);
     const videoRef = useRef<HTMLVideoElement>(null);
+
+    // Fetch Pixiv Tags
+    useEffect(() => {
+        if (pixiv?.id) {
+            getPixivTags(pixiv.id).then(setTags).catch(console.error);
+        } else {
+            setTags([]);
+        }
+    }, [pixiv, pixiv?.id]);
 
     // Handle video playback errors
     useEffect(() => {
@@ -153,13 +166,13 @@ export default function Lightbox({ item, tweet, user, onClose, onNext, onPrev, o
             {/* Sidebar */}
             <div className={`${styles.sidebar} ${!showInfo ? styles.sidebarHidden : ''}`}>
                 <div className={styles.sidebarHeader}>
-                    <h2 className={styles.sidebarTitle}>{item.title || 'Untitled'}</h2>
+                    <h2 className={styles.sidebarTitle}>{pixiv?.title || item.title || 'Untitled'}</h2>
                 </div>
 
                 {user && (
                     <div className={`${styles.section} ${styles.userCard}`}>
                         {user.profileImage && (
-                            <img src={user.profileImage} alt={user.name} className={styles.avatar} />
+                            <img src={user.profileImage} alt={user.name} className={styles.avatar} referrerPolicy="no-referrer" />
                         )}
                         <div className={styles.userInfo}>
                             <span className={styles.userName}>{user.name}</span>
@@ -168,10 +181,22 @@ export default function Lightbox({ item, tweet, user, onClose, onNext, onPrev, o
                     </div>
                 )}
 
+                {pixivUser && (
+                    <div className={`${styles.section} ${styles.userCard}`}>
+                        {pixivUser.profileImage && (
+                            <img src={pixivUser.profileImage} alt={pixivUser.name} className={styles.avatar} referrerPolicy="no-referrer" />
+                        )}
+                        <div className={styles.userInfo}>
+                            <span className={styles.userName}>{pixivUser.name}</span>
+                            <span className={styles.userHandle}>@{pixivUser.account}</span>
+                        </div>
+                    </div>
+                )}
+
                 <div className={styles.section}>
                     <h3 className={styles.sectionTitle}>Details</h3>
                     <div className={styles.sectionContent}>
-                        <p>{item.description || tweet?.content || 'No description available.'}</p>
+                        <p>{pixiv?.caption || item.description || tweet?.content || 'No description available.'}</p>
                     </div>
                 </div>
 
@@ -210,7 +235,48 @@ export default function Lightbox({ item, tweet, user, onClose, onNext, onPrev, o
                     </div>
                 )}
 
-                {(item.originalUrl || (tweet && tweet.tweetId && user)) && (
+                {pixiv && (
+                    <div className={styles.section}>
+                        <h3 className={styles.sectionTitle}>Pixiv Stats</h3>
+                        <div className={styles.statsGrid}>
+                            <div className={styles.statItem}>
+                                <span className={styles.statValue}>{pixiv.totalBookmarks}</span>
+                                <span className={styles.statLabel}>Bookmarks</span>
+                            </div>
+                            <div className={styles.statItem}>
+                                <span className={styles.statValue}>{pixiv.totalView}</span>
+                                <span className={styles.statLabel}>Views</span>
+                            </div>
+                            {pixiv.pageCount > 1 && (
+                                <div className={styles.statItem}>
+                                    <span className={styles.statValue}>{pixiv.pageCount}</span>
+                                    <span className={styles.statLabel}>Pages</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {tags.length > 0 && (
+                    <div className={styles.section}>
+                        <h3 className={styles.sectionTitle}>Tags</h3>
+                        <div className={styles.tagsContainer} style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            {tags.map((tag, i) => (
+                                <span key={i} className={styles.tagChip} style={{
+                                    background: 'rgba(255,255,255,0.1)',
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    fontSize: '12px',
+                                    color: '#ccc'
+                                }}>
+                                    #{tag.name}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {(item.originalUrl || (tweet && tweet.tweetId && user) || (pixiv && pixiv.pixivId)) && (
                     <div className={styles.section}>
                         <h3 className={styles.sectionTitle}>Source</h3>
                         {item.originalUrl && (
@@ -221,6 +287,11 @@ export default function Lightbox({ item, tweet, user, onClose, onNext, onPrev, o
                         {tweet && tweet.tweetId && user && (
                             <a href={`https://twitter.com/${user.nick || user.username}/status/${tweet.tweetId}`} target="_blank" rel="noopener noreferrer" className={styles.linkButton}>
                                 View Tweet
+                            </a>
+                        )}
+                        {pixiv && pixiv.pixivId && (
+                            <a href={`https://www.pixiv.net/artworks/${pixiv.pixivId}`} target="_blank" rel="noopener noreferrer" className={styles.linkButton}>
+                                View on Pixiv
                             </a>
                         )}
                     </div>
