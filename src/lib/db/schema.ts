@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
 
 export const sources = sqliteTable('sources', {
     id: integer('id').primaryKey({ autoIncrement: true }),
@@ -92,3 +92,53 @@ export const twitterTweets = sqliteTable('twitter_tweets', {
     category: text('category'),
     subcategory: text('subcategory'),
 });
+
+export const pixivUsers = sqliteTable('pixiv_users', {
+    id: text('id').primaryKey(),
+    name: text('name'),
+    account: text('account'),
+    profileImage: text('profile_image'),
+    isFollowed: integer('is_followed', { mode: 'boolean' }),
+    isAcceptRequest: integer('is_accept_request', { mode: 'boolean' }),
+});
+
+export const pixivIllusts = sqliteTable('pixiv_illusts', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    pixivId: integer('pixiv_id').notNull(),
+    mediaItemId: integer('media_item_id').references(() => mediaItems.id),
+    userId: text('user_id').references(() => pixivUsers.id),
+    title: text('title'),
+    type: text('type'),
+    caption: text('caption'),
+    restrict: integer('restrict'),
+    xRestrict: integer('x_restrict'),
+    sanityLevel: integer('sanity_level'),
+    width: integer('width'),
+    height: integer('height'),
+    pageCount: integer('page_count'),
+    totalView: integer('total_view'),
+    totalBookmarks: integer('total_bookmarks'),
+    isBookmarked: integer('is_bookmarked', { mode: 'boolean' }),
+    visible: integer('visible', { mode: 'boolean' }),
+    isMuted: integer('is_muted', { mode: 'boolean' }),
+    illustAiType: integer('illust_ai_type'),
+    illustBookStyle: integer('illust_book_style'),
+    tags: text('tags', { mode: 'json' }), // JSON array
+    date: text('date'),
+    category: text('category'),
+    subcategory: text('subcategory'),
+});
+
+export const tags = sqliteTable('tags', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    name: text('name').notNull().unique(),
+    type: text('type'), // Optional: 'pixiv', 'twitter', etc.
+});
+
+export const pixivIllustTags = sqliteTable('pixiv_illust_tags', {
+    illustId: integer('illust_id').references(() => pixivIllusts.id).notNull(),
+    tagId: integer('tag_id').references(() => tags.id).notNull(),
+}, (t) => ({
+    pk: primaryKey({ columns: [t.illustId, t.tagId] }),
+}));
+

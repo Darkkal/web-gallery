@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { db } from '@/lib/db';
-import { mediaItems, twitterUsers, twitterTweets } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { mediaItems, twitterUsers, twitterTweets, pixivUsers, pixivIllusts, tags, pixivIllustTags } from '@/lib/db/schema';
+import { eq, and, count } from 'drizzle-orm';
 
 const DOWNLOAD_DIR = path.join(process.cwd(), 'public', 'downloads');
 
@@ -145,7 +145,7 @@ export async function syncLibrary() {
                     const isTwitter = meta.category === 'twitter' || meta.extractor_key === 'Twitter' || meta.extractor === 'twitter' || (meta.tweet_id !== undefined);
 
                     if (isTwitter) {
-                        // 1. Upsert User
+                        // ... existing twitter logic ...
                         const userObj = meta.user || meta.author || {};
                         const userId = userObj.id || meta.user_id || meta.uploader_id;
 
@@ -180,10 +180,8 @@ export async function syncLibrary() {
                             }
                         }
 
-                        // 2. Insert Tweet
                         const tweetId = meta.tweet_id || meta.id;
                         if (tweetId) {
-                            // We insert a new row for this media item, linking it to the tweet info.
                             await db.insert(twitterTweets).values({
                                 tweetId: String(tweetId),
                                 mediaItemId: newItem[0].id,
@@ -213,6 +211,116 @@ export async function syncLibrary() {
                     }
                 } catch (e) {
                     console.error("Error processing twitter metadata", e);
+                }
+            }
+
+            // Handle Pixiv Metadata
+            if (metadataJson && (
+                metadataJson.includes('"category": "pixiv"') || metadataJson.includes('"extractor": "pixiv"')
+            )) {
+                try {
+                    const meta = JSON.parse(metadataJson);
+                    const isPixiv = meta.category === 'pixiv' || meta.extractor === 'pixiv';
+
+                    if (isPixiv) {
+                        // 1. Upsert User
+                        const userObj = meta.user || {};
+                        const userId = userObj.id;
+
+                        if (userId) {
+                            const existingUser = await db.query.pixivUsers.findFirst({
+                                where: eq(pixivUsers.id, String(userId))
+                            });
+
+                            const userData = {
+                                id: String(userId),
+                                name: userObj.name,
+                                account: userObj.account,
+                                profileImage: userObj.profile_image_urls?.medium,
+                                isFollowed: userObj.is_followed,
+                                isAcceptRequest: userObj.is_accept_request,
+                            };
+
+                            if (existingUser) {
+                                await db.update(pixivUsers).set(userData).where(eq(pixivUsers.id, String(userId)));
+                            } else {
+                                await db.insert(pixivUsers).values(userData);
+                            }
+                        }
+
+                        // 2. Insert Illust
+                        const pixivId = meta.id;
+                        if (pixivId) {
+                            const illustResult = await db.insert(pixivIllusts).values({
+                                pixivId: Number(pixivId),
+                                mediaItemId: newItem[0].id,
+                                userId: userId ? String(userId) : null,
+                                title: meta.title,
+                                type: meta.type,
+                                caption: meta.caption,
+                                restrict: meta.restrict,
+                                xRestrict: meta.x_restrict,
+                                sanityLevel: meta.sanity_level,
+                                width: meta.width,
+                                height: meta.height,
+                                pageCount: meta.page_count,
+                                totalView: meta.total_view,
+                                totalBookmarks: meta.total_bookmarks,
+                                isBookmarked: meta.is_bookmarked,
+                                visible: meta.visible,
+                                isMuted: meta.is_muted,
+                                illustAiType: meta.illust_ai_type,
+                                illustBookStyle: meta.illust_book_style,
+                                tags: meta.tags,
+                                date: meta.date,
+                                category: meta.category,
+                                subcategory: meta.subcategory
+                            }).returning({ id: pixivIllusts.id });
+
+                            const illustRecordId = illustResult[0].id;
+
+                            // 3. Process Tags
+                            if (meta.tags && Array.isArray(meta.tags)) {
+                                for (const rawTag of meta.tags) {
+                                    let tagName: string;
+                                    if (typeof rawTag === 'string') {
+                                        tagName = rawTag.trim();
+                                    } else if (rawTag && typeof rawTag === 'object' && 'name' in rawTag) {
+                                        tagName = String(rawTag.name).trim();
+                                    } else {
+                                        continue;
+                                    }
+
+                                    if (!tagName || tagName === '[object Object]') continue;
+
+                                    // Upsert tag
+                                    let tagId: number;
+                                    const existingTag = await db.select({ id: tags.id })
+                                        .from(tags)
+                                        .where(eq(tags.name, tagName))
+                                        .get();
+
+                                    if (existingTag) {
+                                        tagId = existingTag.id;
+                                    } else {
+                                        const newTag = await db.insert(tags).values({
+                                            name: tagName,
+                                            type: 'pixiv'
+                                        }).returning({ id: tags.id });
+                                        tagId = newTag[0].id;
+                                    }
+
+                                    // Link tag
+                                    await db.insert(pixivIllustTags).values({
+                                        illustId: illustRecordId,
+                                        tagId
+                                    }).onConflictDoNothing();
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error processing pixiv metadata", e);
                 }
             }
 
@@ -310,6 +418,136 @@ export async function syncLibrary() {
                     }
                 } catch (e) {
                     // ignore parse error or non-json
+                    console.error("Backfill error", e);
+                }
+            }
+
+            // Backfill Pixiv Metadata if needed
+            if (metadataJson) {
+                try {
+                    const meta = JSON.parse(metadataJson);
+                    const isPixiv = meta.category === 'pixiv' || meta.extractor === 'pixiv';
+
+                    if (isPixiv) {
+                        const existingIllustForMedia = await db.query.pixivIllusts.findFirst({
+                            where: eq(pixivIllusts.mediaItemId, existing.id)
+                        });
+
+                        let illustRecordId: number;
+
+                        if (!existingIllustForMedia) {
+                            // 1. Upsert User
+                            const userObj = meta.user || {};
+                            const userId = userObj.id;
+
+                            if (userId) {
+                                const existingUser = await db.query.pixivUsers.findFirst({
+                                    where: eq(pixivUsers.id, String(userId))
+                                });
+
+                                const userData = {
+                                    id: String(userId),
+                                    name: userObj.name,
+                                    account: userObj.account,
+                                    profileImage: userObj.profile_image_urls?.medium,
+                                    isFollowed: userObj.is_followed,
+                                    isAcceptRequest: userObj.is_accept_request,
+                                };
+
+                                if (existingUser) {
+                                    await db.update(pixivUsers).set(userData).where(eq(pixivUsers.id, String(userId)));
+                                } else {
+                                    await db.insert(pixivUsers).values(userData);
+                                }
+                            }
+
+                            // 2. Insert Illust
+                            const pixivId = meta.id;
+                            if (pixivId) {
+                                const illustResult = await db.insert(pixivIllusts).values({
+                                    pixivId: Number(pixivId),
+                                    mediaItemId: existing.id,
+                                    userId: userId ? String(userId) : null,
+                                    title: meta.title,
+                                    type: meta.type,
+                                    caption: meta.caption,
+                                    restrict: meta.restrict,
+                                    xRestrict: meta.x_restrict,
+                                    sanityLevel: meta.sanity_level,
+                                    width: meta.width,
+                                    height: meta.height,
+                                    pageCount: meta.page_count,
+                                    totalView: meta.total_view,
+                                    totalBookmarks: meta.total_bookmarks,
+                                    isBookmarked: meta.is_bookmarked,
+                                    visible: meta.visible,
+                                    isMuted: meta.is_muted,
+                                    illustAiType: meta.illust_ai_type,
+                                    illustBookStyle: meta.illust_book_style,
+                                    tags: meta.tags,
+                                    date: meta.date,
+                                    category: meta.category,
+                                    subcategory: meta.subcategory
+                                }).returning({ id: pixivIllusts.id });
+
+                                illustRecordId = illustResult[0].id;
+                            } else {
+                                continue; // Should not happen
+                            }
+                        } else {
+                            illustRecordId = existingIllustForMedia.id;
+
+                            // Optimization: if tags already exist for this illust, skip tag processing
+                            const existingLinks = await db.select({ count: count() })
+                                .from(pixivIllustTags)
+                                .where(eq(pixivIllustTags.illustId, illustRecordId))
+                                .get() as { count: number };
+
+                            if (existingLinks && existingLinks.count > 0) {
+                                continue;
+                            }
+                        }
+
+                        // 3. Process Tags (for both new and existing)
+                        if (meta.tags && Array.isArray(meta.tags)) {
+                            for (const rawTag of meta.tags) {
+                                let tagName: string;
+                                if (typeof rawTag === 'string') {
+                                    tagName = rawTag.trim();
+                                } else if (rawTag && typeof rawTag === 'object' && 'name' in rawTag) {
+                                    tagName = String(rawTag.name).trim();
+                                } else {
+                                    continue;
+                                }
+
+                                if (!tagName || tagName === '[object Object]') continue;
+
+                                // Upsert tag
+                                let tagId: number;
+                                const existingTag = await db.select({ id: tags.id })
+                                    .from(tags)
+                                    .where(eq(tags.name, tagName))
+                                    .get();
+
+                                if (existingTag) {
+                                    tagId = existingTag.id;
+                                } else {
+                                    const newTag = await db.insert(tags).values({
+                                        name: tagName,
+                                        type: 'pixiv'
+                                    }).returning({ id: tags.id });
+                                    tagId = newTag[0].id;
+                                }
+
+                                // Link tag
+                                await db.insert(pixivIllustTags).values({
+                                    illustId: illustRecordId,
+                                    tagId
+                                }).onConflictDoNothing();
+                            }
+                        }
+                    }
+                } catch (e) {
                     console.error("Backfill error", e);
                 }
             }
