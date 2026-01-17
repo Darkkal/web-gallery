@@ -10,8 +10,8 @@ import styles from './page.module.css';
 export default function GalleryPage() {
     const [items, setItems] = useState<any[]>([]);
     const [scanning, setScanning] = useState(false);
-    const [filters, setFilters] = useState({ username: '', minFavorites: 0 });
-    const [sortBy, setSortBy] = useState('date-newest');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [sortBy, setSortBy] = useState('created-desc');
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [columnCount, setColumnCount] = useState(4);
 
@@ -24,12 +24,21 @@ export default function GalleryPage() {
         loadItems();
     }, []);
 
+    // Debounce search query
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            loadItems();
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
     useEffect(() => {
         loadItems();
     }, [sortBy]);
 
     async function loadItems() {
-        const data = await getMediaItems(filters.username || filters.minFavorites || sortBy !== 'date-newest' ? { ...filters, sortBy } : undefined);
+        const data = await getMediaItems(searchQuery || sortBy !== 'created-desc' ? { search: searchQuery, sortBy } : undefined);
         setItems(data);
     }
 
@@ -148,31 +157,24 @@ export default function GalleryPage() {
             <div className={styles.filterBar}>
                 <input
                     type="text"
-                    placeholder="Filter by Twitter Username"
-                    value={filters.username}
-                    onChange={e => setFilters({ ...filters, username: e.target.value })}
+                    placeholder="Search (e.g. username, tag, favs:100)..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && loadItems()}
                     className={styles.input}
-                />
-                <input
-                    type="number"
-                    placeholder="Min Favorites"
-                    value={filters.minFavorites || ''}
-                    onChange={e => setFilters({ ...filters, minFavorites: parseInt(e.target.value) || 0 })}
-                    className={styles.input}
+                    style={{ flex: 2 }}
                 />
                 <select
                     value={sortBy}
                     onChange={e => setSortBy(e.target.value)}
                     className={styles.input}
                 >
-                    <option value="date-newest">Date: Newest First</option>
-                    <option value="date-oldest">Date: Oldest First</option>
-                    <option value="favorites-most">Favorites: Most First</option>
-                    <option value="favorites-least">Favorites: Least First</option>
-                    <option value="filename-asc">Filename: A-Z</option>
-                    <option value="filename-desc">Filename: Z-A</option>
+                    <option value="created-desc">Imported: Newest First</option>
+                    <option value="created-asc">Imported: Oldest First</option>
+                    <option value="captured-desc">Content Date: Newest First</option>
+                    <option value="captured-asc">Content Date: Oldest First</option>
                 </select>
-                <button onClick={loadItems} className={styles.button}>Apply Filters</button>
+                <button onClick={loadItems} className={styles.button} style={{ display: 'none' }}>Apply Filters</button>
                 <div className={styles.separator} />
                 <div className={styles.sliderContainer}>
                     <label htmlFor="columns" className={styles.label}>Columns: {columnCount}</label>

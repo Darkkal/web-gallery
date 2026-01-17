@@ -135,11 +135,22 @@ export async function scanLibrary() {
 
 export async function getMediaItems(
     filters?: {
-        username?: string;
-        minFavorites?: number;
+        search?: string;
         sortBy?: string;
     }
 ) {
+    // 1. Parse Search Query
+    let searchQuery = filters?.search || '';
+    let minFavorites = 0;
+
+    // Extract "favs:123" or "min_favs:123"
+    const favsMatch = searchQuery.match(/(?:favs|min_favs):(\d+)/i);
+    if (favsMatch) {
+        minFavorites = parseInt(favsMatch[1], 10);
+        // Remove the command from the search string so we don't try to match "favs:10" as text
+        searchQuery = searchQuery.replace(favsMatch[0], '').trim();
+    }
+
     let conditions = ne(mediaItems.mediaType, 'text');
 
     const results = await db.select({
@@ -147,65 +158,121 @@ export async function getMediaItems(
         tweet: twitterTweets,
         user: twitterUsers,
         pixiv: pixivIllusts,
-        pixivUser: pixivUsers
+        pixivUser: pixivUsers,
+        source: sources,
     })
         .from(mediaItems)
         .leftJoin(twitterTweets, eq(mediaItems.id, twitterTweets.mediaItemId))
         .leftJoin(twitterUsers, eq(twitterTweets.userId, twitterUsers.id))
         .leftJoin(pixivIllusts, eq(mediaItems.id, pixivIllusts.mediaItemId))
         .leftJoin(pixivUsers, eq(pixivIllusts.userId, pixivUsers.id))
+        .leftJoin(sources, eq(mediaItems.sourceId, sources.id)) // Join sources for text search
         .where(conditions);
+
+    // Fetch tags for filtering if needed. 
+    // Doing a separate query or join for tags can be heavy if we join everything.
+    // However, to filter by tag name efficiently in valid SQL, we would usually need a join.
+    // For now, let's fetch all necessary data and filter in memory since our dataset is not massive yet,
+    // OR separate tag fetching. 
+    // Given the architecture, let's fetch tags locally for the candidates if strict SQL search is hard without 1-to-many explosion.
+    // Actually, let's just do in-memory filtering for the complex text search to keep it flexible as requested.
+
+    // Optimization: If search query is empty, our current join is fine.
+
+    // We need to fetch tags for each item to search them? 
+    // Actually, `pixivIllusts` has a `tags` JSON field! We can just search that! 
+    // `twitterTweets.content` is also available.
+
+    const searchLower = searchQuery.toLowerCase();
 
     // Filter results
     let filtered = results.filter(row => {
-        if (filters?.username) {
-            // Check username, name, nick
-            const search = filters.username.toLowerCase();
-            const u = row.user;
-            if (!u) return false;
-            if (!u.name?.toLowerCase().includes(search) &&
-                !u.nick?.toLowerCase().includes(search) &&
-                !u.id.toLowerCase().includes(search)) {
-                return false;
+        // 1. Min Favorites Filter
+        if (minFavorites > 0) {
+            if ((row.tweet?.favoriteCount || 0) < minFavorites) return false;
+            // Pixiv bookmarks count could be used here too if we want unified "favorites"
+            // if ((row.pixiv?.totalBookmarks || 0) < minFavorites) ... 
+            // For now, sticking to the existing behavior which seemed to imply Tweet favorites.
+        }
+
+        // 2. Text Search
+        if (searchLower) {
+            let hit = false;
+
+            // Check Twitter User
+            if (row.user) {
+                if (row.user.name?.toLowerCase().includes(searchLower)) hit = true;
+                else if (row.user.nick?.toLowerCase().includes(searchLower)) hit = true;
+                else if (row.user.id.toLowerCase().includes(searchLower)) hit = true;
             }
+
+            // Check Pixiv User
+            if (!hit && row.pixivUser) {
+                if (row.pixivUser.name?.toLowerCase().includes(searchLower)) hit = true;
+                else if (row.pixivUser.account?.toLowerCase().includes(searchLower)) hit = true;
+                else if (row.pixivUser.id.toLowerCase().includes(searchLower)) hit = true;
+            }
+
+            // Check Tweet Content
+            if (!hit && row.tweet) {
+                if (row.tweet.content?.toLowerCase().includes(searchLower)) hit = true;
+            }
+
+            // Check Pixiv Title/Caption
+            if (!hit && row.pixiv) {
+                if (row.pixiv.title?.toLowerCase().includes(searchLower)) hit = true;
+                if (row.pixiv.caption?.toLowerCase().includes(searchLower)) hit = true;
+
+                // Check Pixiv Tags (JSON string)
+                // The schema says `tags` is `text` with mode `json`. Drizzle might parse it automatically if configured, 
+                // but our schema definition `tags: text('tags', { mode: 'json' })` suggests it comes back as an array.
+                // Let's check safely.
+                if (Array.isArray(row.pixiv.tags)) {
+                    // tags is array of strings or objects? Usually Pixiv tags are objects or strings.
+                    // Let's assume generic string search in the JSON representation if unsure, 
+                    // or iterate if it's an array of strings.
+                    // Printing to debug might be needed, but assuming standard "includes" on stringified ver guarantees hit.
+                    if (JSON.stringify(row.pixiv.tags).toLowerCase().includes(searchLower)) hit = true;
+                }
+            }
+
+            // Check Source Name/Type
+            if (!hit && row.source) {
+                if (row.source.name?.toLowerCase().includes(searchLower)) hit = true;
+                if (row.source.type?.toLowerCase().includes(searchLower)) hit = true;
+            }
+
+            if (!hit) return false;
         }
-        if (filters?.minFavorites) {
-            if ((row.tweet?.favoriteCount || 0) < filters.minFavorites) return false;
-        }
+
         return true;
     });
 
     // Apply sorting
-    const sortBy = filters?.sortBy || 'date-newest';
+    const sortBy = filters?.sortBy || 'created-desc';
 
     filtered.sort((a, b) => {
         switch (sortBy) {
-            case 'date-oldest':
-                const dateA = new Date(a.item.capturedAt || a.item.createdAt || 0).getTime();
-                const dateB = new Date(b.item.capturedAt || b.item.createdAt || 0).getTime();
-                return dateA - dateB; // Ascending: older (smaller) dates first
+            case 'created-asc': // Oldest Imported First
+                const cDateA = new Date(a.item.createdAt || 0).getTime();
+                const cDateB = new Date(b.item.createdAt || 0).getTime();
+                return cDateA - cDateB;
 
-            case 'date-newest':
+            case 'created-desc': // Newest Imported First
             default:
-                const dateA2 = new Date(a.item.capturedAt || a.item.createdAt || 0).getTime();
-                const dateB2 = new Date(b.item.capturedAt || b.item.createdAt || 0).getTime();
-                return dateB2 - dateA2; // Descending: newer (larger) dates first
+                const cDateA2 = new Date(a.item.createdAt || 0).getTime();
+                const cDateB2 = new Date(b.item.createdAt || 0).getTime();
+                return cDateB2 - cDateA2;
 
-            case 'favorites-most':
-                const favA = a.tweet?.favoriteCount || 0;
-                const favB = b.tweet?.favoriteCount || 0;
-                return favB - favA; // Descending: higher favorites first
+            case 'captured-asc': // Oldest Content First
+                const capDateA = new Date(a.item.capturedAt || a.item.createdAt || 0).getTime();
+                const capDateB = new Date(b.item.capturedAt || b.item.createdAt || 0).getTime();
+                return capDateA - capDateB;
 
-            case 'favorites-least':
-                const favA2 = a.tweet?.favoriteCount || 0;
-                const favB2 = b.tweet?.favoriteCount || 0;
-                return favA2 - favB2; // Ascending: lower favorites first
-
-            case 'filename-asc':
-                return a.item.filePath.localeCompare(b.item.filePath);
-
-            case 'filename-desc':
-                return b.item.filePath.localeCompare(a.item.filePath);
+            case 'captured-desc': // Newest Content First
+                const capDateA2 = new Date(a.item.capturedAt || a.item.createdAt || 0).getTime();
+                const capDateB2 = new Date(b.item.capturedAt || b.item.createdAt || 0).getTime();
+                return capDateB2 - capDateA2;
         }
     });
 
