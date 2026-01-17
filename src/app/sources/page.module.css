@@ -184,3 +184,38 @@
 .stopButton:hover {
   background: hsl(0 62.8% 40.6%);
 }
+
+/* Status badge variants */
+.badge.status-completed {
+  background: #064e3b;
+  color: #6ee7b7;
+}
+
+.badge.status-stopped {
+  background: hsl(48 96% 20%);
+  color: hsl(48 96% 89%);
+}
+
+.badge.status-failed {
+  background: hsl(0 62.8% 30.6%);
+  color: #fca5a5;
+}
+
+.badge.status-running {
+  background: hsl(217 91% 20%);
+  color: #93c5fd;
+}
+
+/* History info section */
+.historyInfo {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 0.3);
+  padding: 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border) / 0.5);
+}

@@ -2,12 +2,16 @@ import { ChildProcess, spawn } from 'child_process';
 import { ScraperRunner } from './runner';
 import { ScrapeProgress } from './types';
 import path from 'path';
+import { db } from '@/lib/db';
+import { scrapeHistory } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 export interface ScrapingStatus extends ScrapeProgress {
     sourceId: number;
     url: string;
     type: 'gallery-dl' | 'yt-dlp';
     startTime: Date;
+    historyId?: number;
 }
 
 class ScraperManager {
@@ -36,11 +40,26 @@ class ScraperManager {
         const runner = new ScraperRunner(downloadDir);
         const startTime = new Date();
 
+        // Create history record at the start
+        const historyResult = db.insert(scrapeHistory).values({
+            sourceId,
+            startTime,
+            status: 'running',
+            filesDownloaded: 0,
+            bytesDownloaded: 0,
+            errorCount: 0,
+            averageSpeed: 0,
+        }).returning({ id: scrapeHistory.id }).get();
+
+        const historyId = historyResult.id;
+        console.log(`[ScraperManager] Created history record ${historyId} for source ${sourceId}`);
+
         const status: ScrapingStatus = {
             sourceId,
             url,
             type,
             startTime,
+            historyId,
             downloadedCount: 0,
             speed: '0B/s',
             totalSize: '0B',
@@ -70,15 +89,44 @@ class ScraperManager {
             const current = this.activeScrapes.get(sourceId);
             if (current) {
                 current.status.isFinished = true;
-                // We keep it in the map for a bit so the UI can see "Finished" 
-                // but maybe we should remove it eventually or based on a timer.
-                // For now, let's remove it after a delay or when a new one starts.
+
+                // Update history record with final metrics
+                const endTime = new Date();
+                const durationSeconds = (endTime.getTime() - startTime.getTime()) / 1000;
+                const bytesDownloaded = this.parseSizeToBytes(current.status.totalSize);
+                const averageSpeed = durationSeconds > 0 ? Math.floor(bytesDownloaded / durationSeconds) : 0;
+
+                db.update(scrapeHistory)
+                    .set({
+                        endTime,
+                        status: result.success ? 'completed' : 'failed',
+                        filesDownloaded: current.status.downloadedCount,
+                        bytesDownloaded,
+                        errorCount: current.status.errorCount,
+                        averageSpeed,
+                    })
+                    .where(eq(scrapeHistory.id, historyId))
+                    .run();
+
+                console.log(`[ScraperManager] Updated history record ${historyId} with final metrics`);
+
+                // Keep it in the map for a bit so the UI can see "Finished"
                 setTimeout(() => {
                     this.activeScrapes.delete(sourceId);
                 }, 30000); // 30 seconds
             }
         }).catch(err => {
             console.error(`[ScraperManager] ERROR for source ID: ${sourceId}:`, err);
+
+            // Update history record as failed
+            db.update(scrapeHistory)
+                .set({
+                    endTime: new Date(),
+                    status: 'failed',
+                })
+                .where(eq(scrapeHistory.id, historyId))
+                .run();
+
             this.activeScrapes.delete(sourceId);
         });
     }
@@ -96,6 +144,29 @@ class ScraperManager {
         if (active) {
             const pid = active.process.pid;
             console.log(`[ScraperManager] STOPPING scrape for source ID: ${sourceId} (PID: ${pid})`);
+
+            // Update history record before stopping
+            if (active.status.historyId) {
+                const endTime = new Date();
+                const durationSeconds = (endTime.getTime() - active.status.startTime.getTime()) / 1000;
+                const bytesDownloaded = this.parseSizeToBytes(active.status.totalSize);
+                const averageSpeed = durationSeconds > 0 ? Math.floor(bytesDownloaded / durationSeconds) : 0;
+
+                db.update(scrapeHistory)
+                    .set({
+                        endTime,
+                        status: 'stopped',
+                        filesDownloaded: active.status.downloadedCount,
+                        bytesDownloaded,
+                        errorCount: active.status.errorCount,
+                        averageSpeed,
+                    })
+                    .where(eq(scrapeHistory.id, active.status.historyId))
+                    .run();
+
+                console.log(`[ScraperManager] Updated history record ${active.status.historyId} with stopped status`);
+            }
+
             if (pid) {
                 if (process.platform === 'win32') {
                     // On Windows, spawn with shell: true creates a process tree.
@@ -110,6 +181,36 @@ class ScraperManager {
         }
         console.log(`[ScraperManager] STOP requested for source ID: ${sourceId} but no active scrape found.`);
         return false;
+    }
+
+    // Helper method to parse size strings like "120MiB" to bytes
+    private parseSizeToBytes(sizeStr: string): number {
+        if (!sizeStr) return 0;
+        const match = sizeStr.trim().match(/^([\d.]+)\s*([A-Za-z]*)$/);
+        if (!match) return 0;
+
+        const value = parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+
+        if (!unit) return Math.floor(value);
+
+        const multipliers: { [key: string]: number } = {
+            'b': 1,
+            'k': 1024,
+            'kb': 1024,
+            'kib': 1024,
+            'm': 1024 * 1024,
+            'mb': 1024 * 1024,
+            'mib': 1024 * 1024,
+            'g': 1024 * 1024 * 1024,
+            'gb': 1024 * 1024 * 1024,
+            'gib': 1024 * 1024 * 1024,
+            't': 1024 * 1024 * 1024 * 1024,
+            'tb': 1024 * 1024 * 1024 * 1024,
+            'tib': 1024 * 1024 * 1024 * 1024,
+        };
+
+        return Math.floor(value * (multipliers[unit] || 0));
     }
 }
 

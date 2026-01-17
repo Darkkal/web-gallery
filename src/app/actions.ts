@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems } from '@/lib/db/schema';
+import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems, scrapeHistory } from '@/lib/db/schema';
 import { ScraperRunner } from '@/lib/scrapers/runner';
 import { scraperManager, ScrapingStatus } from '@/lib/scrapers/manager';
 import { revalidatePath } from 'next/cache';
@@ -31,6 +31,30 @@ export async function addSource(url: string) {
 
 export async function getSources() {
     return await db.select().from(sources);
+}
+
+export async function getSourcesWithHistory() {
+    // Get all sources
+    const allSources = await db.select().from(sources);
+
+    // For each source, get the most recent scrape history
+    const sourcesWithHistory = await Promise.all(
+        allSources.map(async (source) => {
+            const recentHistory = await db
+                .select()
+                .from(scrapeHistory)
+                .where(eq(scrapeHistory.sourceId, source.id))
+                .orderBy(desc(scrapeHistory.startTime))
+                .limit(1);
+
+            return {
+                ...source,
+                lastScrape: recentHistory[0] || null,
+            };
+        })
+    );
+
+    return sourcesWithHistory;
 }
 
 export async function scrapeSource(sourceId: number) {

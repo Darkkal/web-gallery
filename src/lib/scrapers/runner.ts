@@ -3,6 +3,46 @@ import path from 'path';
 import fs from 'fs';
 import { ScraperOptions, ScrapeResult } from './types';
 
+// Helper function to parse size strings like "120MiB" or "5.2M" to bytes
+function parseSizeStringToBytes(sizeStr: string): number {
+    if (!sizeStr) return 0;
+    const match = sizeStr.trim().match(/^([\d.]+)\s*([A-Za-z]*)$/);
+    if (!match) return 0;
+
+    const value = parseFloat(match[1]);
+    const unit = match[2].toLowerCase();
+
+    if (!unit) return Math.floor(value);
+
+    const multipliers: { [key: string]: number } = {
+        'b': 1,
+        'k': 1024,
+        'kb': 1024,
+        'kib': 1024,
+        'm': 1024 * 1024,
+        'mb': 1024 * 1024,
+        'mib': 1024 * 1024,
+        'g': 1024 * 1024 * 1024,
+        'gb': 1024 * 1024 * 1024,
+        'gib': 1024 * 1024 * 1024,
+        't': 1024 * 1024 * 1024 * 1024,
+        'tb': 1024 * 1024 * 1024 * 1024,
+        'tib': 1024 * 1024 * 1024 * 1024,
+    };
+
+    return Math.floor(value * (multipliers[unit] || 0));
+}
+
+// Helper function to format bytes to human-readable string
+function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0B';
+    if (bytes < 1024) return bytes + 'B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + sizes[i];
+}
+
 export class ScraperRunner {
     private basePath: string;
 
@@ -85,6 +125,8 @@ export class ScraperRunner {
             let downloadedCount = 0;
             let currentSpeed = '0B/s';
             let currentTotalSize = '0B';
+            let cumulativeBytes = 0; // Bytes from previously completed files
+            let currentFileBytes = 0; // Bytes from the currently downloading file
             let errorCount = 0;
             let isRateLimited = false;
 
@@ -113,11 +155,16 @@ export class ScraperRunner {
                         // {0}: bytes, {1}: speed, {2}: total, {3}: percent
                         const parts = line.replace('[progress]', '').split('|').map(p => p.trim());
                         if (parts.length >= 3) {
+                            currentFileBytes = parseSizeStringToBytes(parts[0]);
                             currentSpeed = parts[1];
                             currentTotalSize = parts[2];
                         }
                     } else if (line.startsWith('[success]')) {
                         downloadedCount++;
+                        // When a file is successful, add its total size to cumulative
+                        // and reset current file bytes
+                        cumulativeBytes += parseSizeStringToBytes(currentTotalSize);
+                        currentFileBytes = 0;
                     } else if (line.includes('public/downloads/') || line.includes('public\\downloads\\')) {
                         if (!line.endsWith('.json') && !line.includes('[debug]') && !line.includes('[info]') && !line.includes('[warning]')) {
                             if (currentSpeed === '0B/s') {
@@ -128,10 +175,12 @@ export class ScraperRunner {
                 }
 
                 if (options.onProgress) {
+                    // Include current file progress in the total
+                    const totalSoFar = cumulativeBytes + currentFileBytes;
                     options.onProgress({
                         downloadedCount,
                         speed: currentSpeed,
-                        totalSize: currentTotalSize,
+                        totalSize: formatBytes(totalSoFar),
                         errorCount,
                         isRateLimited,
                         isFinished: false
@@ -175,10 +224,12 @@ export class ScraperRunner {
 
             child.on('close', (code) => {
                 if (options.onProgress) {
+                    // Final report includes whatever was downloaded (even partials if closed)
+                    const totalSoFar = cumulativeBytes + currentFileBytes;
                     options.onProgress({
                         downloadedCount,
                         speed: '0B/s',
-                        totalSize: currentTotalSize,
+                        totalSize: formatBytes(totalSoFar),
                         errorCount,
                         isRateLimited,
                         isFinished: true

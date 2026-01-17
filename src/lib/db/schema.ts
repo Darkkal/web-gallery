@@ -5,8 +5,19 @@ export const sources = sqliteTable('sources', {
     url: text('url').notNull(),
     type: text('type').$type<'gallery-dl' | 'yt-dlp' | 'unknown'>().default('unknown'),
     name: text('name'),
-    lastScrapedAt: integer('last_scraped_at', { mode: 'timestamp' }),
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
+export const scrapeHistory = sqliteTable('scrape_history', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    sourceId: integer('source_id').references(() => sources.id).notNull(),
+    startTime: integer('start_time', { mode: 'timestamp' }).notNull(),
+    endTime: integer('end_time', { mode: 'timestamp' }),
+    status: text('status').$type<'running' | 'completed' | 'stopped' | 'failed'>().notNull(),
+    filesDownloaded: integer('files_downloaded').default(0),
+    bytesDownloaded: integer('bytes_downloaded').default(0),
+    errorCount: integer('error_count').default(0),
+    averageSpeed: integer('average_speed').default(0), // bytes per second
 });
 
 export const mediaItems = sqliteTable('media_items', {

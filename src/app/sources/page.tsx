@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { addSource, getSources, scrapeSource, deleteSource, getScrapingStatuses, stopScrapingSource } from '../actions';
+import { addSource, getSources, scrapeSource, deleteSource, getScrapingStatuses, stopScrapingSource, getSourcesWithHistory } from '../actions';
 import { ScrapingStatus } from '@/lib/scrapers/manager';
 import styles from './page.module.css';
 
@@ -67,7 +67,7 @@ export default function SourcesPage() {
   }
 
   async function loadSources() {
-    const data = await getSources();
+    const data = await getSourcesWithHistory();
     setSources(data);
   }
 
@@ -114,6 +114,29 @@ export default function SourcesPage() {
     }
   }
 
+  function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  }
+
+  function formatDuration(start: Date | string, end: Date | string): string {
+    const startTime = new Date(start).getTime();
+    const endTime = new Date(end).getTime();
+    const durationMs = endTime - startTime;
+    const seconds = Math.floor(durationMs / 1000);
+
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m`;
+  }
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
@@ -147,7 +170,6 @@ export default function SourcesPage() {
                   <h3>{source.name || source.url}</h3>
                   <div className={styles.meta}>
                     <span className={styles.badge}>{source.type}</span>
-                    <span>Last Scraped: {source.lastScrapedAt ? new Date(source.lastScrapedAt).toLocaleString() : 'Never'}</span>
                   </div>
                 </div>
                 <div className={styles.actions}>
@@ -175,6 +197,54 @@ export default function SourcesPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Display last scrape history if available */}
+              {source.lastScrape && !status && (
+                <div className={styles.historyInfo}>
+                  <div className={styles.progressRows}>
+                    <div className={styles.progressItem}>
+                      <span className={styles.progressLabel}>Last Attempt:</span>
+                      <span>
+                        {new Date(source.lastScrape.startTime).toLocaleString()}
+                        {' '}
+                        <span className={`${styles.badge} ${styles[`status-${source.lastScrape.status}`]}`}>
+                          {source.lastScrape.status}
+                        </span>
+                      </span>
+                    </div>
+                    {source.lastScrape.filesDownloaded > 0 && (
+                      <div className={styles.progressItem}>
+                        <span className={styles.progressLabel}>Files:</span>
+                        <span>{source.lastScrape.filesDownloaded}</span>
+                      </div>
+                    )}
+                    {source.lastScrape.bytesDownloaded > 0 && (
+                      <div className={styles.progressItem}>
+                        <span className={styles.progressLabel}>Data:</span>
+                        <span>{formatBytes(source.lastScrape.bytesDownloaded)}</span>
+                      </div>
+                    )}
+                    {source.lastScrape.endTime && (
+                      <div className={styles.progressItem}>
+                        <span className={styles.progressLabel}>Duration:</span>
+                        <span>{formatDuration(source.lastScrape.startTime, source.lastScrape.endTime)}</span>
+                      </div>
+                    )}
+                    {source.lastScrape.averageSpeed > 0 && (
+                      <div className={styles.progressItem}>
+                        <span className={styles.progressLabel}>Avg Speed:</span>
+                        <span>{formatBytes(source.lastScrape.averageSpeed)}/s</span>
+                      </div>
+                    )}
+                    {source.lastScrape.errorCount > 0 && (
+                      <div className={styles.progressItem}>
+                        <span className={styles.progressLabel}>Errors:</span>
+                        <span className={styles.errorItem}>{source.lastScrape.errorCount}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {status && (
                 <div className={styles.progressInfo}>
