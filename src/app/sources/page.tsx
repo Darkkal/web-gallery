@@ -139,10 +139,8 @@ export default function SourcesPage() {
 
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Sources</h1>
-        <a href="/" className={styles.secondaryButton}>Back to Home</a>
-      </header>
+
+
 
       <form onSubmit={handleAdd} className={styles.addForm}>
         <input

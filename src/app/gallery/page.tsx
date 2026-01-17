@@ -101,8 +101,7 @@ export default function GalleryPage() {
 
     return (
         <div className={styles.container}>
-            <header className={styles.header}>
-                <h1 className={styles.title}>Gallery</h1>
+            <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'flex-start', gap: '1rem' }}>
                 <div className={styles.controls}>
                     <button
                         className={selectionMode ? styles.activeButton : styles.secondaryButton}
@@ -128,9 +127,8 @@ export default function GalleryPage() {
                     >
                         {scanning ? 'Scanning...' : 'Scan Library'}
                     </button>
-                    <a href="/" className={styles.secondaryButton}>Back to Home</a>
                 </div>
-            </header>
+            </div>
 
             {selectionMode && selectedIds.size > 0 && (
                 <div className={styles.bulkActionBar}>

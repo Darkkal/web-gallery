@@ -70,12 +70,8 @@ export default function TimelinePage() {
 
     return (
         <div className={styles.container}>
-            <header className={styles.header}>
-                <h1 className={styles.title}>Timeline</h1>
-                <div className={styles.controls}>
-                    <a href="/" className={styles.secondaryButton}>Back to Home</a>
-                </div>
-            </header>
+
+
 
             <div className={styles.feed}>
                 {posts.map((post, postIdx) => (
