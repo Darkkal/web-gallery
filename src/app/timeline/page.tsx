@@ -1,194 +1,194 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getMediaItems, deleteMediaItems } from '../actions';
+import { getTimelinePosts, TimelinePost } from '../actions';
 import Lightbox from '../../components/Lightbox';
 import styles from './page.module.css';
 
 export default function TimelinePage() {
-    const [items, setItems] = useState<any[]>([]);
-    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-
-    // Selection state
-    const [selectionMode, setSelectionMode] = useState(false);
-    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-    const [deleting, setDeleting] = useState(false);
+    const [posts, setPosts] = useState<TimelinePost[]>([]);
+    const [selectedIndex, setSelectedIndex] = useState<{ postIndex: number, mediaIndex: number } | null>(null);
 
     useEffect(() => {
-        loadItems();
+        loadPosts();
     }, []);
 
-    async function loadItems() {
-        const data = await getMediaItems({ sortBy: 'captured-desc' });
-        setItems(data);
+    async function loadPosts() {
+        const data = await getTimelinePosts(1, 100); // Fetch 100 posts for now
+        setPosts(data);
     }
 
-    function toggleSelection(id: number) {
-        const newSelected = new Set(selectedIds);
-        if (newSelected.has(id)) {
-            newSelected.delete(id);
-        } else {
-            newSelected.add(id);
-        }
-        setSelectedIds(newSelected);
-    }
+    const openLightbox = (postIndex: number, mediaIndex: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setSelectedIndex({ postIndex, mediaIndex });
+    };
 
-    function selectAll() {
-        const allIds = items.map(row => row.item.id);
-        setSelectedIds(new Set(allIds));
-    }
+    const closeLightbox = () => setSelectedIndex(null);
 
-    async function handleBulkDelete(deleteFiles: boolean) {
-        if (selectedIds.size === 0) return;
-        const message = deleteFiles
-            ? `Permanently delete ${selectedIds.size} files from disk and database?`
-            : `Delete ${selectedIds.size} records from the database? (Files stay on disk)`;
+    // Prepare Lightbox Data from current selection
+    const getLightboxProps = () => {
+        if (!selectedIndex) return null;
+        const post = posts[selectedIndex.postIndex];
+        const media = post.mediaItems[selectedIndex.mediaIndex];
 
-        if (!confirm(message)) return;
+        // Adapt Post data to Lightbox expectations (backward compatibility format)
+        // We construct "fake" objects that resemble the DB schema enough for Lightbox
+        return {
+            item: {
+                id: media.id,
+                filePath: media.url,
+                mediaType: media.type,
+                title: post.content, // Fallback
+                capturedAt: post.date,
+            },
+            tweet: post.type === 'twitter' ? {
+                content: post.content,
+                favoriteCount: post.stats?.likes,
+                retweetCount: post.stats?.retweets,
+                bookmarkCount: post.stats?.bookmarks,
+                viewCount: post.stats?.views,
+            } : undefined,
+            user: post.type === 'twitter' ? {
+                name: post.author?.name,
+                nick: post.author?.handle,
+                profileImage: post.author?.avatar,
+            } : undefined,
+            pixiv: post.type === 'pixiv' ? {
+                title: post.content,
+                totalBookmarks: post.stats?.likes,
+                totalView: post.stats?.views,
+            } : undefined,
+            pixivUser: post.type === 'pixiv' ? {
+                name: post.author?.name,
+                account: post.author?.handle,
+                profileImage: post.author?.avatar,
+            } : undefined,
+        };
+    };
 
-        setDeleting(true);
-        try {
-            await deleteMediaItems(Array.from(selectedIds), deleteFiles);
-            setSelectedIds(new Set());
-            setSelectionMode(false);
-            await loadItems();
-        } catch (err) {
-            alert("Failed to delete items: " + err);
-        } finally {
-            setDeleting(false);
-        }
-    }
-
-    async function handleDeleteItem(id: number, deleteFile: boolean) {
-        setDeleting(true);
-        try {
-            await deleteMediaItems([id], deleteFile);
-            setSelectedIndex(null);
-            await loadItems();
-        } catch (err) {
-            alert("Failed to delete item: " + err);
-        } finally {
-            setDeleting(false);
-        }
-    }
-
-    // Group items by month
-    const grouped = items.reduce((acc, row) => {
-        const item = row.item;
-        const date = item.capturedAt ? new Date(item.capturedAt) : new Date(item.createdAt);
-        const key = date.toLocaleString('default', { month: 'long', year: 'numeric' });
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(row);
-        return acc;
-    }, {} as Record<string, any[]>);
+    const lightboxProps = getLightboxProps();
 
     return (
         <div className={styles.container}>
             <header className={styles.header}>
                 <h1 className={styles.title}>Timeline</h1>
                 <div className={styles.controls}>
-                    <button
-                        className={selectionMode ? styles.activeButton : styles.secondaryButton}
-                        onClick={() => {
-                            setSelectionMode(!selectionMode);
-                            if (selectionMode) setSelectedIds(new Set());
-                        }}
-                    >
-                        {selectionMode ? 'Cancel Selection' : 'Select Items'}
-                    </button>
-                    {selectionMode && (
-                        <button
-                            className={styles.secondaryButton}
-                            onClick={selectAll}
-                        >
-                            Select All ({items.length})
-                        </button>
-                    )}
                     <a href="/" className={styles.secondaryButton}>Back to Home</a>
                 </div>
             </header>
 
-            {selectionMode && selectedIds.size > 0 && (
-                <div className={styles.bulkActionBar}>
-                    <span>{selectedIds.size} items selected</span>
-                    <div className={styles.bulkActionButtons}>
-                        <button
-                            className={styles.secondaryDeleteButton}
-                            onClick={() => handleBulkDelete(false)}
-                            disabled={deleting}
-                        >
-                            {deleting ? '...' : 'Delete from DB'}
-                        </button>
-                        <button
-                            className={styles.deleteButton}
-                            onClick={() => handleBulkDelete(true)}
-                            disabled={deleting}
-                        >
-                            {deleting ? 'Deleting...' : 'Delete from Disk & DB'}
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            <div className={styles.timeline}>
-                {Object.entries(grouped).map(([date, groupItems]) => (
-                    <div key={date} className={styles.group}>
-                        <h2 className={styles.dateHeader}>{date}</h2>
-                        <div className={styles.grid}>
-                            {(groupItems as any[]).map((row) => {
-                                const item = row.item;
-                                const isSelected = selectedIds.has(item.id);
-                                return (
-                                    <div
-                                        key={item.id}
-                                        className={`${styles.item} ${isSelected ? styles.selectedItem : ''}`}
-                                        onClick={() => {
-                                            if (selectionMode) {
-                                                toggleSelection(item.id);
-                                            } else {
-                                                setSelectedIndex(items.findIndex(i => i.item.id === item.id));
-                                            }
-                                        }}
-                                    >
-                                        {selectionMode && (
-                                            <div className={styles.checkbox}>
-                                                {isSelected ? '✓' : ''}
-                                            </div>
-                                        )}
-                                        {item.mediaType === 'video' ? (
-                                            <video src={item.filePath} className={styles.media} controls />
-                                        ) : (
-                                            <img src={item.filePath} alt={item.title} className={styles.media} loading="lazy" />
-                                        )}
-                                        <div className={styles.info}>
-                                            <p className={styles.itemDate}>
-                                                {new Date(item.capturedAt || item.createdAt).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )
-                            })}
+            <div className={styles.feed}>
+                {posts.map((post, postIdx) => (
+                    <article key={post.id} className={styles.postCard}>
+                        {/* Header: Avatar, Name, Date */}
+                        <div className={styles.postHeader}>
+                            {post.author?.avatar ? (
+                                <img src={post.author.avatar} alt={post.author.name} className={styles.avatar} />
+                            ) : (
+                                <div className={styles.avatarPlaceholder} />
+                            )}
+                            <div className={styles.postMeta}>
+                                <div className={styles.authorRow}>
+                                    <span className={styles.authorName}>{post.author?.name || 'Unknown'}</span>
+                                    {post.author?.handle && <span className={styles.authorHandle}>@{post.author.handle}</span>}
+                                </div>
+                                <div className={styles.dateRow}>
+                                    <span className={styles.date}>
+                                        {new Date(post.date).toLocaleString()}
+                                    </span>
+                                    {post.type !== 'other' && (
+                                        <span className={`${styles.badge} ${styles[post.type]}`}>
+                                            {post.type}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            {post.sourceUrl && (
+                                <a href={post.sourceUrl} target="_blank" rel="noopener noreferrer" className={styles.sourceLink}>
+                                    ↗
+                                </a>
+                            )}
                         </div>
-                    </div>
+
+                        {/* Content: Text */}
+                        {post.content && (
+                            <div
+                                className={styles.postContent}
+                                onClick={(e) => {
+                                    // Find text media item index
+                                    const textMediaIndex = post.mediaItems.findIndex(m => m.type === 'text');
+                                    if (textMediaIndex !== -1) {
+                                        openLightbox(postIdx, textMediaIndex, e);
+                                    }
+                                }}
+                                style={{ cursor: post.mediaItems.some(m => m.type === 'text') ? 'pointer' : 'default' }}
+                            >
+                                {post.content}
+                            </div>
+                        )}
+
+                        {/* Media Grid */}
+                        {post.mediaItems.filter(m => m.type !== 'text').length > 0 && (
+                            <div className={`${styles.mediaGrid} ${styles[`grid-${Math.min(post.mediaItems.filter(m => m.type !== 'text').length, 4)}`]}`}>
+                                {post.mediaItems.map((media, originalIndex) => {
+                                    if (media.type === 'text') return null;
+                                    return (
+                                        <div
+                                            key={media.id}
+                                            className={styles.mediaItem}
+                                            onClick={(e) => openLightbox(postIdx, originalIndex, e)}
+                                        >
+                                            {media.type === 'video' ? (
+                                                <video src={media.url} controls className={styles.media} />
+                                            ) : (
+                                                <img src={media.url} alt="" className={styles.media} loading="lazy" />
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* Stats Footer (Optional) */}
+                        {post.stats && (
+                            <div className={styles.postFooter}>
+                                {post.stats.likes !== undefined && <span>♥ {post.stats.likes}</span>}
+                                {post.stats.retweets !== undefined && <span>RP {post.stats.retweets}</span>}
+                                {/* Add more stats as needed */}
+                            </div>
+                        )}
+                    </article>
                 ))}
-                {items.length === 0 && <p className={styles.empty}>No items found.</p>}
+
+                {posts.length === 0 && <p className={styles.empty}>No posts found.</p>}
             </div>
 
-            {
-                selectedIndex !== null && items[selectedIndex] && (
-                    <Lightbox
-                        item={items[selectedIndex].item}
-                        tweet={items[selectedIndex].tweet}
-                        user={items[selectedIndex].user}
-                        pixiv={items[selectedIndex].pixiv}
-                        pixivUser={items[selectedIndex].pixivUser}
-                        onClose={() => setSelectedIndex(null)}
-                        onNext={selectedIndex < items.length - 1 ? () => setSelectedIndex(selectedIndex + 1) : undefined}
-                        onPrev={selectedIndex > 0 ? () => setSelectedIndex(selectedIndex - 1) : undefined}
-                        onDelete={handleDeleteItem}
-                    />
-                )
-            }
-        </div >
+            {selectedIndex && lightboxProps && (
+                <Lightbox
+                    {...lightboxProps}
+                    onClose={closeLightbox}
+                    onNext={() => {
+                        // Logic to go to next media in post, or next post?
+                        // Standard behavior: Next media in post. If at end of post, next post.
+                        const post = posts[selectedIndex.postIndex];
+                        if (selectedIndex.mediaIndex < post.mediaItems.length - 1) {
+                            setSelectedIndex({ ...selectedIndex, mediaIndex: selectedIndex.mediaIndex + 1 });
+                        } else if (selectedIndex.postIndex < posts.length - 1) {
+                            setSelectedIndex({ postIndex: selectedIndex.postIndex + 1, mediaIndex: 0 });
+                        }
+                    }}
+                    onPrev={() => {
+                        if (selectedIndex.mediaIndex > 0) {
+                            setSelectedIndex({ ...selectedIndex, mediaIndex: selectedIndex.mediaIndex - 1 });
+                        } else if (selectedIndex.postIndex > 0) {
+                            const prevPost = posts[selectedIndex.postIndex - 1];
+                            setSelectedIndex({ postIndex: selectedIndex.postIndex - 1, mediaIndex: prevPost.mediaItems.length - 1 });
+                        }
+                    }}
+                    // Delete not implemented for Timeline View yet
+                    onDelete={undefined}
+                />
+            )}
+        </div>
     );
 }

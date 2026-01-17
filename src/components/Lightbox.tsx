@@ -109,6 +109,13 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, onClose,
                             controls
                             onClick={(e) => e.stopPropagation()}
                         />
+                    ) : item.mediaType === 'text' ? (
+                        <div
+                            className={styles.textContent}
+                            onClick={(e) => { e.stopPropagation(); setShowInfo(!showInfo); }}
+                        >
+                            {item.title}
+                        </div>
                     ) : (
                         <img
                             src={item.filePath}

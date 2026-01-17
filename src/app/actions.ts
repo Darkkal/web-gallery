@@ -279,6 +279,157 @@ export async function getMediaItems(
     return filtered;
 }
 
+export type TimelinePost = {
+    id: string; // Unique ID for the post group
+    type: 'twitter' | 'pixiv' | 'other';
+    date: Date;
+    author?: {
+        name?: string;
+        handle?: string; // nick or account
+        avatar?: string;
+        url?: string;
+    };
+    content?: string;
+    mediaItems: {
+        id: number;
+        url: string; // filePath
+        type: 'image' | 'video' | 'audio' | 'text';
+        width?: number; // for pixiv mainly
+        height?: number;
+    }[];
+    stats?: {
+        likes?: number; // favorite_count / total_bookmarks
+        views?: number;
+        bookmarks?: number; // bookmark_count
+        retweets?: number;
+    };
+    sourceUrl?: string; // Original Post URL
+};
+
+export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePost[]> {
+    // 1. Fetch all items (including text)
+    // We fetch a larger batch because grouping reduces the count
+    // This is a naive pagination for now (fetching limit * X items and grouping)
+    // A proper SQL group-by pagination is complex with this schema.
+    // For now, let's fetch 'limit' * 5 items to try and fill 'limit' posts.
+
+    // Note: To implement proper pagination, we might need to fetch distinct tweetIds/pixivIds first.
+    // But we also have mixed content (non-grouped items).
+    // Let's stick to fetching detailed items and grouping in memory for this scale.
+
+    // TODO: Optimize pagination. Currently fetching all and slicing might be too heavy eventually.
+    // But user has requested "Timeline", usually implies recent first.
+
+    const items = await db.select({
+        item: mediaItems,
+        tweet: twitterTweets,
+        twitterUser: twitterUsers,
+        illust: pixivIllusts,
+        pixivUser: pixivUsers,
+        source: sources,
+    })
+        .from(mediaItems)
+        .leftJoin(twitterTweets, eq(mediaItems.id, twitterTweets.mediaItemId))
+        .leftJoin(twitterUsers, eq(twitterTweets.userId, twitterUsers.id))
+        .leftJoin(pixivIllusts, eq(mediaItems.id, pixivIllusts.mediaItemId))
+        .leftJoin(pixivUsers, eq(pixivIllusts.userId, pixivUsers.id))
+        .leftJoin(sources, eq(mediaItems.sourceId, sources.id))
+        .orderBy(desc(mediaItems.capturedAt));
+    // We sort by capturedAt (content date) to order the timeline chronologically.
+
+    // 2. Group items
+    const postsMap = new Map<string, TimelinePost>();
+    const processingOrder: string[] = []; // To maintain sort order
+
+    for (const row of items) {
+        let groupId: string;
+        let type: 'twitter' | 'pixiv' | 'other' = 'other';
+        let author: TimelinePost['author'] = undefined;
+        let content: string | undefined = undefined;
+        let stats: TimelinePost['stats'] = undefined;
+        let sourceUrl: string | undefined = undefined;
+
+        // Determine Group ID and Metadata
+        if (row.tweet) {
+            groupId = `twitter-${row.tweet.tweetId}`;
+            type = 'twitter';
+            author = {
+                name: row.twitterUser?.name || undefined,
+                handle: row.twitterUser?.nick || undefined,
+                avatar: row.twitterUser?.profileImage || undefined,
+                url: row.twitterUser ? `https://twitter.com/${row.twitterUser.nick}` : undefined
+            };
+            content = row.tweet.content || undefined;
+            stats = {
+                likes: row.tweet.favoriteCount || 0,
+                views: row.tweet.viewCount || 0,
+                bookmarks: row.tweet.bookmarkCount || 0,
+                retweets: row.tweet.retweetCount || 0
+            };
+            sourceUrl = `https://twitter.com/${row.tweet.userId}/status/${row.tweet.tweetId}`; // Approximate
+        } else if (row.illust) {
+            groupId = `pixiv-${row.illust.pixivId}`;
+            type = 'pixiv';
+            author = {
+                name: row.pixivUser?.name || undefined,
+                handle: row.pixivUser?.account || undefined,
+                avatar: row.pixivUser?.profileImage || undefined,
+                url: row.pixivUser ? `https://www.pixiv.net/users/${row.pixivUser.id}` : undefined
+            };
+            content = row.illust.caption || row.illust.title || undefined;
+            stats = {
+                likes: row.illust.totalBookmarks || 0, // Pixiv bookmarks is mostly like 'likes'
+                views: row.illust.totalView || 0,
+            };
+            sourceUrl = `https://www.pixiv.net/artworks/${row.illust.pixivId}`;
+        } else {
+            groupId = `item-${row.item.id}`; // Standalone
+            type = 'other';
+            content = row.item.description || row.item.title || undefined;
+            sourceUrl = row.item.originalUrl || undefined;
+        }
+
+        // Init Post if needed
+        if (!postsMap.has(groupId)) {
+            // Use the date of the first item encountered (which is latest due to sort)
+            const date = row.item.capturedAt || row.item.createdAt || new Date();
+
+            postsMap.set(groupId, {
+                id: groupId,
+                type,
+                date,
+                author,
+                content,
+                mediaItems: [],
+                stats,
+                sourceUrl
+            });
+            processingOrder.push(groupId);
+        }
+
+        const post = postsMap.get(groupId)!;
+
+        // Add Media Item (include text items so they can be selected in lightbox)
+        post.mediaItems.push({
+            id: row.item.id,
+            url: row.item.filePath,
+            type: row.item.mediaType as 'image' | 'video' | 'audio' | 'text',
+            width: row.illust?.width || undefined,
+            height: row.illust?.height || undefined // Only Pixiv has reliable dimensions in DB currently
+        });
+    }
+
+    // Pagination (In Memory)
+    // Convert map to array in order
+    const allPosts = processingOrder.map(id => postsMap.get(id)!);
+
+    // Apply pagination
+    const start = (page - 1) * limit;
+    const end = start + limit;
+
+    return allPosts.slice(start, end);
+}
+
 export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
     try {
         console.log(`[deleteMediaItems] Deleting ${ids.length} items (deleteFiles: ${deleteFiles})`);
