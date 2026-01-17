@@ -81,11 +81,21 @@ h6 {
 }
 
 /* Main Content Wrapper for Navigation */
-.main-content {
+.app-container {
   min-height: 100vh;
 }
 
+.main-content {
+  flex: 1;
+  min-width: 0;
+  /* Prevent flex child overflow issues */
+}
+
 @media (max-width: 767px) {
+  .app-container {
+    display: block;
+  }
+
   .main-content {
     padding-bottom: 80px;
     /* 60px nav + 20px buffer */
@@ -93,7 +103,10 @@ h6 {
 }
 
 @media (min-width: 768px) {
-  .main-content {
-    padding-left: 240px;
+  .app-container {
+    display: flex;
+    flex-direction: row;
   }
+
+  /* Removed padding-left: 240px as flex layout handles sidebar width automatically */
 }

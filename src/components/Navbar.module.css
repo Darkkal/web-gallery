@@ -68,14 +68,22 @@
 /* Desktop (Sidebar) */
 @media (min-width: 768px) {
     .navbar {
+        position: sticky;
         top: 0;
-        left: 0;
-        bottom: 0;
+        height: 100vh;
         width: 240px;
         border-right: 1px solid hsl(var(--border));
         flex-direction: column;
         padding: 1.5rem 1rem;
         gap: 0.5rem;
+        transition: width 0.3s ease;
+    }
+
+    .navItems {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        flex: 1;
     }
 
     .link {
@@ -83,6 +91,8 @@
         padding: 0.75rem 1rem;
         border-radius: var(--radius);
         gap: 12px;
+        white-space: nowrap;
+        overflow: hidden;
     }
 
     .link:hover {
@@ -92,5 +102,51 @@
     .link[data-active="true"] {
         background-color: hsl(var(--secondary));
         color: hsl(var(--primary));
+    }
+
+    /* Collapsed State */
+    .navbar[data-collapsed="true"] {
+        width: 80px;
+    }
+
+    .navbar[data-collapsed="true"] .label {
+        display: none;
+        opacity: 0;
+    }
+
+    .navbar[data-collapsed="true"] .link {
+        justify-content: center;
+        padding: 0.75rem 0;
+    }
+
+    .collapseButton {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem;
+        background: transparent;
+        border: 1px solid hsl(var(--border));
+        color: hsl(var(--muted-foreground));
+        border-radius: var(--radius);
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: auto;
+    }
+
+    .collapseButton:hover {
+        background: hsl(var(--secondary));
+        color: hsl(var(--foreground));
+    }
+}
+
+/* Hide collapse button on mobile */
+@media (max-width: 767px) {
+    .collapseButton {
+        display: none;
+    }
+
+    .navItems {
+        display: contents;
+        /* Let children participate in navbar grid/flex */
     }
 }
