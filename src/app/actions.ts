@@ -304,6 +304,10 @@ export type TimelinePost = {
         retweets?: number;
     };
     sourceUrl?: string; // Original Post URL
+    pixivMetadata?: {
+        dbId: number;
+        illustId: number;
+    };
 };
 
 export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePost[]> {
@@ -348,6 +352,7 @@ export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePo
         let content: string | undefined = undefined;
         let stats: TimelinePost['stats'] = undefined;
         let sourceUrl: string | undefined = undefined;
+        let pixivMetadata: TimelinePost['pixivMetadata'] = undefined;
 
         // Determine Group ID and Metadata
         if (row.tweet) {
@@ -382,6 +387,10 @@ export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePo
                 views: row.illust.totalView || 0,
             };
             sourceUrl = `https://www.pixiv.net/artworks/${row.illust.pixivId}`;
+            pixivMetadata = {
+                dbId: row.illust.id,
+                illustId: row.illust.pixivId
+            };
         } else {
             groupId = `item-${row.item.id}`; // Standalone
             type = 'other';
@@ -402,7 +411,8 @@ export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePo
                 content,
                 mediaItems: [],
                 stats,
-                sourceUrl
+                sourceUrl,
+                pixivMetadata
             });
             processingOrder.push(groupId);
         }

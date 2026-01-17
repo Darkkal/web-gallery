@@ -54,6 +54,8 @@ export default function TimelinePage() {
                 profileImage: post.author?.avatar,
             } : undefined,
             pixiv: post.type === 'pixiv' ? {
+                id: post.pixivMetadata?.dbId,
+                pixivId: post.pixivMetadata?.illustId,
                 title: post.content,
                 totalBookmarks: post.stats?.likes,
                 totalView: post.stats?.views,
