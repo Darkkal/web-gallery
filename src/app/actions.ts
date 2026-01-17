@@ -1,14 +1,15 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems, scrapeHistory, pixivUsers, pixivIllusts, tags, pixivIllustTags } from '@/lib/db/schema';
+import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems, scrapeHistory, pixivUsers, pixivIllusts, tags, pixivIllustTags, scanHistory } from '@/lib/db/schema';
 import { ScraperRunner } from '@/lib/scrapers/runner';
 import { scraperManager, ScrapingStatus } from '@/lib/scrapers/manager';
 import { revalidatePath } from 'next/cache';
 import path from 'path';
 import { eq, desc, ne, inArray } from 'drizzle-orm';
-import { syncLibrary } from '@/lib/library/scanner';
+import { syncLibrary, stopScanning } from '@/lib/library/scanner';
 import fs from 'fs/promises';
+
 
 
 const DOWNLOAD_DIR = path.join(process.cwd(), 'public', 'downloads');
@@ -128,9 +129,40 @@ export async function deleteSource(id: number) {
 }
 
 export async function scanLibrary() {
-    await syncLibrary();
-    revalidatePath('/gallery');
-    revalidatePath('/');
+    // Run sync in background? Or await?
+    // User asked to avoid loading entire collection memory. `syncLibrary` is optimized.
+    // It is an async function. Next.js actions can be long running, but Vercel limits them.
+    // Since this is local, we can just await it or fire and forget.
+    // Ideally fire and forget but `syncLibrary` is not a background worker manager.
+    // For now, let's await it so the button shows loading state, 
+    // OR we can rely on `getLatestScan` polling to show status if we make it fire-and-forget.
+    // Given the request for monitoring, making it background + polling is better UX.
+
+    // We can't easily "fire and forget" in server actions without `after` (Next.js 15 experimental) or just not awaiting.
+    // But if we don't await, the lambda might die in serverless. Local node is fine.
+
+    // Let's NOT await it fully if we want the UI to update immediately.
+    // But `setScanning(true)` in UI waits for this promise.
+    // So if we await, the UI blocks.
+    // Let's trigger it without await?
+
+    syncLibrary().catch(console.error);
+    return { started: true };
+}
+
+export async function stopLibraryScan() {
+    stopScanning();
+    return { requested: true };
+}
+
+
+export async function getScanHistory() {
+    return await db.select().from(scanHistory).orderBy(desc(scanHistory.startTime));
+}
+
+export async function getLatestScan() {
+    const scans = await db.select().from(scanHistory).orderBy(desc(scanHistory.startTime)).limit(1);
+    return scans[0] || null;
 }
 
 export async function getMediaItems(
@@ -169,20 +201,6 @@ export async function getMediaItems(
         .leftJoin(sources, eq(mediaItems.sourceId, sources.id)) // Join sources for text search
         .where(conditions);
 
-    // Fetch tags for filtering if needed. 
-    // Doing a separate query or join for tags can be heavy if we join everything.
-    // However, to filter by tag name efficiently in valid SQL, we would usually need a join.
-    // For now, let's fetch all necessary data and filter in memory since our dataset is not massive yet,
-    // OR separate tag fetching. 
-    // Given the architecture, let's fetch tags locally for the candidates if strict SQL search is hard without 1-to-many explosion.
-    // Actually, let's just do in-memory filtering for the complex text search to keep it flexible as requested.
-
-    // Optimization: If search query is empty, our current join is fine.
-
-    // We need to fetch tags for each item to search them? 
-    // Actually, `pixivIllusts` has a `tags` JSON field! We can just search that! 
-    // `twitterTweets.content` is also available.
-
     const searchLower = searchQuery.toLowerCase();
 
     // Filter results
@@ -190,9 +208,6 @@ export async function getMediaItems(
         // 1. Min Favorites Filter
         if (minFavorites > 0) {
             if ((row.tweet?.favoriteCount || 0) < minFavorites) return false;
-            // Pixiv bookmarks count could be used here too if we want unified "favorites"
-            // if ((row.pixiv?.totalBookmarks || 0) < minFavorites) ... 
-            // For now, sticking to the existing behavior which seemed to imply Tweet favorites.
         }
 
         // 2. Text Search
@@ -224,14 +239,7 @@ export async function getMediaItems(
                 if (row.pixiv.caption?.toLowerCase().includes(searchLower)) hit = true;
 
                 // Check Pixiv Tags (JSON string)
-                // The schema says `tags` is `text` with mode `json`. Drizzle might parse it automatically if configured, 
-                // but our schema definition `tags: text('tags', { mode: 'json' })` suggests it comes back as an array.
-                // Let's check safely.
                 if (Array.isArray(row.pixiv.tags)) {
-                    // tags is array of strings or objects? Usually Pixiv tags are objects or strings.
-                    // Let's assume generic string search in the JSON representation if unsure, 
-                    // or iterate if it's an array of strings.
-                    // Printing to debug might be needed, but assuming standard "includes" on stringified ver guarantees hit.
                     if (JSON.stringify(row.pixiv.tags).toLowerCase().includes(searchLower)) hit = true;
                 }
             }
@@ -311,19 +319,6 @@ export type TimelinePost = {
 };
 
 export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePost[]> {
-    // 1. Fetch all items (including text)
-    // We fetch a larger batch because grouping reduces the count
-    // This is a naive pagination for now (fetching limit * X items and grouping)
-    // A proper SQL group-by pagination is complex with this schema.
-    // For now, let's fetch 'limit' * 5 items to try and fill 'limit' posts.
-
-    // Note: To implement proper pagination, we might need to fetch distinct tweetIds/pixivIds first.
-    // But we also have mixed content (non-grouped items).
-    // Let's stick to fetching detailed items and grouping in memory for this scale.
-
-    // TODO: Optimize pagination. Currently fetching all and slicing might be too heavy eventually.
-    // But user has requested "Timeline", usually implies recent first.
-
     const items = await db.select({
         item: mediaItems,
         tweet: twitterTweets,
@@ -339,7 +334,6 @@ export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePo
         .leftJoin(pixivUsers, eq(pixivIllusts.userId, pixivUsers.id))
         .leftJoin(sources, eq(mediaItems.sourceId, sources.id))
         .orderBy(desc(mediaItems.capturedAt));
-    // We sort by capturedAt (content date) to order the timeline chronologically.
 
     // 2. Group items
     const postsMap = new Map<string, TimelinePost>();
@@ -431,7 +425,12 @@ export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePo
 
     // Pagination (In Memory)
     // Convert map to array in order
-    const allPosts = processingOrder.map(id => postsMap.get(id)!);
+    const allPosts = processingOrder.map(id => {
+        const post = postsMap.get(id)!;
+        // Sort media items by URL (filename) to ensure p0, p1, p2 order
+        post.mediaItems.sort((a, b) => a.url.localeCompare(b.url));
+        return post;
+    });
 
     // Apply pagination
     const start = (page - 1) * limit;

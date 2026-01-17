@@ -20,6 +20,18 @@ export const scrapeHistory = sqliteTable('scrape_history', {
     averageSpeed: integer('average_speed').default(0), // bytes per second
 });
 
+export const scanHistory = sqliteTable('scan_history', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    startTime: integer('start_time', { mode: 'timestamp' }).notNull(),
+    endTime: integer('end_time', { mode: 'timestamp' }),
+    status: text('status').$type<'running' | 'completed' | 'failed' | 'stopped'>().notNull(),
+    filesProcessed: integer('files_processed').default(0),
+    filesAdded: integer('files_added').default(0),
+    filesUpdated: integer('files_updated').default(0),
+    filesDeleted: integer('files_deleted').default(0),
+    errors: integer('errors').default(0),
+});
+
 export const mediaItems = sqliteTable('media_items', {
     id: integer('id').primaryKey({ autoIncrement: true }),
     sourceId: integer('source_id').references(() => sources.id),
@@ -43,7 +55,7 @@ export const collections = sqliteTable('collections', {
 export const collectionItems = sqliteTable('collection_items', {
     id: integer('id').primaryKey({ autoIncrement: true }),
     collectionId: integer('collection_id').references(() => collections.id).notNull(),
-    mediaItemId: integer('media_item_id').references(() => mediaItems.id).notNull(),
+    mediaItemId: integer('media_item_id').references(() => mediaItems.id, { onDelete: 'cascade' }).notNull(),
     addedAt: integer('added_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
@@ -69,7 +81,7 @@ export const twitterUsers = sqliteTable('twitter_users', {
 export const twitterTweets = sqliteTable('twitter_tweets', {
     id: integer('id').primaryKey({ autoIncrement: true }),
     tweetId: text('tweet_id').notNull(),
-    mediaItemId: integer('media_item_id').references(() => mediaItems.id),
+    mediaItemId: integer('media_item_id').references(() => mediaItems.id, { onDelete: 'cascade' }),
     retweetId: text('retweet_id'),
     quoteId: text('quote_id'),
     replyId: text('reply_id'),
@@ -105,7 +117,7 @@ export const pixivUsers = sqliteTable('pixiv_users', {
 export const pixivIllusts = sqliteTable('pixiv_illusts', {
     id: integer('id').primaryKey({ autoIncrement: true }),
     pixivId: integer('pixiv_id').notNull(),
-    mediaItemId: integer('media_item_id').references(() => mediaItems.id),
+    mediaItemId: integer('media_item_id').references(() => mediaItems.id, { onDelete: 'cascade' }),
     userId: text('user_id').references(() => pixivUsers.id),
     title: text('title'),
     type: text('type'),
@@ -136,9 +148,8 @@ export const tags = sqliteTable('tags', {
 });
 
 export const pixivIllustTags = sqliteTable('pixiv_illust_tags', {
-    illustId: integer('illust_id').references(() => pixivIllusts.id).notNull(),
-    tagId: integer('tag_id').references(() => tags.id).notNull(),
+    illustId: integer('illust_id').references(() => pixivIllusts.id, { onDelete: 'cascade' }).notNull(),
+    tagId: integer('tag_id').references(() => tags.id, { onDelete: 'cascade' }).notNull(),
 }, (t) => ({
     pk: primaryKey({ columns: [t.illustId, t.tagId] }),
 }));
-

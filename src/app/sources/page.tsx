@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { addSource, getSources, scrapeSource, deleteSource, getScrapingStatuses, stopScrapingSource, getSourcesWithHistory, scanLibrary } from '../actions';
+import React, { useState, useEffect, useRef } from 'react';
+import { addSource, getSources, scrapeSource, deleteSource, getScrapingStatuses, stopScrapingSource, getSourcesWithHistory, scanLibrary, getLatestScan, stopLibraryScan } from '../actions';
 import { ScrapingStatus } from '@/lib/scrapers/manager';
 import styles from './page.module.css';
 
@@ -11,9 +11,12 @@ export default function SourcesPage() {
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scrapingStatuses, setScrapingStatuses] = useState<ScrapingStatus[]>([]);
+  const [scanStatus, setScanStatus] = useState<any>(null); // Last scan record
 
-  const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
-  const lastActiveTimeRef = React.useRef<number>(Date.now());
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastActiveTimeRef = useRef<number>(Date.now());
+
+  const scanPollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const stopPolling = React.useCallback(() => {
     if (pollingIntervalRef.current) {
@@ -36,7 +39,6 @@ export default function SourcesPage() {
       if (hasActive) {
         lastActiveTimeRef.current = Date.now();
       } else {
-        // If nothing is active, check if we should stop polling
         if (Date.now() - lastActiveTimeRef.current > 30000) {
           console.log('[SourcesPage] No active scrapes for 30s, stopping polling.');
           stopPolling();
@@ -45,10 +47,31 @@ export default function SourcesPage() {
     }, 5000);
   }, [stopPolling]);
 
+  // Scan Polling
+  const startScanPolling = React.useCallback(() => {
+    if (scanPollingRef.current) return;
+
+    // Poll every 2 seconds roughly
+    scanPollingRef.current = setInterval(async () => {
+      const latest = await getLatestScan();
+      setScanStatus(latest);
+      if (latest && latest.status === 'running') {
+        setScanning(true);
+      } else {
+        setScanning(false);
+        if (scanPollingRef.current) {
+          clearInterval(scanPollingRef.current);
+          scanPollingRef.current = null;
+        }
+      }
+    }, 2000);
+  }, []);
+
   useEffect(() => {
     loadSources();
+    loadScanStatus();
 
-    // Initial check: if there are any active scrapes from a previous session, start polling
+    // Initial checks
     getScrapingStatuses().then(statuses => {
       setScrapingStatuses(statuses);
       if (statuses.some(s => !s.isFinished)) {
@@ -56,14 +79,36 @@ export default function SourcesPage() {
       }
     });
 
-    return () => stopPolling();
-  }, [startPolling, stopPolling]);
+    // Check if scan running
+    getLatestScan().then(latest => {
+      if (latest && latest.status === 'running') {
+        startScanPolling();
+      }
+    });
+
+    return () => {
+      stopPolling();
+      if (scanPollingRef.current) clearInterval(scanPollingRef.current);
+    };
+  }, [startPolling, stopPolling, startScanPolling]);
+
+  async function loadScanStatus() {
+    const latest = await getLatestScan();
+    setScanStatus(latest);
+  }
 
   async function handleScan() {
     setScanning(true);
     await scanLibrary();
-    setScanning(false);
+    // Start polling immediately
+    startScanPolling();
   }
+
+  async function handleStopScan() {
+    if (!confirm("Stop the scan? It will finish the current batch.")) return;
+    await stopLibraryScan();
+  }
+
 
   async function triggerStatusUpdate() {
     const statuses = await getScrapingStatuses();
@@ -147,7 +192,85 @@ export default function SourcesPage() {
   return (
     <div className={styles.container}>
 
+      {/* Scan Control Area */}
+      <div className={styles.scanSection} style={{ marginBottom: '2rem', padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2 style={{ margin: 0 }}>Library Scan</h2>
+            <p style={{ margin: '0.5rem 0 0', color: '#94a3b8', fontSize: '0.9rem' }}>
+              Scan local directory for new files.
+            </p>
+          </div>
+          <div>
+            {scanning ? (
+              <button
+                type="button"
+                className={styles.stopButton} // Reusing stop button style
+                onClick={handleStopScan}
+              >
+                Stop Scan
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={handleScan}
+                disabled={scanning}
+              >
+                {scanning ? 'Scanning...' : 'Scan Library'}
+              </button>
+            )}
+          </div>
+        </div>
 
+        {scanStatus && (
+          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #334155' }}>
+            <div style={{ display: 'flex', gap: '2rem', fontSize: '0.9rem', color: '#e2e8f0' }}>
+              <div>
+                <span style={{ color: '#94a3b8' }}>Status: </span>
+                <span className={`${styles.badge} ${styles[`status-${scanStatus.status}`] || ''}`}>
+                  {scanStatus.status}
+                </span>
+              </div>
+              {scanStatus.status === 'running' && (
+                <div>
+                  <span style={{ color: '#94a3b8' }}>Processed: </span>
+                  {scanStatus.filesProcessed} items
+                </div>
+              )}
+              {scanStatus.status !== 'running' && (
+                <>
+                  <div>
+                    <span style={{ color: '#94a3b8' }}>Last Run: </span>
+                    {new Date(scanStatus.startTime).toLocaleString()}
+                  </div>
+                  {scanStatus.endTime && (
+                    <div>
+                      <span style={{ color: '#94a3b8' }}>Duration: </span>
+                      {formatDuration(scanStatus.startTime, scanStatus.endTime)}
+                    </div>
+                  )}
+                  <div>
+                    <span style={{ color: '#94a3b8' }}>Results: </span>
+                    <span style={{ color: '#4ade80' }}>+{scanStatus.filesAdded}</span>
+                    {' / '}
+                    <span style={{ color: '#60a5fa' }}>~{scanStatus.filesUpdated}</span>
+                    {' / '}
+                    <span style={{ color: '#f87171' }}>-{scanStatus.filesDeleted}</span>
+                  </div>
+                </>
+              )}
+              {scanStatus.errors > 0 && (
+                <div>
+                  <span style={{ color: '#f87171' }}>{scanStatus.errors} errors</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ borderBottom: '1px solid #334155', marginBottom: '2rem' }}></div>
 
       <form onSubmit={handleAdd} className={styles.addForm}>
         <input
@@ -160,14 +283,6 @@ export default function SourcesPage() {
         />
         <button type="submit" className={styles.button} disabled={loading}>
           {loading ? 'Adding...' : 'Add Source'}
-        </button>
-        <button
-          type="button"
-          className={styles.secondaryButton}
-          onClick={handleScan}
-          disabled={scanning}
-        >
-          {scanning ? 'Scanning...' : 'Scan Library'}
         </button>
       </form>
 
