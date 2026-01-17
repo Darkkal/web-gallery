@@ -19,7 +19,7 @@ export default function TimelinePage() {
     }, []);
 
     async function loadItems() {
-        const data = await getMediaItems();
+        const data = await getMediaItems({ sortBy: 'captured-desc' });
         setItems(data);
     }
 
