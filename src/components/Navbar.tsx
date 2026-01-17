@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Image, Clock, ListMusic, Database, ChevronLeft, ChevronRight } from "lucide-react";
+import { Image, Clock, ListMusic, Database, ChevronLeft, ChevronRight, Sun, Moon } from "lucide-react";
 import styles from "./Navbar.module.css";
+import { useTheme } from "./ThemeProvider";
 
 const NAV_ITEMS = [
     {
@@ -32,6 +33,7 @@ const NAV_ITEMS = [
 export function Navbar() {
     const pathname = usePathname();
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const { theme, toggleTheme } = useTheme();
 
     useEffect(() => {
         const saved = localStorage.getItem("navbar-collapsed");
@@ -66,13 +68,24 @@ export function Navbar() {
                 })}
             </div>
 
-            <button
-                className={styles.collapseButton}
-                onClick={toggleCollapse}
-                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-                {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-            </button>
+            <div className={styles.footer}>
+                <button
+                    className={`${styles.collapseButton} ${styles.themeToggle}`}
+                    onClick={toggleTheme}
+                    aria-label="Toggle theme"
+                >
+                    {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+                    {!isCollapsed && <span className={styles.label}>Theme</span>}
+                </button>
+
+                <button
+                    className={styles.collapseButton}
+                    onClick={toggleCollapse}
+                    aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                >
+                    {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+                </button>
+            </div>
         </nav>
     );
 }
