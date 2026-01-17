@@ -172,7 +172,7 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, onClose,
                 {user && (
                     <div className={`${styles.section} ${styles.userCard}`}>
                         {user.profileImage && (
-                            <img src={user.profileImage} alt={user.name} className={styles.avatar} referrerPolicy="no-referrer" />
+                            <img src={user.profileImage} alt={user.name} className={styles.avatar} />
                         )}
                         <div className={styles.userInfo}>
                             <span className={styles.userName}>{user.name}</span>
@@ -184,7 +184,7 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, onClose,
                 {pixivUser && (
                     <div className={`${styles.section} ${styles.userCard}`}>
                         {pixivUser.profileImage && (
-                            <img src={pixivUser.profileImage} alt={pixivUser.name} className={styles.avatar} referrerPolicy="no-referrer" />
+                            <img src={pixivUser.profileImage} alt={pixivUser.name} className={styles.avatar} />
                         )}
                         <div className={styles.userInfo}>
                             <span className={styles.userName}>{pixivUser.name}</span>

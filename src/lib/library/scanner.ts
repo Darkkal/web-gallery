@@ -1,10 +1,65 @@
-import fs from 'fs';
+import fs, { promises as fsPromises } from 'fs';
 import path from 'path';
 import { db } from '@/lib/db';
 import { mediaItems, twitterUsers, twitterTweets, pixivUsers, pixivIllusts, tags, pixivIllustTags } from '@/lib/db/schema';
 import { eq, and, count } from 'drizzle-orm';
 
 const DOWNLOAD_DIR = path.join(process.cwd(), 'public', 'downloads');
+const AVATAR_DIR = path.join(process.cwd(), 'public', 'avatars');
+
+async function ensureLocalAvatar(url: string | null | undefined, platform: string, userId: string): Promise<string | null> {
+    if (!url) return null;
+
+    try {
+        const platformDir = path.join(AVATAR_DIR, platform);
+        await fsPromises.mkdir(platformDir, { recursive: true });
+
+        // Extract extension or default to .jpg
+        // Pixiv URLs often look like: .../123.jpg or .../123.png
+        // Twitter URLs: .../image.jpg
+        let ext = path.extname(url).split('?')[0] || '.jpg';
+        if (ext === '.') ext = '.jpg';
+        if (ext.length > 5) ext = '.jpg'; // Safety check
+
+        const filename = `${userId}${ext}`;
+        const localPath = path.join(platformDir, filename);
+        const publicPath = `/avatars/${platform}/${filename}`;
+
+        try {
+            await fsPromises.access(localPath);
+            return publicPath; // Already exists
+        } catch {
+            // Needed to download
+        }
+
+        console.log(`Downloading avatar for ${platform} user ${userId}...`);
+
+        // Pixiv requires Referer heades
+        const headers: Record<string, string> = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        };
+
+        if (platform === 'pixiv') {
+            headers['Referer'] = 'https://www.pixiv.net/';
+        }
+
+        const response = await fetch(url, { headers });
+        if (!response.ok) {
+            console.error(`Failed to download avatar: ${response.status} ${response.statusText}`);
+            return url; // Fallback to remote URL
+        }
+
+        const buffer = await response.arrayBuffer();
+        await fsPromises.writeFile(localPath, Buffer.from(buffer));
+        console.log(`Saved avatar to ${localPath}`);
+
+        return publicPath;
+
+    } catch (error) {
+        console.error(`Error processing avatar for ${userId}:`, error);
+        return url; // Fallback
+    }
+}
 
 // Helper to get all files recursively
 function getAllFiles(dirPath: string): string[] {
@@ -154,6 +209,9 @@ export async function syncLibrary() {
                                 where: eq(twitterUsers.id, String(userId))
                             });
 
+                            // Download Avatar
+                            const avatarUrl = await ensureLocalAvatar(userObj.profile_image || meta.profile_image_url || userObj.profile_image_url_https, 'twitter', String(userId));
+
                             const userData = {
                                 id: String(userId),
                                 name: userObj.name || meta.uploader,
@@ -163,7 +221,7 @@ export async function syncLibrary() {
                                 verified: userObj.verified,
                                 protected: userObj.protected,
                                 profileBanner: userObj.profile_banner,
-                                profileImage: userObj.profile_image,
+                                profileImage: avatarUrl,
                                 favouritesCount: userObj.favourites_count,
                                 followersCount: userObj.followers_count,
                                 friendsCount: userObj.friends_count,
@@ -232,11 +290,14 @@ export async function syncLibrary() {
                                 where: eq(pixivUsers.id, String(userId))
                             });
 
+                            // Download Avatar
+                            const avatarUrl = await ensureLocalAvatar(userObj.profile_image_urls?.medium, 'pixiv', String(userId));
+
                             const userData = {
                                 id: String(userId),
                                 name: userObj.name,
                                 account: userObj.account,
-                                profileImage: userObj.profile_image_urls?.medium,
+                                profileImage: avatarUrl,
                                 isFollowed: userObj.is_followed,
                                 isAcceptRequest: userObj.is_accept_request,
                             };
@@ -345,46 +406,49 @@ export async function syncLibrary() {
                     const isTwitter = meta.category === 'twitter' || meta.extractor_key === 'Twitter' || meta.extractor === 'twitter' || (meta.tweet_id !== undefined);
 
                     if (isTwitter) {
+                        // 1. Upsert User (Always run to ensure avatar is local)
+                        const userObj = meta.user || meta.author || {};
+                        const userId = userObj.id || meta.user_id || meta.uploader_id;
+
+                        if (userId) {
+                            const existingUser = await db.query.twitterUsers.findFirst({
+                                where: eq(twitterUsers.id, String(userId))
+                            });
+
+                            // Download Avatar
+                            const avatarUrl = await ensureLocalAvatar(userObj.profile_image || meta.profile_image_url || userObj.profile_image_url_https, 'twitter', String(userId));
+
+                            const userData = {
+                                id: String(userId),
+                                name: userObj.name || meta.uploader,
+                                nick: userObj.nick,
+                                location: userObj.location,
+                                date: userObj.date,
+                                verified: userObj.verified,
+                                protected: userObj.protected,
+                                profileBanner: userObj.profile_banner,
+                                profileImage: avatarUrl,
+                                favouritesCount: userObj.favourites_count,
+                                followersCount: userObj.followers_count,
+                                friendsCount: userObj.friends_count,
+                                listedCount: userObj.listed_count,
+                                mediaCount: userObj.media_count,
+                                statusesCount: userObj.statuses_count,
+                                description: userObj.description
+                            };
+
+                            if (existingUser) {
+                                await db.update(twitterUsers).set(userData).where(eq(twitterUsers.id, String(userId)));
+                            } else {
+                                await db.insert(twitterUsers).values(userData);
+                            }
+                        }
+
                         const existingTweetForMedia = await db.query.twitterTweets.findFirst({
                             where: eq(twitterTweets.mediaItemId, existing.id)
                         });
 
                         if (!existingTweetForMedia) {
-                            // 1. Upsert User
-                            const userObj = meta.user || meta.author || {};
-                            const userId = userObj.id || meta.user_id || meta.uploader_id;
-
-                            if (userId) {
-                                const existingUser = await db.query.twitterUsers.findFirst({
-                                    where: eq(twitterUsers.id, String(userId))
-                                });
-
-                                const userData = {
-                                    id: String(userId),
-                                    name: userObj.name || meta.uploader,
-                                    nick: userObj.nick,
-                                    location: userObj.location,
-                                    date: userObj.date,
-                                    verified: userObj.verified,
-                                    protected: userObj.protected,
-                                    profileBanner: userObj.profile_banner,
-                                    profileImage: userObj.profile_image,
-                                    favouritesCount: userObj.favourites_count,
-                                    followersCount: userObj.followers_count,
-                                    friendsCount: userObj.friends_count,
-                                    listedCount: userObj.listed_count,
-                                    mediaCount: userObj.media_count,
-                                    statusesCount: userObj.statuses_count,
-                                    description: userObj.description
-                                };
-
-                                if (existingUser) {
-                                    await db.update(twitterUsers).set(userData).where(eq(twitterUsers.id, String(userId)));
-                                } else {
-                                    await db.insert(twitterUsers).values(userData);
-                                }
-                            }
-
                             // 2. Insert Tweet
                             const tweetId = meta.tweet_id || meta.id;
                             if (tweetId) {
@@ -429,6 +493,34 @@ export async function syncLibrary() {
                     const isPixiv = meta.category === 'pixiv' || meta.extractor === 'pixiv';
 
                     if (isPixiv) {
+                        // 1. Upsert User (Always run)
+                        const userObj = meta.user || {};
+                        const userId = userObj.id;
+
+                        if (userId) {
+                            const existingUser = await db.query.pixivUsers.findFirst({
+                                where: eq(pixivUsers.id, String(userId))
+                            });
+
+                            // Download Avatar
+                            const avatarUrl = await ensureLocalAvatar(userObj.profile_image_urls?.medium, 'pixiv', String(userId));
+
+                            const userData = {
+                                id: String(userId),
+                                name: userObj.name,
+                                account: userObj.account,
+                                profileImage: avatarUrl,
+                                isFollowed: userObj.is_followed,
+                                isAcceptRequest: userObj.is_accept_request,
+                            };
+
+                            if (existingUser) {
+                                await db.update(pixivUsers).set(userData).where(eq(pixivUsers.id, String(userId)));
+                            } else {
+                                await db.insert(pixivUsers).values(userData);
+                            }
+                        }
+
                         const existingIllustForMedia = await db.query.pixivIllusts.findFirst({
                             where: eq(pixivIllusts.mediaItemId, existing.id)
                         });
@@ -436,31 +528,6 @@ export async function syncLibrary() {
                         let illustRecordId: number;
 
                         if (!existingIllustForMedia) {
-                            // 1. Upsert User
-                            const userObj = meta.user || {};
-                            const userId = userObj.id;
-
-                            if (userId) {
-                                const existingUser = await db.query.pixivUsers.findFirst({
-                                    where: eq(pixivUsers.id, String(userId))
-                                });
-
-                                const userData = {
-                                    id: String(userId),
-                                    name: userObj.name,
-                                    account: userObj.account,
-                                    profileImage: userObj.profile_image_urls?.medium,
-                                    isFollowed: userObj.is_followed,
-                                    isAcceptRequest: userObj.is_accept_request,
-                                };
-
-                                if (existingUser) {
-                                    await db.update(pixivUsers).set(userData).where(eq(pixivUsers.id, String(userId)));
-                                } else {
-                                    await db.insert(pixivUsers).values(userData);
-                                }
-                            }
-
                             // 2. Insert Illust
                             const pixivId = meta.id;
                             if (pixivId) {
