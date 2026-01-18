@@ -60,6 +60,8 @@ export class ScraperRunner {
         if (!fs.existsSync(configPath)) {
             const configContent = JSON.stringify({
                 "output": {
+                    "#": "shorten filenames to fit into one terminal line",
+                    "shorten": "eaw",
                     "logfile": {
                         "path": "./gallery-dl.log",
                         "level": "debug"
@@ -74,21 +76,56 @@ export class ScraperRunner {
                 },
                 "extractor": {
                     "base-directory": "./public/downloads",
-                    "archive": "./gallery-dl-archive.sqlite3",
-                    "filename": "{tweet_id|id|filename}.{extension}",
-                    "postprocessors": [{
-                        "name": "metadata",
-                        "event": "post",
-                        "filename": "{tweet_id|id|filename}.json"
-                    }],
-                    "sleep": "2.0-4.0",
-                    "cookies": ["firefox"],
-                    "directory": ["{category}"]
+                    "archive": "./gallery-dl-{category}-archive.sqlite3",
+                    "sleep": [5, 10],
+                    "sleep-request": [5, 10],
+                    "cookies": [
+                        "firefox"
+                    ],
+                    "directory": ["{category}"],
+                    "twitter": {
+                        "directory": ["{category}", "{author[id]}"],
+                        "filename": "{tweet_id}_{img_index}.{extension}",
+                        "postprocessors": [
+                            {
+                                "name": "metadata",
+                                "event": "post",
+                                "filename": "{tweet_id}_{img_index}.json"
+                            }
+                        ]
+                    },
+                    "pixiv": {
+                        "directory": ["{category}", "{user[id]}"],
+                        "filename": "{id}_{img_index}.{extension}",
+                        "postprocessors": [
+                            {
+                                "name": "metadata",
+                                "event": "post",
+                                "filename": "{id}_{img_index}.json"
+                            }
+                        ],
+                        "#": "transform ugoira into mkvs",
+                        "ugoira": true,
+                        "tags": "original",
+                        "metadata-bookmark": "true"
+                    }
                 },
                 "downloader": {
                     "rate-limit": "5M",
                     "retries": 3,
-                    "progress": 0
+                    "progress": 0,
+                    "proxy": ""
+                },
+                "postprocessor": {
+                    "#": "various ugoira post processor configurations to create different file formats",
+                    "ugoira-mp4": {
+                        "name": "ugoira",
+                        "extension": "mp4",
+                        "ffmpeg-args": ["-c:v", "libx264", "-an", "-b:v", "4M", "-preset", "veryslow"],
+                        "ffmpeg-twopass": true,
+                        "libx264-prevent-odd": true,
+                        "ffmpeg-location": "C:/ffmpeg/bin/ffmpeg.exe"
+                    }
                 }
             }, null, 4);
             fs.writeFileSync(configPath, configContent);
