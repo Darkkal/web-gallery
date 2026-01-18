@@ -1,12 +1,12 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems, scrapeHistory, pixivUsers, pixivIllusts, tags, pixivIllustTags, scanHistory } from '@/lib/db/schema';
+import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems, scrapeHistory, pixivUsers, pixivIllusts, tags, pixivIllustTags, scanHistory, gallerydlExtractorTypes } from '@/lib/db/schema';
 import { ScraperRunner } from '@/lib/scrapers/runner';
 import { scraperManager, ScrapingStatus } from '@/lib/scrapers/manager';
 import { revalidatePath } from 'next/cache';
 import path from 'path';
-import { eq, desc, ne, inArray, isNull, and } from 'drizzle-orm';
+import { eq, desc, ne, inArray, isNull, and, asc, like, or } from 'drizzle-orm';
 import { syncLibrary, stopScanning } from '@/lib/library/scanner';
 import fs from 'fs/promises';
 
@@ -28,14 +28,16 @@ export async function getPixivTags(illustId: number) {
 
 export async function addSource(url: string) {
     // Simple heuristic to determine type
-    let type: 'gallery-dl' | 'yt-dlp' = 'gallery-dl';
-    if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('twitch.tv')) {
-        type = 'yt-dlp';
-    }
+    let type: 'twitter' | 'pixiv' | 'gallery-dl' = 'gallery-dl';
+    if (url.includes('twitter.com') || url.includes('x.com')) type = 'twitter';
+    if (url.includes('pixiv.net')) type = 'pixiv';
+
+    // Ensure Extractor Type Exists
+    await db.insert(gallerydlExtractorTypes).values({ id: type }).onConflictDoNothing().run();
 
     await db.insert(sources).values({
         url,
-        type,
+        extractorType: type, // New column
         name: url, // Temporary name
     });
 
@@ -80,7 +82,11 @@ export async function scrapeSource(sourceId: number, mode: 'full' | 'quick' = 'f
     }
 
     // Start in background via Manager
-    await scraperManager.startScrape(sourceId, source.type as any, source.url, DOWNLOAD_DIR, { mode });
+    // Pass 'gallery-dl' or 'yt-dlp' based on logic?
+    // We removed 'type' from source, now we have 'extractorType'. 
+    // Assuming all are gallery-dl for now unless we add yt-dlp specific field.
+    // But 'extractorType' is 'twitter'/'pixiv'. Tool is gallery-dl.
+    await scraperManager.startScrape(sourceId, 'gallery-dl' as any, source.url, DOWNLOAD_DIR, { mode });
 
     revalidatePath('/sources');
     return { success: true, message: 'Scrape started in background' };
@@ -99,22 +105,17 @@ export async function stopScrapingSource(sourceId: number) {
 export async function deleteSource(id: number) {
     try {
         const numericId = Number(id);
-        console.log(`[deleteSource] Attempting to delete source with ID: ${numericId} (original: ${id})`);
-
         if (isNaN(numericId)) {
             throw new Error(`Invalid source ID: ${id}`);
         }
 
         // Soft delete the source
-        console.log(`[deleteSource] Soft deleting source record (setting deletedAt)...`);
-        const updateResult = db.update(sources)
+        await db.update(sources)
             .set({ deletedAt: new Date() })
             .where(eq(sources.id, numericId))
             .run();
-        console.log(`[deleteSource] Source soft deletion result:`, updateResult);
 
         revalidatePath('/sources');
-        console.log(`[deleteSource] Success.`);
         return { success: true };
     } catch (error) {
         console.error(`[deleteSource] FAILED:`, error);
@@ -123,23 +124,6 @@ export async function deleteSource(id: number) {
 }
 
 export async function scanLibrary() {
-    // Run sync in background? Or await?
-    // User asked to avoid loading entire collection memory. `syncLibrary` is optimized.
-    // It is an async function. Next.js actions can be long running, but Vercel limits them.
-    // Since this is local, we can just await it or fire and forget.
-    // Ideally fire and forget but `syncLibrary` is not a background worker manager.
-    // For now, let's await it so the button shows loading state, 
-    // OR we can rely on `getLatestScan` polling to show status if we make it fire-and-forget.
-    // Given the request for monitoring, making it background + polling is better UX.
-
-    // We can't easily "fire and forget" in server actions without `after` (Next.js 15 experimental) or just not awaiting.
-    // But if we don't await, the lambda might die in serverless. Local node is fine.
-
-    // Let's NOT await it fully if we want the UI to update immediately.
-    // But `setScanning(true)` in UI waits for this promise.
-    // So if we await, the UI blocks.
-    // Let's trigger it without await?
-
     syncLibrary().catch(console.error);
     return { started: true };
 }
@@ -179,6 +163,7 @@ export async function getMediaItems(
 
     let conditions = ne(mediaItems.mediaType, 'text');
 
+    // Updated Joins for New Polymorphic Schema
     const results = await db.select({
         item: mediaItems,
         tweet: twitterTweets,
@@ -188,11 +173,25 @@ export async function getMediaItems(
         source: sources,
     })
         .from(mediaItems)
-        .leftJoin(twitterTweets, eq(mediaItems.id, twitterTweets.mediaItemId))
+        // Join Posts via Polymorphic Logic
+        .leftJoin(twitterTweets, and(
+            eq(mediaItems.internalPostId, twitterTweets.id),
+            eq(mediaItems.extractorType, 'twitter')
+        ))
         .leftJoin(twitterUsers, eq(twitterTweets.userId, twitterUsers.id))
-        .leftJoin(pixivIllusts, eq(mediaItems.id, pixivIllusts.mediaItemId))
+
+        .leftJoin(pixivIllusts, and(
+            eq(mediaItems.internalPostId, pixivIllusts.id),
+            eq(mediaItems.extractorType, 'pixiv')
+        ))
         .leftJoin(pixivUsers, eq(pixivIllusts.userId, pixivUsers.id))
-        .leftJoin(sources, eq(mediaItems.sourceId, sources.id)) // Join sources for text search
+
+        // Join Internal Source derived from posts (if available) or direct link if any (none on mediaItems anymore)
+        // We can join sources via internalSourceId on the posts
+        .leftJoin(sources, or(
+            eq(twitterTweets.internalSourceId, sources.id),
+            eq(pixivIllusts.internalSourceId, sources.id)
+        ))
         .where(conditions);
 
     const searchLower = searchQuery.toLowerCase();
@@ -201,7 +200,12 @@ export async function getMediaItems(
     let filtered = results.filter(row => {
         // 1. Min Favorites Filter
         if (minFavorites > 0) {
-            if ((row.tweet?.favoriteCount || 0) < minFavorites) return false;
+            if (row.tweet) {
+                if ((row.tweet.favoriteCount || 0) < minFavorites) return false;
+            }
+            if (row.pixiv) {
+                if ((row.pixiv.totalBookmarks || 0) < minFavorites) return false;
+            }
         }
 
         // 2. Text Search
@@ -241,7 +245,7 @@ export async function getMediaItems(
             // Check Source Name/Type
             if (!hit && row.source) {
                 if (row.source.name?.toLowerCase().includes(searchLower)) hit = true;
-                if (row.source.type?.toLowerCase().includes(searchLower)) hit = true;
+                // if (row.source.type?.toLowerCase().includes(searchLower)) hit = true; // 'type' removed
             }
 
             if (!hit) return false;
@@ -322,11 +326,21 @@ export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePo
         source: sources,
     })
         .from(mediaItems)
-        .leftJoin(twitterTweets, eq(mediaItems.id, twitterTweets.mediaItemId))
+        // Join new FKs
+        .leftJoin(twitterTweets, and(
+            eq(mediaItems.internalPostId, twitterTweets.id),
+            eq(mediaItems.extractorType, 'twitter')
+        ))
         .leftJoin(twitterUsers, eq(twitterTweets.userId, twitterUsers.id))
-        .leftJoin(pixivIllusts, eq(mediaItems.id, pixivIllusts.mediaItemId))
+        .leftJoin(pixivIllusts, and(
+            eq(mediaItems.internalPostId, pixivIllusts.id),
+            eq(mediaItems.extractorType, 'pixiv')
+        ))
         .leftJoin(pixivUsers, eq(pixivIllusts.userId, pixivUsers.id))
-        .leftJoin(sources, eq(mediaItems.sourceId, sources.id))
+        .leftJoin(sources, or(
+            eq(twitterTweets.internalSourceId, sources.id),
+            eq(pixivIllusts.internalSourceId, sources.id)
+        ))
         .orderBy(desc(mediaItems.capturedAt));
 
     // 2. Group items
@@ -382,8 +396,8 @@ export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePo
         } else {
             groupId = `item-${row.item.id}`; // Standalone
             type = 'other';
-            content = row.item.description || row.item.title || undefined;
-            sourceUrl = row.item.originalUrl || undefined;
+            // content = row.item.description // removed
+            sourceUrl = row.item.filePath; // fallback
         }
 
         // Init Post if needed
@@ -471,8 +485,11 @@ export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
         }
 
         // 2. Delete related records
-        console.log(`[deleteMediaItems] Deleting related tweets...`);
-        db.delete(twitterTweets).where(inArray(twitterTweets.mediaItemId, ids)).run();
+        // DO NOT delete twitterTweets or pixivIllusts! Only media items.
+        // User wants to keep the post metadata theoretically, unless it's a full cleanup.
+        // But the previous implementation deleted tweets. 
+        // With new schema, mediaItems is CHILD. Deleting child is safe.
+        // If we want to clean up orphaned tweets, that's a separate task (GC).
 
         console.log(`[deleteMediaItems] Deleting collection associations...`);
         db.delete(collectionItems).where(inArray(collectionItems.mediaItemId, ids)).run();

@@ -11,9 +11,10 @@ export interface ScrapeResult {
     success: boolean;
     output: string; // JSON or raw output
     error?: string;
-    items: ScrapedMediaItem[];
+    items: string[]; // List of absolute file paths processed/downloaded
 }
 
+// Legacy, keeping just in case
 export interface ScrapedMediaItem {
     url: string;
     filename: string;

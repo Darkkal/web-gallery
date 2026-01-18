@@ -1,12 +1,24 @@
 import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
 
+export const gallerydlExtractorTypes = sqliteTable('gallerydl_extractor_types', {
+    id: text('id').primaryKey(), // 'twitter', 'pixiv', etc.
+    description: text('description'),
+});
+
 export const sources = sqliteTable('sources', {
     id: integer('id').primaryKey({ autoIncrement: true }),
     url: text('url').notNull(),
-    type: text('type').$type<'gallery-dl' | 'yt-dlp' | 'unknown'>().default('unknown'),
+    extractorType: text('extractor_type').references(() => gallerydlExtractorTypes.id),
     name: text('name'),
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
     deletedAt: integer('deleted_at', { mode: 'timestamp' }),
+});
+
+export const scraperDownloadLogs = sqliteTable('scraper_download_logs', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    sourceId: integer('source_id').references(() => sources.id).notNull(),
+    filePath: text('file_path').notNull().unique(), // Unique path to map back to source
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
 export const scrapeHistory = sqliteTable('scrape_history', {
@@ -19,6 +31,7 @@ export const scrapeHistory = sqliteTable('scrape_history', {
     bytesDownloaded: integer('bytes_downloaded').default(0),
     errorCount: integer('error_count').default(0),
     averageSpeed: integer('average_speed').default(0), // bytes per second
+    lastError: text('last_error'),
 });
 
 export const scanHistory = sqliteTable('scan_history', {
@@ -31,34 +44,12 @@ export const scanHistory = sqliteTable('scan_history', {
     filesUpdated: integer('files_updated').default(0),
     filesDeleted: integer('files_deleted').default(0),
     errors: integer('errors').default(0),
+    lastError: text('last_error'),
 });
 
-export const mediaItems = sqliteTable('media_items', {
-    id: integer('id').primaryKey({ autoIncrement: true }),
-    sourceId: integer('source_id').references(() => sources.id),
-    filePath: text('file_path').notNull(),
-    originalUrl: text('original_url'),
-    mediaType: text('media_type').$type<'image' | 'video' | 'audio' | 'text'>().default('image'),
-    title: text('title'),
-    description: text('description'),
-    capturedAt: integer('captured_at', { mode: 'timestamp' }),
-    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-    metadata: text('metadata'), // JSON string
-});
-
-export const collections = sqliteTable('collections', {
-    id: integer('id').primaryKey({ autoIncrement: true }),
-    name: text('name').notNull(),
-    description: text('description'),
-    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-});
-
-export const collectionItems = sqliteTable('collection_items', {
-    id: integer('id').primaryKey({ autoIncrement: true }),
-    collectionId: integer('collection_id').references(() => collections.id).notNull(),
-    mediaItemId: integer('media_item_id').references(() => mediaItems.id, { onDelete: 'cascade' }).notNull(),
-    addedAt: integer('added_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-});
+// Forward declaration for circular references if needed in standard SQL, 
+// but Drizzle handles them via callbacks usually or order doesn't matter for definition objects until usage.
+// However, we need to define tables before referencing them if we pass them as objects.
 
 export const twitterUsers = sqliteTable('twitter_users', {
     id: text('id').primaryKey(), // Twitter User ID is big, keep as text
@@ -81,13 +72,13 @@ export const twitterUsers = sqliteTable('twitter_users', {
 
 export const twitterTweets = sqliteTable('twitter_tweets', {
     id: integer('id').primaryKey({ autoIncrement: true }),
-    tweetId: text('tweet_id').notNull(),
-    mediaItemId: integer('media_item_id').references(() => mediaItems.id, { onDelete: 'cascade' }),
+    tweetId: text('tweet_id').notNull().unique(), // The actual string ID from Twitter
     retweetId: text('retweet_id'),
     quoteId: text('quote_id'),
     replyId: text('reply_id'),
     conversationId: text('conversation_id'),
-    sourceId: text('source_id'),
+    jsonSourceId: text('json_source_id'), // Renamed from sourceId
+    internalSourceId: integer('internal_source_id').references(() => sources.id), // Link to source table
     date: text('date'),
     userId: text('user_id').references(() => twitterUsers.id),
     lang: text('lang'),
@@ -101,7 +92,6 @@ export const twitterTweets = sqliteTable('twitter_tweets', {
     bookmarkCount: integer('bookmark_count'),
     viewCount: integer('view_count'),
     content: text('content'),
-    count: integer('count'), // Not sure what this is, maybe media count in tweet?
     category: text('category'),
     subcategory: text('subcategory'),
 });
@@ -117,9 +107,9 @@ export const pixivUsers = sqliteTable('pixiv_users', {
 
 export const pixivIllusts = sqliteTable('pixiv_illusts', {
     id: integer('id').primaryKey({ autoIncrement: true }),
-    pixivId: integer('pixiv_id').notNull(),
-    mediaItemId: integer('media_item_id').references(() => mediaItems.id, { onDelete: 'cascade' }),
+    pixivId: integer('pixiv_id').notNull().unique(),
     userId: text('user_id').references(() => pixivUsers.id),
+    internalSourceId: integer('internal_source_id').references(() => sources.id), // Link to source table
     title: text('title'),
     type: text('type'),
     caption: text('caption'),
@@ -142,10 +132,37 @@ export const pixivIllusts = sqliteTable('pixiv_illusts', {
     subcategory: text('subcategory'),
 });
 
+export const mediaItems = sqliteTable('media_items', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    // Removed sourceId as it is now on the post table (internalSourceId)
+    filePath: text('file_path').notNull(),
+    mediaType: text('media_type').$type<'image' | 'video' | 'audio' | 'text'>().default('image'),
+    capturedAt: integer('captured_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+
+    // Polymorphic Relationship
+    extractorType: text('extractor_type').references(() => gallerydlExtractorTypes.id),
+    internalPostId: integer('internal_post_id'), // Link to twitter_tweets.id or pixiv_illusts.id
+});
+
+export const collections = sqliteTable('collections', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    name: text('name').notNull(),
+    description: text('description'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
+export const collectionItems = sqliteTable('collection_items', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    collectionId: integer('collection_id').references(() => collections.id).notNull(),
+    mediaItemId: integer('media_item_id').references(() => mediaItems.id, { onDelete: 'cascade' }).notNull(),
+    addedAt: integer('added_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
 export const tags = sqliteTable('tags', {
     id: integer('id').primaryKey({ autoIncrement: true }),
     name: text('name').notNull().unique(),
-    type: text('type'), // Optional: 'pixiv', 'twitter', etc.
+    extractorType: text('extractor_type').references(() => gallerydlExtractorTypes.id),
 });
 
 export const pixivIllustTags = sqliteTable('pixiv_illust_tags', {

@@ -3,7 +3,7 @@ import { ScraperRunner } from './runner';
 import { ScrapeProgress } from './types';
 import path from 'path';
 import { db } from '@/lib/db';
-import { scrapeHistory } from '@/lib/db/schema';
+import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems, scrapeHistory, pixivUsers, pixivIllusts, tags, pixivIllustTags, scanHistory, gallerydlExtractorTypes, scraperDownloadLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { syncLibrary } from '@/lib/library/scanner';
 
@@ -88,6 +88,28 @@ class ScraperManager {
                 logMsg = logMsg.substring(0, 200) + '...';
             }
             console.log(`[ScraperManager] FINISHED scrape for source ID: ${sourceId} - Result: ${result.success ? 'Success' : 'Failed'} ${logMsg}`);
+
+            // Log downloaded files for source linking
+            if (result.items && result.items.length > 0) {
+                try {
+                    console.log(`[ScraperManager] Logging ${result.items.length} files for source ${sourceId}...`);
+                    const values = result.items.map(path => ({
+                        sourceId,
+                        filePath: path,
+                    }));
+
+                    // Batch insert might be too big if thousands, but safe for now or chunk it
+                    // SQLite limit is usually variable limits, safe to chunk
+                    const chunkSize = 100;
+                    for (let i = 0; i < values.length; i += chunkSize) {
+                        const batch = values.slice(i, i + chunkSize);
+                        db.insert(scraperDownloadLogs).values(batch).onConflictDoNothing().run();
+                    }
+                } catch (err: any) {
+                    console.error("[ScraperManager] Failed to save download logs:", err.message);
+                }
+            }
+
             const current = this.activeScrapes.get(sourceId);
             if (current) {
                 current.status.isFinished = true;
@@ -106,6 +128,7 @@ class ScraperManager {
                         bytesDownloaded,
                         errorCount: current.status.errorCount,
                         averageSpeed,
+                        lastError: result.error || (result.success ? null : result.output), // Store error or output if failed
                     })
                     .where(eq(scrapeHistory.id, historyId))
                     .run();
@@ -129,6 +152,7 @@ class ScraperManager {
                 .set({
                     endTime: new Date(),
                     status: 'failed',
+                    lastError: err instanceof Error ? err.message : String(err),
                 })
                 .where(eq(scrapeHistory.id, historyId))
                 .run();

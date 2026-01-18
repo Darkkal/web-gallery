@@ -108,6 +108,9 @@ export class ScraperRunner {
             let errorCount = 0;
             let isRateLimited = false;
 
+            const processedFiles: string[] = [];
+            const processedFilesSet = new Set<string>(); // avoid duplicates
+
             const parseProgress = (line: string) => {
                 if (line.includes('API rate limit exceeded') || line.includes('rate limit')) {
                     isRateLimited = true;
@@ -127,6 +130,30 @@ export class ScraperRunner {
                             downloadedCount++;
                         }
                     }
+                    // Capture file path for yt-dlp
+                    if (line.includes('[download] Destination:') || line.includes('[download]')) {
+                        const parts = line.split('Destination: ');
+                        if (parts.length > 1) {
+                            const fPath = parts[1].trim();
+                            if (!processedFilesSet.has(fPath)) {
+                                processedFilesSet.add(fPath);
+                                processedFiles.push(fPath);
+                            }
+                        } else if (line.includes('has already been downloaded')) {
+                            const parts2 = line.split('[download] ');
+                            if (parts2.length > 1) {
+                                const subParts = parts2[1].split(' has already been downloaded');
+                                if (subParts.length > 0) {
+                                    const fPath = subParts[0].trim();
+                                    if (!processedFilesSet.has(fPath)) {
+                                        processedFilesSet.add(fPath);
+                                        processedFiles.push(fPath);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                 } else if (tool === 'gallery-dl') {
                     if (line.startsWith('[progress]')) {
                         // Custom format: [progress] {0} | {1} | {2} | {3}
@@ -137,14 +164,53 @@ export class ScraperRunner {
                             currentSpeed = parts[1];
                             currentTotalSize = parts[2];
                         }
+                    } else if (line.startsWith('[start]')) {
+                        // Ignore start lines
+                        return;
                     } else if (line.startsWith('[success]')) {
                         downloadedCount++;
-                        // When a file is successful, add its total size to cumulative
-                        // and reset current file bytes
                         cumulativeBytes += parseSizeStringToBytes(currentTotalSize);
                         currentFileBytes = 0;
+
+                        // Capture file path from [success] {0}
+                        const parts = line.split('[success] ');
+                        if (parts.length > 1) {
+                            let fPath = parts[1].trim();
+                            if (!path.isAbsolute(fPath)) {
+                                fPath = path.resolve(process.cwd(), fPath);
+                            }
+                            if (!processedFilesSet.has(fPath)) {
+                                processedFilesSet.add(fPath);
+                                processedFiles.push(fPath);
+                            }
+                        }
+                    } else if (line.startsWith('[skip]')) {
+                        // Capture file path from [skip] {0}
+                        const parts = line.split('[skip] ');
+                        if (parts.length > 1) {
+                            let fPath = parts[1].trim();
+                            if (!path.isAbsolute(fPath)) {
+                                fPath = path.resolve(process.cwd(), fPath);
+                            }
+                            if (!processedFilesSet.has(fPath)) {
+                                processedFilesSet.add(fPath);
+                                processedFiles.push(fPath);
+                            }
+                        }
                     } else if (line.includes('public/downloads/') || line.includes('public\\downloads\\')) {
-                        if (!line.endsWith('.json') && !line.includes('[debug]') && !line.includes('[info]') && !line.includes('[warning]')) {
+                        if (!line.endsWith('.json') && !line.includes('[debug]') && !line.includes('[info]') && !line.includes('[warning]') && !line.includes('[start]') && !line.includes('[success]') && !line.includes('[skip]')) {
+                            // Backup capture for standard output or if custom format fails/changes
+                            const possiblePath = line.trim();
+                            let absPath = possiblePath;
+                            if (!path.isAbsolute(absPath)) {
+                                absPath = path.resolve(process.cwd(), possiblePath);
+                            }
+
+                            if (!processedFilesSet.has(absPath)) {
+                                processedFilesSet.add(absPath);
+                                processedFiles.push(absPath);
+                            }
+
                             if (currentSpeed === '0B/s') {
                                 downloadedCount++;
                             }
@@ -218,7 +284,7 @@ export class ScraperRunner {
                     resolve({
                         success: true,
                         output: stdout,
-                        items: [],
+                        items: processedFiles, // Return the collected paths
                     });
                 } else if (code === null) {
                     // Process was killed
@@ -226,14 +292,14 @@ export class ScraperRunner {
                         success: false,
                         output: stdout,
                         error: 'Process was terminated',
-                        items: [],
+                        items: processedFiles,
                     });
                 } else {
                     resolve({
                         success: false,
                         output: stdout,
                         error: stderr,
-                        items: [],
+                        items: processedFiles,
                     });
                 }
             });
