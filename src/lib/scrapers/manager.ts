@@ -5,6 +5,7 @@ import path from 'path';
 import { db } from '@/lib/db';
 import { scrapeHistory } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { syncLibrary } from '@/lib/library/scanner';
 
 export interface ScrapingStatus extends ScrapeProgress {
     sourceId: number;
@@ -110,6 +111,10 @@ class ScraperManager {
 
                 console.log(`[ScraperManager] Updated history record ${historyId} with final metrics`);
 
+                // Trigger library scan automatically
+                console.log(`[ScraperManager] Triggering library scan...`);
+                syncLibrary().catch(err => console.error("[ScraperManager] Auto-scan failed:", err));
+
                 // Keep it in the map for a bit so the UI can see "Finished"
                 setTimeout(() => {
                     this.activeScrapes.delete(sourceId);
@@ -128,6 +133,10 @@ class ScraperManager {
                 .run();
 
             this.activeScrapes.delete(sourceId);
+
+            // Should we scan on error? Probably yes, to pick up whatever was downloaded before error.
+            console.log(`[ScraperManager] Triggering library scan (after error)...`);
+            syncLibrary().catch(err => console.error("[ScraperManager] Auto-scan failed:", err));
         });
     }
 
@@ -177,6 +186,11 @@ class ScraperManager {
                 }
             }
             this.activeScrapes.delete(sourceId);
+
+            // Trigger library scan automatically
+            console.log(`[ScraperManager] Triggering library scan (after stop)...`);
+            syncLibrary().catch(err => console.error("[ScraperManager] Auto-scan failed:", err));
+
             return true;
         }
         console.log(`[ScraperManager] STOP requested for source ID: ${sourceId} but no active scrape found.`);
