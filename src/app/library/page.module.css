@@ -1,0 +1,124 @@
+.container {
+  padding: 4rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(to right, #ffffff, #94a3b8);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 2rem;
+}
+
+.scanSection {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+.scanHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.scanHeader h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: hsl(var(--foreground));
+}
+
+.scanDescription {
+  margin: 0.5rem 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.9rem;
+}
+
+.scanStats {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.statsRow {
+  display: flex;
+  gap: 2rem;
+  font-size: 0.9rem;
+  color: hsl(var(--foreground));
+}
+
+.button {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.button:hover {
+  opacity: 0.9;
+}
+
+.secondaryButton {
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.stopButton {
+  background: hsl(0 62.8% 30.6%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.stopButton:hover {
+  background: hsl(0 62.8% 40.6%);
+}
+
+.badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.badge.status-completed {
+  background: #064e3b;
+  color: #6ee7b7;
+}
+
+.badge.status-stopped {
+  background: hsl(48 96% 20%);
+  color: hsl(48 96% 89%);
+}
+
+.badge.status-failed {
+  background: hsl(0 62.8% 30.6%);
+  color: #fca5a5;
+}
+
+.badge.status-running {
+  background: hsl(217 91% 20%);
+  color: #93c5fd;
+}

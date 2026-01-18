@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Image, Clock, ListMusic, Database, ChevronLeft, ChevronRight, Sun, Moon } from "lucide-react";
+import { Image, Clock, ListMusic, Database, ChevronLeft, ChevronRight, Sun, Moon, Library } from "lucide-react";
 import styles from "./Navbar.module.css";
 import { useTheme } from "./ThemeProvider";
 
@@ -27,6 +27,11 @@ const NAV_ITEMS = [
         label: "Sources",
         href: "/sources",
         icon: Database,
+    },
+    {
+        label: "Library",
+        href: "/library",
+        icon: Library,
     },
 ];
 
