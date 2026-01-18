@@ -11,9 +11,10 @@ import {
     pixivIllustTags,
     scanHistory,
     gallerydlExtractorTypes,
-    scraperDownloadLogs
+    scraperDownloadLogs,
+    sources
 } from '@/lib/db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, isNull } from 'drizzle-orm';
 
 const DOWNLOAD_DIR = path.join(process.cwd(), 'public', 'downloads');
 const AVATAR_DIR = path.join(process.cwd(), 'public', 'avatars');
@@ -119,18 +120,50 @@ export async function syncLibrary() {
     };
 
     try {
-        const allFiles = getAllFiles(DOWNLOAD_DIR);
-        console.log(`Found ${allFiles.length} files. Grouping...`);
+        const legacyFiles = getAllFiles(DOWNLOAD_DIR);
 
-        const dirGroups = new Map<string, { jsonFiles: string[], mediaFiles: string[] }>();
-        allFiles.forEach(absPath => {
+        // Fetch Local Sources
+        const localSources = await db.select().from(sources).where(and(isNull(sources.deletedAt), eq(sources.extractorType, 'local')));
+
+        console.log(`Found ${legacyFiles.length} files in downloads. Found ${localSources.length} local sources.`);
+
+        // Map<DirPath, Group>
+        const dirGroups = new Map<string, {
+            jsonFiles: string[],
+            mediaFiles: string[],
+            sourceId: number | null,
+            sourceRoot: string // To calculate relative path 
+        }>();
+
+        // 1. Process Legacy Files
+        const publicRoot = path.join(process.cwd(), 'public');
+        legacyFiles.forEach(absPath => {
             const ext = path.extname(absPath).toLowerCase();
             const dir = path.dirname(absPath);
-            if (!dirGroups.has(dir)) dirGroups.set(dir, { jsonFiles: [], mediaFiles: [] });
+            if (!dirGroups.has(dir)) dirGroups.set(dir, { jsonFiles: [], mediaFiles: [], sourceId: null, sourceRoot: publicRoot });
             const group = dirGroups.get(dir)!;
             if (ext === '.json') group.jsonFiles.push(absPath);
             else if (['.mp4', '.webm', '.mkv', '.mp3', '.wav', '.m4a', '.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) group.mediaFiles.push(absPath);
         });
+
+        // 2. Process Local Sources
+        for (const source of localSources) {
+            const sourceFiles = getAllFiles(source.url);
+            console.log(`Source [${source.name}] has ${sourceFiles.length} files.`);
+
+            sourceFiles.forEach(absPath => {
+                const ext = path.extname(absPath).toLowerCase();
+                const dir = path.dirname(absPath);
+
+                // If this dir was already claimed by another source (nested?), we might have a conflict or just mix them.
+                // Assuming distinct folders for now.
+                if (!dirGroups.has(dir)) dirGroups.set(dir, { jsonFiles: [], mediaFiles: [], sourceId: source.id, sourceRoot: source.url });
+
+                const group = dirGroups.get(dir)!;
+                if (ext === '.json') group.jsonFiles.push(absPath);
+                else if (['.mp4', '.webm', '.mkv', '.mp3', '.wav', '.m4a', '.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) group.mediaFiles.push(absPath);
+            });
+        }
 
         console.log("Loading existing DB records...");
         // const existingMedia = new Map<string, { id: number, capturedAt: Date | null }>();
@@ -195,19 +228,49 @@ export async function syncLibrary() {
             }
 
             for (const mediaPath of group.mediaFiles) {
-                const relativePath = path.relative(path.join(process.cwd(), 'public'), mediaPath);
-                const urlPath = '/' + relativePath.split(path.sep).join('/');
+                // Determine URL Path
+                let urlPath: string;
+                if (group.sourceId) {
+                    // Local Source: /api/media/<sourceId>/<relativePath>
+                    // relativePath from sourceRoot
+                    const relativePath = path.relative(group.sourceRoot, mediaPath).split(path.sep).join('/');
+                    urlPath = `/api/media/${group.sourceId}/${relativePath}`;
+                } else {
+                    // Legacy: /downloads/...
+                    const relativePath = path.relative(group.sourceRoot, mediaPath).split(path.sep).join('/');
+                    urlPath = '/' + relativePath;
+                }
+
                 processedPaths.add(urlPath);
-                tasks.push({ fsPath: mediaPath, dbFilePath: urlPath, jsonPath: mediaToJson.get(mediaPath), defaultType: 'image' });
+                tasks.push({
+                    fsPath: mediaPath,
+                    dbFilePath: urlPath,
+                    jsonPath: mediaToJson.get(mediaPath),
+                    defaultType: 'image',
+                    sourceId: group.sourceId
+                });
             }
 
             // Process unused JSONs (Text-only posts)
             for (const jsonPath of group.jsonFiles) {
                 if (!usedJsons.has(jsonPath)) {
-                    const relativePath = path.relative(path.join(process.cwd(), 'public'), jsonPath);
-                    const urlPath = '/' + relativePath.split(path.sep).join('/');
+                    let urlPath: string;
+                    if (group.sourceId) {
+                        const relativePath = path.relative(group.sourceRoot, jsonPath).split(path.sep).join('/');
+                        urlPath = `/api/media/${group.sourceId}/${relativePath}`;
+                    } else {
+                        const relativePath = path.relative(group.sourceRoot, jsonPath).split(path.sep).join('/');
+                        urlPath = '/' + relativePath;
+                    }
+
                     processedPaths.add(urlPath);
-                    tasks.push({ fsPath: jsonPath, dbFilePath: urlPath, jsonPath: jsonPath, defaultType: 'text' });
+                    tasks.push({
+                        fsPath: jsonPath,
+                        dbFilePath: urlPath,
+                        jsonPath: jsonPath,
+                        defaultType: 'text',
+                        sourceId: group.sourceId
+                    });
                 }
             }
         }
@@ -299,6 +362,7 @@ interface ProcessTask {
     dbFilePath: string;
     jsonPath: string | undefined;
     defaultType: 'image' | 'video' | 'audio' | 'text';
+    sourceId: number | null;
 }
 
 interface PrepareResult {
@@ -390,21 +454,25 @@ async function processBatch(
             let internalPostId: number | null = null;
             let extractorType: string | null = null;
 
-            // Lookup Internal Source ID from logs
-            let internalSourceId: number | null = null;
-            // Use absolute path for lookup to match scraper logs
-            // Scraper logs store absolute paths. task.dbFilePath is relative (/downloads/...).
-            // Construct absolute path from dbFilePath
-            const cleanRelPath = task.dbFilePath.replace(/^\//, '').split('/').join(path.sep);
-            const absLookupPath = path.join(process.cwd(), 'public', cleanRelPath);
+            // Lookup Internal Source ID from logs OR use explicit sourceId from scanner
+            let internalSourceId: number | null = task.sourceId;
 
-            const logEntry = tx.select({ sourceId: scraperDownloadLogs.sourceId })
-                .from(scraperDownloadLogs)
-                .where(eq(scraperDownloadLogs.filePath, absLookupPath))
-                .get();
+            if (!internalSourceId) {
+                // Use absolute path for lookup to match scraper logs
+                // Scraper logs store absolute paths. task.dbFilePath is relative (/downloads/...).
+                // Construct absolute path from dbFilePath
+                // Note: dbFilePath startswith /
+                const cleanRelPath = task.dbFilePath.replace(/^\//, '').split('/').join(path.sep);
+                const absLookupPath = path.join(process.cwd(), 'public', cleanRelPath);
 
-            if (logEntry) {
-                internalSourceId = logEntry.sourceId;
+                const logEntry = tx.select({ sourceId: scraperDownloadLogs.sourceId })
+                    .from(scraperDownloadLogs)
+                    .where(eq(scraperDownloadLogs.filePath, absLookupPath))
+                    .get();
+
+                if (logEntry) {
+                    internalSourceId = logEntry.sourceId;
+                }
             }
 
             // 2. Process Post Metadata (Users & Posts)

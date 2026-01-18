@@ -27,10 +27,27 @@ export async function getPixivTags(illustId: number) {
 }
 
 export async function addSource(url: string) {
-    // Simple heuristic to determine type
-    let type: 'twitter' | 'pixiv' | 'gallery-dl' = 'gallery-dl';
-    if (url.includes('twitter.com') || url.includes('x.com')) type = 'twitter';
-    if (url.includes('pixiv.net')) type = 'pixiv';
+    // Check if it's a local path
+    let isLocal = false;
+    try {
+        // Simple check for absolute path (starts with / or C:\ etc) or existing directory
+        // We use fs.stat to check if it exists and is a directory
+        const stat = await fs.stat(url);
+        if (stat.isDirectory()) {
+            isLocal = true;
+        }
+    } catch {
+        // Not a local path or doesn't exist
+    }
+
+    let type: 'twitter' | 'pixiv' | 'gallery-dl' | 'local' = 'gallery-dl';
+
+    if (isLocal) {
+        type = 'local';
+    } else {
+        if (url.includes('twitter.com') || url.includes('x.com')) type = 'twitter';
+        if (url.includes('pixiv.net')) type = 'pixiv';
+    }
 
     // Ensure Extractor Type Exists
     await db.insert(gallerydlExtractorTypes).values({ id: type }).onConflictDoNothing().run();
@@ -38,7 +55,7 @@ export async function addSource(url: string) {
     await db.insert(sources).values({
         url,
         extractorType: type, // New column
-        name: url, // Temporary name
+        name: isLocal ? path.basename(url) : url, // Use folder name for local
     });
 
     revalidatePath('/sources');
