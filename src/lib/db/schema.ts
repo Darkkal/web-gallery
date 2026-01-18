@@ -6,6 +6,7 @@ export const sources = sqliteTable('sources', {
     type: text('type').$type<'gallery-dl' | 'yt-dlp' | 'unknown'>().default('unknown'),
     name: text('name'),
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+    deletedAt: integer('deleted_at', { mode: 'timestamp' }),
 });
 
 export const scrapeHistory = sqliteTable('scrape_history', {

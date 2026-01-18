@@ -6,7 +6,7 @@ import { ScraperRunner } from '@/lib/scrapers/runner';
 import { scraperManager, ScrapingStatus } from '@/lib/scrapers/manager';
 import { revalidatePath } from 'next/cache';
 import path from 'path';
-import { eq, desc, ne, inArray } from 'drizzle-orm';
+import { eq, desc, ne, inArray, isNull, and } from 'drizzle-orm';
 import { syncLibrary, stopScanning } from '@/lib/library/scanner';
 import fs from 'fs/promises';
 
@@ -43,12 +43,12 @@ export async function addSource(url: string) {
 }
 
 export async function getSources() {
-    return await db.select().from(sources);
+    return await db.select().from(sources).where(isNull(sources.deletedAt));
 }
 
 export async function getSourcesWithHistory() {
     // Get all sources
-    const allSources = await db.select().from(sources);
+    const allSources = await db.select().from(sources).where(isNull(sources.deletedAt));
 
     // For each source, get the most recent scrape history
     const sourcesWithHistory = await Promise.all(
@@ -72,7 +72,7 @@ export async function getSourcesWithHistory() {
 
 export async function scrapeSource(sourceId: number, mode: 'full' | 'quick' = 'full') {
     const source = await db.query.sources.findFirst({
-        where: eq(sources.id, sourceId),
+        where: and(eq(sources.id, sourceId), isNull(sources.deletedAt)),
     });
 
     if (!source) {
@@ -105,19 +105,13 @@ export async function deleteSource(id: number) {
             throw new Error(`Invalid source ID: ${id}`);
         }
 
-        // Orphan linked media items first to avoid foreign key constraint error
-        console.log(`[deleteSource] Nullifying sourceId for linked media items...`);
-        const updateResult = db.update(mediaItems)
-            .set({ sourceId: null })
-            .where(eq(mediaItems.sourceId, numericId))
-            .run();
-        console.log(`[deleteSource] Media items update result:`, updateResult);
-
-        console.log(`[deleteSource] Deleting source record...`);
-        const deleteResult = db.delete(sources)
+        // Soft delete the source
+        console.log(`[deleteSource] Soft deleting source record (setting deletedAt)...`);
+        const updateResult = db.update(sources)
+            .set({ deletedAt: new Date() })
             .where(eq(sources.id, numericId))
             .run();
-        console.log(`[deleteSource] Source deletion result:`, deleteResult);
+        console.log(`[deleteSource] Source soft deletion result:`, updateResult);
 
         revalidatePath('/sources');
         console.log(`[deleteSource] Success.`);
