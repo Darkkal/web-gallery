@@ -314,6 +314,50 @@ async function processBatch(
     let added = 0;
     let updated = 0;
 
+    // Pre-process batch to identify unique users and download avatars
+    const userAvatars = new Map<string, string>(); // userId -> localPath
+    const uniqueUsers = new Map<string, { url: string, platform: 'twitter' | 'pixiv' }>();
+
+    for (const res of results) {
+        if (!res.meta) continue;
+
+        // Twitter
+        if (res.meta.category === 'twitter' || res.meta.extractor === 'twitter' || res.meta.tweet_id) {
+            const userObj = res.meta.user || res.meta.author || {};
+            const userId = userObj.id || res.meta.user_id || res.meta.uploader_id;
+            const avatarUrl = userObj.profile_image || userObj.profile_image_url_https;
+            if (userId && avatarUrl) {
+                uniqueUsers.set(String(userId), { url: avatarUrl, platform: 'twitter' });
+            }
+        }
+
+        // Pixiv
+        if (res.meta.category === 'pixiv' || res.meta.extractor === 'pixiv') {
+            const userId = res.meta.user?.id;
+            // Try to get medium, falling back to other sizes if needed, though usually medium is good for avatars
+            const avatarUrl = res.meta.user?.profile_image_urls?.medium || res.meta.user?.profile_image_urls?.px_170x170;
+            if (userId && avatarUrl) {
+                uniqueUsers.set(String(userId), { url: avatarUrl, platform: 'pixiv' });
+            }
+        }
+    }
+
+    // Download avatars concurrently
+    if (uniqueUsers.size > 0) {
+        const avatarPromises = Array.from(uniqueUsers.entries()).map(async ([userId, { url, platform }]) => {
+            const localPath = await ensureLocalAvatar(url, platform, userId);
+            if (localPath) {
+                return { userId, localPath };
+            }
+            return null;
+        });
+
+        const avatarResults = await Promise.all(avatarPromises);
+        avatarResults.forEach(r => {
+            if (r) userAvatars.set(r.userId, r.localPath);
+        });
+    }
+
     await db.transaction((tx) => {
         // 1. Upsert Media Items
         for (const res of results) {
@@ -379,10 +423,10 @@ async function processBatch(
 
             if (meta) {
                 if (meta.category === 'twitter' || meta.extractor === 'twitter' || meta.tweet_id) {
-                    processTwitter(tx, meta, mediaId, existingTwitterUsers);
+                    processTwitter(tx, meta, mediaId, existingTwitterUsers, userAvatars);
                 }
                 if (meta.category === 'pixiv' || meta.extractor === 'pixiv') {
-                    processPixiv(tx, meta, mediaId, existingPixivUsers, existingTags);
+                    processPixiv(tx, meta, mediaId, existingPixivUsers, existingTags, userAvatars);
                 }
             }
         }
@@ -391,20 +435,26 @@ async function processBatch(
     return { added, updated };
 }
 
-function processTwitter(tx: any, meta: any, mediaId: number, userCache: UserCache) {
+function processTwitter(tx: any, meta: any, mediaId: number, userCache: UserCache, avatarMap: Map<string, string>) {
     const userObj = meta.user || meta.author || {};
     const userId = userObj.id || meta.user_id || meta.uploader_id;
 
     if (userId) {
         const uidStr = String(userId);
+        const avatarPath = avatarMap.get(uidStr);
+
         if (!userCache.has(uidStr)) {
             tx.insert(twitterUsers).values({
                 id: uidStr,
                 name: userObj.name || meta.uploader,
                 nick: userObj.nick,
-                description: userObj.description
-            }).onConflictDoUpdate({ target: twitterUsers.id, set: { name: userObj.name } }).run();
+                description: userObj.description,
+                profileImage: avatarPath
+            }).onConflictDoUpdate({ target: twitterUsers.id, set: { name: userObj.name, profileImage: avatarPath } }).run();
             userCache.add(uidStr);
+        } else if (avatarPath) {
+            // Setup update for avatar if it exists and wasn't there before or changed
+            tx.update(twitterUsers).set({ profileImage: avatarPath }).where(eq(twitterUsers.id, uidStr)).run();
         }
     }
 
@@ -423,17 +473,22 @@ function processTwitter(tx: any, meta: any, mediaId: number, userCache: UserCach
     }
 }
 
-function processPixiv(tx: any, meta: any, mediaId: number, userCache: UserCache, tagCache: TagCache) {
+function processPixiv(tx: any, meta: any, mediaId: number, userCache: UserCache, tagCache: TagCache, avatarMap: Map<string, string>) {
     const userId = meta.user?.id;
     if (userId) {
         const uidStr = String(userId);
+        const avatarPath = avatarMap.get(uidStr);
+
         if (!userCache.has(uidStr)) {
             tx.insert(pixivUsers).values({
                 id: uidStr,
                 name: meta.user.name,
-                account: meta.user.account
-            }).onConflictDoUpdate({ target: pixivUsers.id, set: { name: meta.user.name } }).run();
+                account: meta.user.account,
+                profileImage: avatarPath
+            }).onConflictDoUpdate({ target: pixivUsers.id, set: { name: meta.user.name, profileImage: avatarPath } }).run();
             userCache.add(uidStr);
+        } else if (avatarPath) {
+            tx.update(pixivUsers).set({ profileImage: avatarPath }).where(eq(pixivUsers.id, uidStr)).run();
         }
     }
 
@@ -474,12 +529,12 @@ function processPixiv(tx: any, meta: any, mediaId: number, userCache: UserCache,
                 const newTag = tx.insert(tags).values({ name: tagName, type: 'pixiv' }).onConflictDoNothing().returning({ id: tags.id }).get();
                 if (newTag) {
                     tagId = newTag.id;
-                    tagCache.set(tagName, tagId);
+                    tagCache.set(tagName, newTag.id);
                 } else {
                     const e = tx.select({ id: tags.id }).from(tags).where(eq(tags.name, tagName)).get();
                     if (e) {
                         tagId = e.id;
-                        tagCache.set(tagName, tagId);
+                        tagCache.set(tagName, e.id);
                     }
                 }
             }
