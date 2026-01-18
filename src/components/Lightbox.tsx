@@ -173,7 +173,7 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, onClose,
             {/* Sidebar */}
             <div className={`${styles.sidebar} ${!showInfo ? styles.sidebarHidden : ''}`}>
                 <div className={styles.sidebarHeader}>
-                    <h2 className={styles.sidebarTitle}>{pixiv?.title || item.title || 'Untitled'}</h2>
+                    <h2 className={styles.sidebarTitle}>{tweet ? null : (pixiv?.title || item.title || 'Untitled')}</h2>
                 </div>
 
                 {user && (
