@@ -85,24 +85,24 @@ export class ScraperRunner {
                     "directory": ["{category}"],
                     "twitter": {
                         "directory": ["{category}", "{author[id]}"],
-                        "filename": "{tweet_id}_{img_index}.{extension}",
                         "postprocessors": [
                             {
                                 "name": "metadata",
                                 "event": "post",
-                                "filename": "{tweet_id}_{img_index}.json"
+                                "filename": "{tweet_id}.json"
                             }
                         ]
                     },
                     "pixiv": {
                         "directory": ["{category}", "{user[id]}"],
-                        "filename": "{id}_{img_index}.{extension}",
+                        "filename": "{id}_{num}.{extension}",
                         "postprocessors": [
                             {
                                 "name": "metadata",
                                 "event": "post",
-                                "filename": "{id}_{img_index}.json"
-                            }
+                                "filename": "{id}.json"
+                            },
+                            "ugoira-mp4"
                         ],
                         "#": "transform ugoira into mkvs",
                         "ugoira": true,
