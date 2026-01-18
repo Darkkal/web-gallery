@@ -134,9 +134,9 @@ export default function SourcesPage() {
     setLoading(false);
   }
 
-  async function handleScrape(id: number) {
+  async function handleScrape(id: number, mode: 'full' | 'quick' = 'full') {
     try {
-      await scrapeSource(id);
+      await scrapeSource(id, mode);
       await loadSources();
       await triggerStatusUpdate();
     } catch (err) {
@@ -308,13 +308,41 @@ export default function SourcesPage() {
                     >
                       Stop
                     </button>
-                  ) : (
+                  ) : !source.lastScrape ? (
                     <button
                       className={styles.button}
-                      onClick={() => handleScrape(source.id)}
+                      onClick={() => handleScrape(source.id, 'full')}
                     >
-                      Scrape Now
+                      Start Scan
                     </button>
+                  ) : (
+                    <>
+                      {source.lastScrape.status === 'completed' ? (
+                        <button
+                          className={styles.button}
+                          onClick={() => handleScrape(source.id, 'quick')}
+                          title="Check for new posts (fast)"
+                        >
+                          Quick Update
+                        </button>
+                      ) : (
+                        <button
+                          className={styles.button}
+                          onClick={() => handleScrape(source.id, 'full')}
+                          title="Resume previous scan"
+                        >
+                          Continue
+                        </button>
+                      )}
+
+                      <button
+                        className={styles.secondaryButton}
+                        onClick={() => handleScrape(source.id, 'full')}
+                        title="Deep scan all items"
+                      >
+                        Full Scan
+                      </button>
+                    </>
                   )}
                   <button
                     className={styles.secondaryButton}

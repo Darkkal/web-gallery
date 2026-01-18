@@ -143,6 +143,11 @@ export class ScraperRunner {
             if (tool === 'gallery-dl') {
                 args.push('--config-ignore');
                 args.push('--config', path.join(process.cwd(), 'gallery-dl.conf'));
+
+                if (options.mode === 'quick') {
+                    args.push('-A', '15');
+                }
+
                 args.push(options.url);
                 args.push('--destination', this.basePath);
             } else {

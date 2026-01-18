@@ -31,7 +31,7 @@ class ScraperManager {
         return ScraperManager.instance;
     }
 
-    async startScrape(sourceId: number, type: 'gallery-dl' | 'yt-dlp', url: string, downloadDir: string) {
+    async startScrape(sourceId: number, type: 'gallery-dl' | 'yt-dlp', url: string, downloadDir: string, options: { mode?: 'full' | 'quick' } = {}) {
         console.log(`[ScraperManager] STARTING scrape for source ID: ${sourceId} (${type}) - URL: ${url}`);
         if (this.activeScrapes.has(sourceId)) {
             console.warn(`[ScraperManager] Scrape already in progress for source ${sourceId}`);
@@ -71,6 +71,7 @@ class ScraperManager {
 
         const { promise, child } = runner.run(type, {
             url,
+            mode: options.mode,
             onProgress: (p) => {
                 const current = this.activeScrapes.get(sourceId);
                 if (current) {

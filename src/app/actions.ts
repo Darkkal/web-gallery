@@ -70,7 +70,7 @@ export async function getSourcesWithHistory() {
     return sourcesWithHistory;
 }
 
-export async function scrapeSource(sourceId: number) {
+export async function scrapeSource(sourceId: number, mode: 'full' | 'quick' = 'full') {
     const source = await db.query.sources.findFirst({
         where: eq(sources.id, sourceId),
     });
@@ -80,7 +80,7 @@ export async function scrapeSource(sourceId: number) {
     }
 
     // Start in background via Manager
-    await scraperManager.startScrape(sourceId, source.type as any, source.url, DOWNLOAD_DIR);
+    await scraperManager.startScrape(sourceId, source.type as any, source.url, DOWNLOAD_DIR, { mode });
 
     revalidatePath('/sources');
     return { success: true, message: 'Scrape started in background' };
