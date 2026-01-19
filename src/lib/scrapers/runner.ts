@@ -84,10 +84,28 @@ export class ScraperRunner {
                     args.push('-A', '15');
                 }
 
-                args.push(options.url);
                 args.push('--destination', this.basePath);
+
+                if (options.noArchive) {
+                    // Disable archive so gallery-dl processes items fresh
+                    // It will still skip existing files, but will run postprocessors (metadata)
+                    args.push('-o', 'archive=null');
+                }
+
+                if (options.inputFile) {
+                    args.push('-i', options.inputFile);
+                }
+
+                if (options.url) {
+                    args.push(options.url);
+                }
             } else {
-                args.push(options.url);
+                if (options.url) {
+                    args.push(options.url);
+                } else if (options.inputFile) {
+                    // yt-dlp supports -a for batch file
+                    args.push('-a', options.inputFile);
+                }
                 args.push('-P', this.basePath);
                 // yt-dlp shows progress by default for files.
                 args.push('--newline'); // Easier to parse line by line
@@ -185,6 +203,7 @@ export class ScraperRunner {
                             }
                         }
                     } else if (line.startsWith('[skip]')) {
+                        downloadedCount++; // Count skips as processed items
                         // Capture file path from [skip] {0}
                         const parts = line.split('[skip] ');
                         if (parts.length > 1) {
@@ -236,6 +255,11 @@ export class ScraperRunner {
                 const text = data.toString();
                 text.split('\n').forEach((line: string) => {
                     if (!line.trim()) return;
+
+                    // Debug: Log first few lines when using inputFile
+                    if (options.inputFile && downloadedCount < 3) {
+                        console.log(`[ScraperRunner] Raw output: ${line.substring(0, 200)}`);
+                    }
 
                     // Filter out high-frequency progress logs from being stored in memory
                     // This prevents dumping them into the final result/error message

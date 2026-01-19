@@ -171,3 +171,15 @@ export const pixivIllustTags = sqliteTable('pixiv_illust_tags', {
 }, (t) => ({
     pk: primaryKey({ columns: [t.illustId, t.tagId] }),
 }));
+
+export const repairRuns = sqliteTable('repair_runs', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    type: text('type').default('twitter'),
+    startTime: integer('start_time', { mode: 'timestamp' }).notNull(),
+    endTime: integer('end_time', { mode: 'timestamp' }),
+    status: text('status').$type<'running' | 'completed' | 'stopped' | 'failed' | 'paused'>().notNull(),
+    filesChecked: integer('files_checked').default(0),
+    filesRepaired: integer('files_repaired').default(0),
+    errors: integer('errors').default(0),
+    currentPath: text('current_path'),
+});
