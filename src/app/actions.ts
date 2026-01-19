@@ -211,6 +211,16 @@ export async function getMediaItems(
         ))
         .where(conditions);
 
+    // Transform Avatar URLs to Proxy
+    results.forEach(row => {
+        if (row.user && row.user.id) {
+            row.user.profileImage = `/api/avatar/twitter/${row.user.id}`;
+        }
+        if (row.pixivUser && row.pixivUser.id) {
+            row.pixivUser.profileImage = `/api/avatar/pixiv/${row.pixivUser.id}`;
+        }
+    });
+
     const searchLower = searchQuery.toLowerCase();
 
     // Filter results
@@ -380,7 +390,7 @@ export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePo
             author = {
                 name: row.twitterUser?.name || undefined,
                 handle: row.twitterUser?.nick || undefined,
-                avatar: row.twitterUser?.profileImage || undefined,
+                avatar: row.twitterUser?.id ? `/api/avatar/twitter/${row.twitterUser.id}` : undefined,
                 url: row.twitterUser ? `https://twitter.com/${row.twitterUser.nick}` : undefined
             };
             content = row.tweet.content || undefined;
@@ -397,7 +407,7 @@ export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePo
             author = {
                 name: row.pixivUser?.name || undefined,
                 handle: row.pixivUser?.account || undefined,
-                avatar: row.pixivUser?.profileImage || undefined,
+                avatar: row.pixivUser?.id ? `/api/avatar/pixiv/${row.pixivUser.id}` : undefined,
                 url: row.pixivUser ? `https://www.pixiv.net/users/${row.pixivUser.id}` : undefined
             };
             content = row.illust.caption || row.illust.title || undefined;

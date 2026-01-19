@@ -17,8 +17,6 @@ import {
 import { eq, and, inArray, isNull } from 'drizzle-orm';
 
 const DOWNLOAD_DIR = path.join(process.cwd(), 'public', 'downloads');
-const AVATAR_DIR = path.join(process.cwd(), 'public', 'avatars');
-
 // Global control flags for this module process
 let isScanning = false;
 let stopRequested = false;
@@ -27,43 +25,6 @@ export function stopScanning() {
     if (isScanning) {
         console.log("Stopping scan requested...");
         stopRequested = true;
-    }
-}
-
-async function ensureLocalAvatar(url: string | null | undefined, platform: string, userId: string): Promise<string | null> {
-    if (!url) return null;
-
-    try {
-        const platformDir = path.join(AVATAR_DIR, platform);
-        await fsPromises.mkdir(platformDir, { recursive: true });
-
-        let ext = path.extname(url).split('?')[0] || '.jpg';
-        if (ext === '.') ext = '.jpg';
-        if (ext.length > 5) ext = '.jpg';
-
-        const filename = `${userId}${ext}`;
-        const localPath = path.join(platformDir, filename);
-        const publicPath = `/avatars/${platform}/${filename}`;
-
-        try {
-            await fsPromises.access(localPath);
-            return publicPath;
-        } catch { }
-
-        const headers: Record<string, string> = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        };
-        if (platform === 'pixiv') headers['Referer'] = 'https://www.pixiv.net/';
-
-        const response = await fetch(url, { headers });
-        if (!response.ok) return url;
-
-        const buffer = await response.arrayBuffer();
-        await fsPromises.writeFile(localPath, Buffer.from(buffer));
-        return publicPath;
-
-    } catch (error) {
-        return url;
     }
 }
 
@@ -410,9 +371,8 @@ async function processBatch(
     let added = 0;
     let updated = 0;
 
-    // 1. Pre-process Avatars
+    // 1. Pre-process Avatars (Just collect URLs, do not download)
     const userAvatars = new Map<string, string>();
-    const uniqueUsers = new Map<string, { url: string, platform: 'twitter' | 'pixiv' }>();
 
     for (const res of results) {
         if (!res.meta) continue;
@@ -423,7 +383,7 @@ async function processBatch(
             const userId = userObj.id || res.meta.user_id || res.meta.uploader_id;
             const avatarUrl = userObj.profile_image || userObj.profile_image_url_https;
             if (userId && avatarUrl) {
-                uniqueUsers.set(String(userId), { url: avatarUrl, platform: 'twitter' });
+                userAvatars.set(String(userId), avatarUrl);
             }
         }
 
@@ -432,20 +392,9 @@ async function processBatch(
             const userId = res.meta.user?.id;
             const avatarUrl = res.meta.user?.profile_image_urls?.medium || res.meta.user?.profile_image_urls?.px_170x170;
             if (userId && avatarUrl) {
-                uniqueUsers.set(String(userId), { url: avatarUrl, platform: 'pixiv' });
+                userAvatars.set(String(userId), avatarUrl);
             }
         }
-    }
-
-    if (uniqueUsers.size > 0) {
-        const avatarPromises = Array.from(uniqueUsers.entries()).map(async ([userId, { url, platform }]) => {
-            const localPath = await ensureLocalAvatar(url, platform, userId);
-            if (localPath) return { userId, localPath };
-            return null;
-        });
-        (await Promise.all(avatarPromises)).forEach(r => {
-            if (r) userAvatars.set(r.userId, r.localPath);
-        });
     }
 
     db.transaction((tx) => {

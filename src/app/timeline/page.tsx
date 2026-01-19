@@ -73,8 +73,6 @@ export default function TimelinePage() {
     return (
         <div className={styles.container}>
 
-
-
             <div className={styles.feed}>
                 {posts.map((post, postIdx) => (
                     <article key={post.id} className={styles.postCard}>
