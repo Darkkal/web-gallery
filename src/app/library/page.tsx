@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { scanLibrary, getLatestScan, stopLibraryScan } from '../actions';
+import { purgeDatabases, purgeAvatars, purgeDownloads } from '../actions/debug';
 import styles from './page.module.css';
 
 export default function LibraryPage() {
@@ -156,6 +157,76 @@ export default function LibraryPage() {
                         </div>
                     </div>
                 )}
+            </div>
+
+            {/* Danger Zone */}
+            <div className={`${styles.scanSection} ${styles.dangerZone}`}>
+                <div className={styles.scanHeader}>
+                    <div>
+                        <h2 className={styles.dangerTitle}>Danger Zone</h2>
+                        <p className={styles.scanDescription}>
+                            Destructive actions that cannot be undone.
+                        </p>
+                    </div>
+                </div>
+                <div className={styles.dangerActions}>
+                    <button
+                        type="button"
+                        className={styles.dangerButton}
+                        onClick={async () => {
+                            if (confirm('ARE YOU SURE? This will delete ALL data, including the database and gallery-dl archives. This cannot be undone.')) {
+                                const btn = document.activeElement as HTMLButtonElement;
+                                if (btn) {
+                                    btn.disabled = true;
+                                    btn.innerText = 'Purging...';
+                                }
+                                await purgeDatabases();
+                                window.location.href = '/';
+                            }
+                        }}
+                    >
+                        Purge All Databases
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.dangerButton}
+                        onClick={async () => {
+                            if (confirm('Delete all cached avatars? They will be re-downloaded as needed.')) {
+                                const btn = document.activeElement as HTMLButtonElement;
+                                if (btn) {
+                                    btn.disabled = true;
+                                    btn.innerText = 'Purging...';
+                                }
+                                await purgeAvatars();
+                                window.location.reload();
+                            }
+                        }}
+                    >
+                        Purge Avatars
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.dangerButton}
+                        onClick={async () => {
+                            if (confirm('Delete ALL downloaded files? This cannot be undone.')) {
+                                const btn = document.activeElement as HTMLButtonElement;
+                                if (btn) {
+                                    btn.disabled = true;
+                                    btn.innerText = 'Purging...';
+                                }
+                                await purgeDownloads();
+                                window.location.reload();
+                            }
+                        }}
+                    >
+                        Purge Downloads
+                    </button>
+                </div>
+                <p className={styles.dangerNote} style={{ marginTop: '1rem' }}>
+                    Database Purge stops all activities and wipes the DB. <br />
+                    Purge Avatars deletes 'public/avatars'. <br />
+                    Purge Downloads deletes 'public/downloads'.
+                </p>
             </div>
         </div>
     );
