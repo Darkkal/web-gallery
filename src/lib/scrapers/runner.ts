@@ -56,6 +56,11 @@ export class ScraperRunner {
     }
 
     private ensureConfig() {
+        if (process.env.GALLERY_DL_CONFIG_PATH) {
+            // In Docker/custom env, rely on the env var and assume it's set up correctly
+            // or that the file exists where pointed to.
+            return;
+        }
         const configPath = path.join(process.cwd(), 'gallery-dl.conf');
         const defaultConfigPath = path.join(process.cwd(), 'gallery-dl-default.conf');
 
@@ -75,10 +80,27 @@ export class ScraperRunner {
         let childProcess: import('child_process').ChildProcess;
         const promise = new Promise<ScrapeResult>((resolve) => {
             const args: string[] = [];
+            let cookiesPath: string | undefined;
 
             if (tool === 'gallery-dl') {
                 args.push('--config-ignore');
-                args.push('--config', path.join(process.cwd(), 'gallery-dl.conf'));
+                const configPath = process.env.GALLERY_DL_CONFIG_PATH || path.join(process.cwd(), 'gallery-dl.conf');
+                args.push('--config', configPath);
+
+                if (process.env.GALLERY_DL_PROXY) {
+                    args.push('--proxy', process.env.GALLERY_DL_PROXY);
+                }
+
+                if (process.env.GALLERY_DL_COOKIES_TXT) {
+                    cookiesPath = path.join(process.cwd(), `.cookies-${Date.now()}-${Math.floor(Math.random() * 1000)}.txt`);
+                    fs.writeFileSync(cookiesPath, process.env.GALLERY_DL_COOKIES_TXT);
+                    args.push('--cookies', cookiesPath);
+                } else {
+                    const secretCookies = path.join(process.cwd(), 'secrets', 'cookies.txt');
+                    if (fs.existsSync(secretCookies)) {
+                        args.push('--cookies', secretCookies);
+                    }
+                }
 
                 if (options.mode === 'quick') {
                     args.push('-A', '15');
@@ -267,6 +289,10 @@ export class ScraperRunner {
             });
 
             child.on('close', (code) => {
+                if (cookiesPath && fs.existsSync(cookiesPath)) {
+                    try { fs.unlinkSync(cookiesPath); } catch { }
+                }
+
                 if (options.onProgress) {
                     // Final report includes whatever was downloaded (even partials if closed)
                     const totalSoFar = cumulativeBytes + currentFileBytes;

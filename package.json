@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "docker:dev": "docker-compose up --build"
   },
   "dependencies": {
     "better-sqlite3": "^12.6.0",

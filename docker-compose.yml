@@ -1,0 +1,20 @@
+services:
+  web-gallery:
+    build: .
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./secrets:/app/secrets:ro
+    ports:
+      - "3000:3000"
+    environment:
+      - GALLERY_DL_CONFIG_PATH=/app/gallery-dl.docker.conf
+      # Set this in your environment or .env file if you need a proxy
+      # - GALLERY_DL_PROXY=socks5://user:pass@host:port
+      - GALLERY_DL_PROXY=${GALLERY_DL_PROXY}
+      # Set this to the content of your cookies.txt file
+      - GALLERY_DL_COOKIES_TXT=${GALLERY_DL_COOKIES_TXT}
+      - NEXT_TELEMETRY_DISABLED=1
+    # Interactive mode for potential debugging
+    stdin_open: true
+    tty: true
