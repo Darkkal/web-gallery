@@ -3,7 +3,7 @@ import { ScraperRunner } from './runner';
 import { ScrapeProgress } from './types';
 import path from 'path';
 import { db } from '@/lib/db';
-import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems, scrapeHistory, pixivUsers, pixivIllusts, tags, pixivIllustTags, scanHistory, gallerydlExtractorTypes, scraperDownloadLogs } from '@/lib/db/schema';
+import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems, scrapeHistory, pixivUsers, pixivIllusts, tags, postTags, scanHistory, gallerydlExtractorTypes, scraperDownloadLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { syncLibrary } from '@/lib/library/scanner';
 

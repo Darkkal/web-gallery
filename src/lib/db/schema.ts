@@ -162,12 +162,12 @@ export const collectionItems = sqliteTable('collection_items', {
 export const tags = sqliteTable('tags', {
     id: integer('id').primaryKey({ autoIncrement: true }),
     name: text('name').notNull().unique(),
-    extractorType: text('extractor_type').references(() => gallerydlExtractorTypes.id),
 });
 
-export const pixivIllustTags = sqliteTable('pixiv_illust_tags', {
-    illustId: integer('illust_id').references(() => pixivIllusts.id, { onDelete: 'cascade' }).notNull(),
+export const postTags = sqliteTable('post_tags', {
     tagId: integer('tag_id').references(() => tags.id, { onDelete: 'cascade' }).notNull(),
+    extractorType: text('extractor_type').notNull(), // 'twitter', 'pixiv', etc.
+    internalPostId: integer('internal_post_id').notNull(),
 }, (t) => ({
-    pk: primaryKey({ columns: [t.illustId, t.tagId] }),
+    pk: primaryKey({ columns: [t.tagId, t.extractorType, t.internalPostId] }),
 }));

@@ -3,14 +3,16 @@
 import { useState, useEffect } from 'react';
 import { getMediaItems, deleteMediaItems } from '../actions';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Lightbox from '../../components/Lightbox';
 import MasonryGrid from '../../components/MasonryGrid';
 import styles from './page.module.css';
 
 export default function GalleryPage() {
+    const searchParams = useSearchParams();
     const [items, setItems] = useState<any[]>([]);
 
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
     const [sortBy, setSortBy] = useState('created-desc');
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [columnCount, setColumnCount] = useState(4);

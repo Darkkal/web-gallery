@@ -8,7 +8,7 @@ import {
     pixivUsers,
     pixivIllusts,
     tags,
-    pixivIllustTags,
+    postTags,
     scanHistory,
     gallerydlExtractorTypes,
     scraperDownloadLogs,
@@ -586,13 +586,16 @@ async function processBatch(
                                 // Tags
                                 if (meta.tags && Array.isArray(meta.tags)) {
                                     for (const rawTag of meta.tags) {
-                                        let tagName = typeof rawTag === 'string' ? rawTag : rawTag.name;
-                                        if (!tagName) continue;
-                                        tagName = tagName.trim();
+                                        let baseTagName = typeof rawTag === 'string' ? rawTag : rawTag.name;
+                                        if (!baseTagName) continue;
+
+                                        // No Prefix
+                                        const tagName = baseTagName.trim();
                                         let tagId = existingTags.get(tagName);
 
                                         if (!tagId) {
-                                            const newTag = tx.insert(tags).values({ name: tagName, extractorType: 'pixiv' }).onConflictDoNothing().returning({ id: tags.id }).get();
+                                            // Insert into tags (name only)
+                                            const newTag = tx.insert(tags).values({ name: tagName }).onConflictDoNothing().returning({ id: tags.id }).get();
                                             if (newTag) tagId = newTag.id;
                                             else {
                                                 const e = tx.select({ id: tags.id }).from(tags).where(eq(tags.name, tagName)).get();
@@ -602,7 +605,11 @@ async function processBatch(
                                         }
 
                                         if (tagId && internalPostId) {
-                                            tx.insert(pixivIllustTags).values({ illustId: internalPostId, tagId }).onConflictDoNothing().run();
+                                            tx.insert(postTags).values({
+                                                tagId,
+                                                extractorType: 'pixiv',
+                                                internalPostId
+                                            }).onConflictDoNothing().run();
                                         }
                                     }
                                 }

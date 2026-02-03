@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getPixivTags } from '@/app/actions';
+import { getPostTags } from '@/app/actions';
 import styles from './Lightbox.module.css';
 
 interface LightboxProps {
@@ -25,7 +25,7 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, onClose,
     // Fetch Pixiv Tags
     useEffect(() => {
         if (pixiv?.id) {
-            getPixivTags(pixiv.id).then(setTags).catch(console.error);
+            getPostTags(pixiv.id, 'pixiv').then(setTags).catch(console.error);
         } else {
             setTags([]);
         }

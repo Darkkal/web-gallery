@@ -1,12 +1,12 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems, scrapeHistory, pixivUsers, pixivIllusts, tags, pixivIllustTags, scanHistory, gallerydlExtractorTypes } from '@/lib/db/schema';
+import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems, scrapeHistory, pixivUsers, pixivIllusts, tags, postTags, scanHistory, gallerydlExtractorTypes } from '@/lib/db/schema';
 import { ScraperRunner } from '@/lib/scrapers/runner';
 import { scraperManager, ScrapingStatus } from '@/lib/scrapers/manager';
 import { revalidatePath } from 'next/cache';
 import path from 'path';
-import { eq, desc, ne, inArray, isNull, and, asc, like, or } from 'drizzle-orm';
+import { eq, desc, ne, inArray, isNull, and, asc, like, or, count, sql } from 'drizzle-orm';
 import { syncLibrary, stopScanning } from '@/lib/library/scanner';
 import fs from 'fs/promises';
 
@@ -14,16 +14,15 @@ import fs from 'fs/promises';
 
 const DOWNLOAD_DIR = path.join(process.cwd(), 'public', 'downloads');
 
-export async function getPixivTags(illustId: number) {
-    const illustTags = await db.select({
+export async function getPostTags(postId: number, extractorType: string) {
+    const pTags = await db.select({
         name: tags.name,
-        // type: tags.type // Optional
     })
-        .from(pixivIllustTags)
-        .innerJoin(tags, eq(pixivIllustTags.tagId, tags.id))
-        .where(eq(pixivIllustTags.illustId, illustId));
+        .from(postTags)
+        .innerJoin(tags, eq(postTags.tagId, tags.id))
+        .where(and(eq(postTags.internalPostId, postId), eq(postTags.extractorType, extractorType)));
 
-    return illustTags;
+    return pTags;
 }
 
 export async function addSource(url: string) {
@@ -180,6 +179,28 @@ export async function getMediaItems(
 
     let conditions = ne(mediaItems.mediaType, 'text');
 
+    // 2. Pre-fetch Tag Matches if optimized search
+    // If search query is present, let's see if we should filter by tag ID first.
+    let tagMatchedPostIds: Set<number> | null = null;
+    if (searchQuery.length > 1) {
+        // Simple heuristic: if it contains "pixiv:" or just looks like a word
+        const searchLower = searchQuery.toLowerCase();
+
+        // Find tags that match the search query (substring match on tag name)
+        // We select distinct internalPostIds
+        const matchedTags = await db.selectDistinct({
+            internalPostId: postTags.internalPostId,
+            extractorType: postTags.extractorType
+        })
+            .from(tags)
+            .innerJoin(postTags, eq(tags.id, postTags.tagId))
+            .where(like(tags.name, `%${searchLower}%`));
+
+        if (matchedTags.length > 0) {
+            tagMatchedPostIds = new Set(matchedTags.map(m => m.internalPostId));
+        }
+    }
+
     // Updated Joins for New Polymorphic Schema
     const results = await db.select({
         item: mediaItems,
@@ -263,11 +284,54 @@ export async function getMediaItems(
                 if (row.pixiv.title?.toLowerCase().includes(searchLower)) hit = true;
                 if (row.pixiv.caption?.toLowerCase().includes(searchLower)) hit = true;
 
-                // Check Pixiv Tags (JSON string)
+                // Check Pixiv Tags (JSON string) - Legacy check, keeping for safety or if tags are still in JSON
                 if (Array.isArray(row.pixiv.tags)) {
                     if (JSON.stringify(row.pixiv.tags).toLowerCase().includes(searchLower)) hit = true;
                 }
             }
+
+            // Text Search via Tags Table (New)
+            if (!hit) {
+                // If the search term looks like a tag (starts with pixiv: or just text), we can try to match against tags table
+                // Since we can't easily join in the main query, let's fetch matching internalPostIds first if it looks like a tag search
+                // Or just do it in memory for now since we are already filtering in memory (filtered.filter(...))
+                // Just check if we can find the tag for this item.
+
+                // Ideally we should do this at the SQL level for performance.
+                // But since we are fetching everything and filtering JS side (which is bad for big DBs but that's how it is now),
+                // we can just check if this item has the tag? No, we don't fetch tags in the result.
+
+                // NOTE: The current architecture fetches ALL filtered mediaItems then filters in memory for search.
+                // This is not scalable.
+                // However, to fix the specific issue: "search=pixiv: tagname"
+                // We need to know if the post associated with this media item has that tag.
+
+                // Let's rely on the fact that if it's a tag search, users likely clicked a tag.
+                // But verifying EVERY row against the DB N+1 is too slow.
+
+                // BETTER APPROACH:
+                // If there is a search query, pre-fetch the list of internalPostIds that match that tag?
+                // Only if the search query exactly matches a tag?
+
+                // For now, let's just implement a quick check if search term is effectively a tag substring.
+                // We need to join postTags in the main query?
+                // That might duplicate rows if multiple tags match.
+
+                // Let's add a subquery or check if we can join efficiently.
+                // Given the current structure, adding a LEFT JOIN to postTags and tags might explode the result set size.
+
+                // Hacky but safe fix for "clicking a tag":
+                // If search query contains "pixiv:" or just text, we can try to see if we can filter by that.
+                // But we don't have the tags in `row`.
+                // We MUST update the query to Include tags or filter at DB level.
+
+                if (tagMatchedPostIds) {
+                    if (row.item.internalPostId && tagMatchedPostIds.has(row.item.internalPostId)) {
+                        hit = true;
+                    }
+                }
+            }
+
 
             // Check Source Name/Type
             if (!hit && row.source) {
@@ -535,4 +599,50 @@ export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
         console.error(`[deleteMediaItems] FAILED:`, error);
         throw error;
     }
+}
+
+export async function getTopTags(sort: 'count' | 'new' | 'recent' = 'count') {
+    if (sort === 'new') {
+        const results = await db.select({
+            name: tags.name,
+            id: tags.id
+        })
+            .from(tags)
+            .orderBy(desc(tags.id))
+            .limit(100);
+        return results.map(r => ({ name: r.name, count: 0 })); // Count 0 or we need to fetch it
+    }
+
+    if (sort === 'recent') {
+        // Tags used in most recently captured Pixiv posts
+        const results = await db.select({
+            name: tags.name,
+            lastDate: sql<string>`MAX(${pixivIllusts.date})`,
+            count: count(postTags.tagId)
+        })
+            .from(tags)
+            .innerJoin(postTags, eq(tags.id, postTags.tagId))
+            .innerJoin(pixivIllusts, and(
+                eq(postTags.internalPostId, pixivIllusts.id),
+                eq(postTags.extractorType, 'pixiv')
+            ))
+            .groupBy(tags.id)
+            .orderBy(desc(sql`MAX(${pixivIllusts.date})`))
+            .limit(100);
+
+        return results;
+    }
+
+    // Default: Count
+    const results = await db.select({
+        name: tags.name,
+        count: count(postTags.tagId)
+    })
+        .from(tags)
+        .innerJoin(postTags, eq(tags.id, postTags.tagId))
+        .groupBy(tags.id)
+        .orderBy(desc(count(postTags.tagId)))
+        .limit(100);
+
+    return results;
 }
