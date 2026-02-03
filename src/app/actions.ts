@@ -6,7 +6,8 @@ import { ScraperRunner } from '@/lib/scrapers/runner';
 import { scraperManager, ScrapingStatus } from '@/lib/scrapers/manager';
 import { revalidatePath } from 'next/cache';
 import path from 'path';
-import { eq, desc, ne, inArray, isNull, and, asc, like, or, count, sql } from 'drizzle-orm';
+import { eq, desc, ne, inArray, isNull, and, asc, like, or, count, sql, SQL } from 'drizzle-orm';
+
 import { syncLibrary, stopScanning } from '@/lib/library/scanner';
 import fs from 'fs/promises';
 
@@ -173,15 +174,26 @@ export async function getMediaItems(
     const favsMatch = searchQuery.match(/(?:favs|min_favs):(\d+)/i);
     if (favsMatch) {
         minFavorites = parseInt(favsMatch[1], 10);
-        // Remove the command from the search string so we don't try to match "favs:10" as text
         searchQuery = searchQuery.replace(favsMatch[0], '').trim();
     }
 
-    let conditions = ne(mediaItems.mediaType, 'text');
+    // Extract "source:type"
+    let sourceFilter: string | null = null;
+    const sourceMatch = searchQuery.match(/source:([a-zA-Z0-9_-]+)/i);
+    if (sourceMatch) {
+        sourceFilter = sourceMatch[1].toLowerCase();
+        searchQuery = searchQuery.replace(sourceMatch[0], '').trim();
+    }
+
+    let conditions: SQL | undefined = ne(mediaItems.mediaType, 'text');
+
+    if (sourceFilter) {
+        conditions = and(conditions, eq(mediaItems.extractorType, sourceFilter));
+    }
 
     // 2. Pre-fetch Tag Matches if optimized search
     // If search query is present, let's see if we should filter by tag ID first.
-    let tagMatchedPostIds: Set<number> | null = null;
+    let tagMatchedPostIds: Set<string> | null = null;
     if (searchQuery.length > 1) {
         // Simple heuristic: if it contains "pixiv:" or just looks like a word
         const searchLower = searchQuery.toLowerCase();
@@ -197,7 +209,8 @@ export async function getMediaItems(
             .where(like(tags.name, `%${searchLower}%`));
 
         if (matchedTags.length > 0) {
-            tagMatchedPostIds = new Set(matchedTags.map(m => m.internalPostId));
+            // Use composite key to avoid collisions between tables
+            tagMatchedPostIds = new Set(matchedTags.map(m => `${m.extractorType}:${m.internalPostId}`));
         }
     }
 
@@ -326,7 +339,8 @@ export async function getMediaItems(
                 // We MUST update the query to Include tags or filter at DB level.
 
                 if (tagMatchedPostIds) {
-                    if (row.item.internalPostId && tagMatchedPostIds.has(row.item.internalPostId)) {
+                    const key = `${row.item.extractorType}:${row.item.internalPostId}`;
+                    if (row.item.internalPostId && tagMatchedPostIds.has(key)) {
                         hit = true;
                     }
                 }
@@ -379,6 +393,7 @@ export async function getMediaItems(
 export type TimelinePost = {
     id: string; // Unique ID for the post group
     type: 'twitter' | 'pixiv' | 'other';
+    internalDbId?: number; // DB ID (auto-increment) for linking to tags
     date: Date;
     author?: {
         name?: string;
@@ -407,7 +422,29 @@ export type TimelinePost = {
     };
 };
 
-export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePost[]> {
+export async function getTimelinePosts(page = 1, limit = 20, search = ''): Promise<TimelinePost[]> {
+    // 1. Parse Search Query similar to getMediaItems
+    let searchQuery = search || '';
+    let minFavorites = 0;
+
+    const favsMatch = searchQuery.match(/(?:favs|min_favs):(\d+)/i);
+    if (favsMatch) {
+        minFavorites = parseInt(favsMatch[1], 10);
+        searchQuery = searchQuery.replace(favsMatch[0], '').trim();
+    }
+
+    let sourceFilter: string | null = null;
+    const sourceMatch = searchQuery.match(/source:([a-zA-Z0-9_-]+)/i);
+    if (sourceMatch) {
+        sourceFilter = sourceMatch[1].toLowerCase();
+        searchQuery = searchQuery.replace(sourceMatch[0], '').trim();
+    }
+
+    let conditions = undefined;
+    if (sourceFilter) {
+        conditions = eq(mediaItems.extractorType, sourceFilter);
+    }
+
     const items = await db.select({
         item: mediaItems,
         tweet: twitterTweets,
@@ -432,7 +469,25 @@ export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePo
             eq(twitterTweets.internalSourceId, sources.id),
             eq(pixivIllusts.internalSourceId, sources.id)
         ))
+        .where(conditions || sql`TRUE`)
         .orderBy(desc(mediaItems.capturedAt));
+
+    // 2. Pre-fetch Tag Matches if optimized search (Copied from getMediaItems)
+    let tagMatchedPostIds: Set<string> | null = null;
+    if (searchQuery.length > 1) {
+        const searchLower = searchQuery.toLowerCase();
+        const matchedTags = await db.selectDistinct({
+            internalPostId: postTags.internalPostId,
+            extractorType: postTags.extractorType
+        })
+            .from(tags)
+            .innerJoin(postTags, eq(tags.id, postTags.tagId))
+            .where(like(tags.name, `%${searchLower}%`));
+
+        if (matchedTags.length > 0) {
+            tagMatchedPostIds = new Set(matchedTags.map(m => `${m.extractorType}:${m.internalPostId}`));
+        }
+    }
 
     // 2. Group items
     const postsMap = new Map<string, TimelinePost>();
@@ -499,6 +554,7 @@ export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePo
             postsMap.set(groupId, {
                 id: groupId,
                 type,
+                internalDbId: type === 'twitter' ? row.tweet?.id : (type === 'pixiv' ? row.illust?.id : undefined),
                 date,
                 author,
                 content,
@@ -532,10 +588,43 @@ export async function getTimelinePosts(page = 1, limit = 20): Promise<TimelinePo
     });
 
     // Apply pagination
+    // Apply pagination
+    // Filter by text search if needed (in memory for now, same as gallery)
+    const searchLower = searchQuery.toLowerCase();
+    let filteredPosts = allPosts;
+
+    if (searchLower || minFavorites > 0) {
+        filteredPosts = allPosts.filter(post => {
+            // Min Favorites
+            if (minFavorites > 0) {
+                if ((post.stats?.likes || 0) < minFavorites) return false;
+            }
+
+            // Text Search
+            if (searchLower) {
+                let hit = false;
+                if (post.author?.name?.toLowerCase().includes(searchLower)) hit = true;
+                else if (post.author?.handle?.toLowerCase().includes(searchLower)) hit = true;
+                else if (post.content?.toLowerCase().includes(searchLower)) hit = true;
+
+                // Check Tags if pre-fetched
+                if (!hit && tagMatchedPostIds && post.internalDbId) {
+                    const key = `${post.type}:${post.internalDbId}`;
+                    if (tagMatchedPostIds.has(key)) {
+                        hit = true;
+                    }
+                }
+
+                if (!hit) return false;
+            }
+            return true;
+        });
+    }
+
     const start = (page - 1) * limit;
     const end = start + limit;
 
-    return allPosts.slice(start, end);
+    return filteredPosts.slice(start, end);
 }
 
 export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {

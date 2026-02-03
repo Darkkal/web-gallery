@@ -146,7 +146,7 @@ export default function GalleryPage() {
             <div className={styles.filterBar}>
                 <input
                     type="text"
-                    placeholder="Search (e.g. username, tag, favs:100)..."
+                    placeholder="Search (e.g. source:pixiv, min_favs:100, tag)..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && loadItems()}

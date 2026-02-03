@@ -9,12 +9,17 @@ export default function TimelinePage() {
     const [posts, setPosts] = useState<TimelinePost[]>([]);
     const [selectedIndex, setSelectedIndex] = useState<{ postIndex: number, mediaIndex: number } | null>(null);
 
+    const [searchQuery, setSearchQuery] = useState('');
+
     useEffect(() => {
-        loadPosts();
-    }, []);
+        const timer = setTimeout(() => {
+            loadPosts();
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     async function loadPosts() {
-        const data = await getTimelinePosts(1, 100); // Fetch 100 posts for now
+        const data = await getTimelinePosts(1, 100, searchQuery); // Fetch 100 posts for now
         setPosts(data);
     }
 
@@ -72,6 +77,17 @@ export default function TimelinePage() {
 
     return (
         <div className={styles.container}>
+
+            <div className={styles.filterBar} style={{ marginBottom: '1rem' }}>
+                <input
+                    type="text"
+                    placeholder="Search timeline (e.g. source:twitter)..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className={styles.input} // Re-using gallery styles if imported or just basic style
+                    style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                />
+            </div>
 
             <div className={styles.feed}>
                 {posts.map((post, postIdx) => (
