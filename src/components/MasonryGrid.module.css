@@ -2,6 +2,7 @@
     display: flex;
     width: 100%;
     gap: 1rem;
+    min-height: 100px; /* Ensure visibility for tests and layout stability */
 }
 
 .column {
