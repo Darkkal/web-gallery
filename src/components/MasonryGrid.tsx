@@ -50,7 +50,7 @@ export default function MasonryGrid<T>({ items, renderItem, columnCount: userCol
     }, [items, currentColumnCount]);
 
     return (
-        <div className={styles.container}>
+        <div className={styles.container} data-testid="masonry-grid">
             {columns.map((col, colIndex) => (
                 <div key={colIndex} className={styles.column}>
                     {col.map((item, itemIndex) => {
