@@ -95,7 +95,7 @@ export class ScraperRunner {
 
             console.log(`Starting ${tool} with args:`, args);
 
-            const child = spawn(tool, args, { shell: true, cwd: process.cwd() });
+            const child = spawn(tool, args, { shell: false, cwd: process.cwd() });
             childProcess = child;
 
             let stdout = '';
