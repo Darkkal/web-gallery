@@ -1,12 +1,11 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems, scrapeHistory, pixivUsers, pixivIllusts, tags, postTags, scanHistory, gallerydlExtractorTypes } from '@/lib/db/schema';
-import { ScraperRunner } from '@/lib/scrapers/runner';
+import { sources, mediaItems, twitterUsers, collectionItems, scrapeHistory, pixivUsers, tags, scanHistory, gallerydlExtractorTypes, posts, postDetailsTwitter, postDetailsPixiv, postDetailsGelbooruV02, postTags } from '@/lib/db/schema';
 import { scraperManager, ScrapingStatus } from '@/lib/scrapers/manager';
 import { revalidatePath } from 'next/cache';
 import path from 'path';
-import { eq, desc, ne, inArray, isNull, and, asc, like, or, count, sql, SQL } from 'drizzle-orm';
+import { eq, desc, ne, inArray, isNull, and, like, count, sql, SQL } from 'drizzle-orm';
 
 import { syncLibrary, stopScanning } from '@/lib/library/scanner';
 import fs from 'fs/promises';
@@ -15,13 +14,15 @@ import fs from 'fs/promises';
 
 const DOWNLOAD_DIR = path.join(process.cwd(), 'public', 'downloads');
 
-export async function getPostTags(postId: number, extractorType: string) {
+export async function getPostTags(postId: number) {
+    // postId is now the generic posts.id
     const pTags = await db.select({
         name: tags.name,
+        id: tags.id
     })
         .from(postTags)
         .innerJoin(tags, eq(postTags.tagId, tags.id))
-        .where(and(eq(postTags.internalPostId, postId), eq(postTags.extractorType, extractorType)));
+        .where(eq(postTags.postId, postId));
 
     return pTags;
 }
@@ -40,13 +41,14 @@ export async function addSource(url: string) {
         // Not a local path or doesn't exist
     }
 
-    let type: 'twitter' | 'pixiv' | 'gallery-dl' | 'local' = 'gallery-dl';
+    let type: 'twitter' | 'pixiv' | 'gallery-dl' | 'local' | 'gelbooruv02' = 'gallery-dl';
 
     if (isLocal) {
         type = 'local';
     } else {
         if (url.includes('twitter.com') || url.includes('x.com')) type = 'twitter';
         if (url.includes('pixiv.net')) type = 'pixiv';
+        if (url.includes('gelbooru.com') || url.includes('safebooru.org')) type = 'gelbooruv02';
     }
 
     // Ensure Extractor Type Exists
@@ -103,7 +105,7 @@ export async function scrapeSource(sourceId: number, mode: 'full' | 'quick' = 'f
     // We removed 'type' from source, now we have 'extractorType'. 
     // Assuming all are gallery-dl for now unless we add yt-dlp specific field.
     // But 'extractorType' is 'twitter'/'pixiv'. Tool is gallery-dl.
-    await scraperManager.startScrape(sourceId, 'gallery-dl' as any, source.url, DOWNLOAD_DIR, { mode });
+    await scraperManager.startScrape(sourceId, 'gallery-dl', source.url, DOWNLOAD_DIR, { mode });
 
     revalidatePath('/sources');
     return { success: true, message: 'Scrape started in background' };
@@ -188,64 +190,62 @@ export async function getMediaItems(
     let conditions: SQL | undefined = ne(mediaItems.mediaType, 'text');
 
     if (sourceFilter) {
-        conditions = and(conditions, eq(mediaItems.extractorType, sourceFilter));
+        // Filter by posts.extractorType via join
+        conditions = and(conditions, eq(posts.extractorType, sourceFilter));
     }
 
     // 2. Pre-fetch Tag Matches if optimized search
-    // If search query is present, let's see if we should filter by tag ID first.
-    let tagMatchedPostIds: Set<string> | null = null;
+    let tagMatchedPostIds: Set<number> | null = null;
     if (searchQuery.length > 1) {
-        // Simple heuristic: if it contains "pixiv:" or just looks like a word
         const searchLower = searchQuery.toLowerCase();
-
-        // Find tags that match the search query (substring match on tag name)
-        // We select distinct internalPostIds
         const matchedTags = await db.selectDistinct({
-            internalPostId: postTags.internalPostId,
-            extractorType: postTags.extractorType
+            postId: postTags.postId
         })
             .from(tags)
             .innerJoin(postTags, eq(tags.id, postTags.tagId))
             .where(like(tags.name, `%${searchLower}%`));
 
         if (matchedTags.length > 0) {
-            // Use composite key to avoid collisions between tables
-            tagMatchedPostIds = new Set(matchedTags.map(m => `${m.extractorType}:${m.internalPostId}`));
+            tagMatchedPostIds = new Set(matchedTags.map(m => m.postId));
         }
     }
 
-    // Updated Joins for New Polymorphic Schema
+    // Updated Joins for New Generic Posts Schema
     const results = await db.select({
         item: mediaItems,
-        tweet: twitterTweets,
+        post: posts,
+        twitter: postDetailsTwitter,
+        pixiv: postDetailsPixiv,
+        gelbooru: postDetailsGelbooruV02,
         user: twitterUsers,
-        pixiv: pixivIllusts,
         pixivUser: pixivUsers,
         source: sources,
     })
         .from(mediaItems)
-        // Join Posts via Polymorphic Logic
-        .leftJoin(twitterTweets, and(
-            eq(mediaItems.internalPostId, twitterTweets.id),
-            eq(mediaItems.extractorType, 'twitter')
-        ))
-        .leftJoin(twitterUsers, eq(twitterTweets.userId, twitterUsers.id))
+        // Join Posts
+        .leftJoin(posts, eq(mediaItems.postId, posts.id))
 
-        .leftJoin(pixivIllusts, and(
-            eq(mediaItems.internalPostId, pixivIllusts.id),
-            eq(mediaItems.extractorType, 'pixiv')
-        ))
-        .leftJoin(pixivUsers, eq(pixivIllusts.userId, pixivUsers.id))
+        // Join Details
+        .leftJoin(postDetailsTwitter, eq(posts.id, postDetailsTwitter.postId))
+        .leftJoin(postDetailsPixiv, eq(posts.id, postDetailsPixiv.postId))
+        .leftJoin(postDetailsGelbooruV02, eq(posts.id, postDetailsGelbooruV02.postId))
 
-        // Join Internal Source derived from posts (if available) or direct link if any (none on mediaItems anymore)
-        // We can join sources via internalSourceId on the posts
-        .leftJoin(sources, or(
-            eq(twitterTweets.internalSourceId, sources.id),
-            eq(pixivIllusts.internalSourceId, sources.id)
+        // Join Users
+        .leftJoin(twitterUsers, and(
+            eq(posts.extractorType, 'twitter'),
+            eq(posts.userId, twitterUsers.id)
         ))
+        .leftJoin(pixivUsers, and(
+            eq(posts.extractorType, 'pixiv'),
+            eq(posts.userId, pixivUsers.id)
+        ))
+
+        // Join Sources
+        .leftJoin(sources, eq(posts.internalSourceId, sources.id))
+
         .where(conditions);
 
-    // Transform Avatar URLs to Proxy
+    // Transform Avatar URLs
     results.forEach(row => {
         if (row.user && row.user.id) {
             row.user.profileImage = `/api/avatar/twitter/${row.user.id}`;
@@ -258,14 +258,17 @@ export async function getMediaItems(
     const searchLower = searchQuery.toLowerCase();
 
     // Filter results
-    let filtered = results.filter(row => {
+    const filtered = results.filter(row => {
         // 1. Min Favorites Filter
         if (minFavorites > 0) {
-            if (row.tweet) {
-                if ((row.tweet.favoriteCount || 0) < minFavorites) return false;
+            if (row.twitter) {
+                if ((row.twitter.favoriteCount || 0) < minFavorites) return false;
             }
             if (row.pixiv) {
                 if ((row.pixiv.totalBookmarks || 0) < minFavorites) return false;
+            }
+            if (row.gelbooru) {
+                if ((row.gelbooru.score || 0) < minFavorites) return false;
             }
         }
 
@@ -273,84 +276,34 @@ export async function getMediaItems(
         if (searchLower) {
             let hit = false;
 
-            // Check Twitter User
-            if (row.user) {
-                if (row.user.name?.toLowerCase().includes(searchLower)) hit = true;
-                else if (row.user.nick?.toLowerCase().includes(searchLower)) hit = true;
-                else if (row.user.id.toLowerCase().includes(searchLower)) hit = true;
+            // Check Post
+            if (row.post) {
+                if (row.post.title?.toLowerCase().includes(searchLower)) hit = true;
+                if (row.post.content?.toLowerCase().includes(searchLower)) hit = true;
             }
 
-            // Check Pixiv User
-            if (!hit && row.pixivUser) {
-                if (row.pixivUser.name?.toLowerCase().includes(searchLower)) hit = true;
-                else if (row.pixivUser.account?.toLowerCase().includes(searchLower)) hit = true;
-                else if (row.pixivUser.id.toLowerCase().includes(searchLower)) hit = true;
-            }
-
-            // Check Tweet Content
-            if (!hit && row.tweet) {
-                if (row.tweet.content?.toLowerCase().includes(searchLower)) hit = true;
-            }
-
-            // Check Pixiv Title/Caption
-            if (!hit && row.pixiv) {
-                if (row.pixiv.title?.toLowerCase().includes(searchLower)) hit = true;
-                if (row.pixiv.caption?.toLowerCase().includes(searchLower)) hit = true;
-
-                // Check Pixiv Tags (JSON string) - Legacy check, keeping for safety or if tags are still in JSON
-                if (Array.isArray(row.pixiv.tags)) {
-                    if (JSON.stringify(row.pixiv.tags).toLowerCase().includes(searchLower)) hit = true;
-                }
-            }
-
-            // Text Search via Tags Table (New)
+            // Check Users
             if (!hit) {
-                // If the search term looks like a tag (starts with pixiv: or just text), we can try to match against tags table
-                // Since we can't easily join in the main query, let's fetch matching internalPostIds first if it looks like a tag search
-                // Or just do it in memory for now since we are already filtering in memory (filtered.filter(...))
-                // Just check if we can find the tag for this item.
-
-                // Ideally we should do this at the SQL level for performance.
-                // But since we are fetching everything and filtering JS side (which is bad for big DBs but that's how it is now),
-                // we can just check if this item has the tag? No, we don't fetch tags in the result.
-
-                // NOTE: The current architecture fetches ALL filtered mediaItems then filters in memory for search.
-                // This is not scalable.
-                // However, to fix the specific issue: "search=pixiv: tagname"
-                // We need to know if the post associated with this media item has that tag.
-
-                // Let's rely on the fact that if it's a tag search, users likely clicked a tag.
-                // But verifying EVERY row against the DB N+1 is too slow.
-
-                // BETTER APPROACH:
-                // If there is a search query, pre-fetch the list of internalPostIds that match that tag?
-                // Only if the search query exactly matches a tag?
-
-                // For now, let's just implement a quick check if search term is effectively a tag substring.
-                // We need to join postTags in the main query?
-                // That might duplicate rows if multiple tags match.
-
-                // Let's add a subquery or check if we can join efficiently.
-                // Given the current structure, adding a LEFT JOIN to postTags and tags might explode the result set size.
-
-                // Hacky but safe fix for "clicking a tag":
-                // If search query contains "pixiv:" or just text, we can try to see if we can filter by that.
-                // But we don't have the tags in `row`.
-                // We MUST update the query to Include tags or filter at DB level.
-
-                if (tagMatchedPostIds) {
-                    const key = `${row.item.extractorType}:${row.item.internalPostId}`;
-                    if (row.item.internalPostId && tagMatchedPostIds.has(key)) {
-                        hit = true;
-                    }
+                if (row.user) {
+                    if (row.user.name?.toLowerCase().includes(searchLower)) hit = true;
+                    if (row.user.nick?.toLowerCase().includes(searchLower)) hit = true;
+                }
+                if (row.pixivUser) {
+                    if (row.pixivUser.name?.toLowerCase().includes(searchLower)) hit = true;
+                    if (row.pixivUser.account?.toLowerCase().includes(searchLower)) hit = true;
                 }
             }
 
+            // Check Tags (Tag Match Logic)
+            if (!hit && tagMatchedPostIds) {
+                if (row.post && tagMatchedPostIds.has(row.post.id)) {
+                    hit = true;
+                }
+            }
 
-            // Check Source Name/Type
+            // Check Source Name
             if (!hit && row.source) {
                 if (row.source.name?.toLowerCase().includes(searchLower)) hit = true;
-                // if (row.source.type?.toLowerCase().includes(searchLower)) hit = true; // 'type' removed
             }
 
             if (!hit) return false;
@@ -365,24 +318,24 @@ export async function getMediaItems(
     filtered.sort((a, b) => {
         switch (sortBy) {
             case 'created-asc': // Oldest Imported First
-                const cDateA = new Date(a.item.createdAt || 0).getTime();
-                const cDateB = new Date(b.item.createdAt || 0).getTime();
+                const cDateA = new Date(a.post?.createdAt || a.item.capturedAt || 0).getTime();
+                const cDateB = new Date(b.post?.createdAt || b.item.capturedAt || 0).getTime();
                 return cDateA - cDateB;
 
             case 'created-desc': // Newest Imported First
             default:
-                const cDateA2 = new Date(a.item.createdAt || 0).getTime();
-                const cDateB2 = new Date(b.item.createdAt || 0).getTime();
+                const cDateA2 = new Date(a.post?.createdAt || a.item.capturedAt || 0).getTime();
+                const cDateB2 = new Date(b.post?.createdAt || b.item.capturedAt || 0).getTime();
                 return cDateB2 - cDateA2;
 
             case 'captured-asc': // Oldest Content First
-                const capDateA = new Date(a.item.capturedAt || a.item.createdAt || 0).getTime();
-                const capDateB = new Date(b.item.capturedAt || b.item.createdAt || 0).getTime();
+                const capDateA = new Date(a.post?.date || a.item.capturedAt || 0).getTime();
+                const capDateB = new Date(b.post?.date || b.item.capturedAt || 0).getTime();
                 return capDateA - capDateB;
 
             case 'captured-desc': // Newest Content First
-                const capDateA2 = new Date(a.item.capturedAt || a.item.createdAt || 0).getTime();
-                const capDateB2 = new Date(b.item.capturedAt || b.item.createdAt || 0).getTime();
+                const capDateA2 = new Date(a.post?.date || a.item.capturedAt || 0).getTime();
+                const capDateB2 = new Date(b.post?.date || b.item.capturedAt || 0).getTime();
                 return capDateB2 - capDateA2;
         }
     });
@@ -440,191 +393,199 @@ export async function getTimelinePosts(page = 1, limit = 20, search = ''): Promi
         searchQuery = searchQuery.replace(sourceMatch[0], '').trim();
     }
 
-    let conditions = undefined;
-    if (sourceFilter) {
-        conditions = eq(mediaItems.extractorType, sourceFilter);
-    }
-
-    const items = await db.select({
-        item: mediaItems,
-        tweet: twitterTweets,
-        twitterUser: twitterUsers,
-        illust: pixivIllusts,
-        pixivUser: pixivUsers,
-        source: sources,
-    })
-        .from(mediaItems)
-        // Join new FKs
-        .leftJoin(twitterTweets, and(
-            eq(mediaItems.internalPostId, twitterTweets.id),
-            eq(mediaItems.extractorType, 'twitter')
-        ))
-        .leftJoin(twitterUsers, eq(twitterTweets.userId, twitterUsers.id))
-        .leftJoin(pixivIllusts, and(
-            eq(mediaItems.internalPostId, pixivIllusts.id),
-            eq(mediaItems.extractorType, 'pixiv')
-        ))
-        .leftJoin(pixivUsers, eq(pixivIllusts.userId, pixivUsers.id))
-        .leftJoin(sources, or(
-            eq(twitterTweets.internalSourceId, sources.id),
-            eq(pixivIllusts.internalSourceId, sources.id)
-        ))
-        .where(conditions || sql`TRUE`)
-        .orderBy(desc(mediaItems.capturedAt));
-
-    // 2. Pre-fetch Tag Matches if optimized search (Copied from getMediaItems)
-    let tagMatchedPostIds: Set<string> | null = null;
+    // Helper: fetch matching tags first
+    let tagMatchedPostIds: Set<number> | null = null;
     if (searchQuery.length > 1) {
         const searchLower = searchQuery.toLowerCase();
         const matchedTags = await db.selectDistinct({
-            internalPostId: postTags.internalPostId,
-            extractorType: postTags.extractorType
+            postId: postTags.postId
         })
             .from(tags)
             .innerJoin(postTags, eq(tags.id, postTags.tagId))
             .where(like(tags.name, `%${searchLower}%`));
 
         if (matchedTags.length > 0) {
-            tagMatchedPostIds = new Set(matchedTags.map(m => `${m.extractorType}:${m.internalPostId}`));
+            tagMatchedPostIds = new Set(matchedTags.map(m => m.postId));
         }
     }
 
-    // 2. Group items
-    const postsMap = new Map<string, TimelinePost>();
-    const processingOrder: string[] = []; // To maintain sort order
+    // 2. Fetch Posts (Paginated)
+    // We should probably filter on DB level for performance, but we do it in memory for complex search matches for now.
+    // However, pagination expects DB level or we fetch all?
+    // Current implementation fetched all and sliced. We will do the same for consistency but optimized queries.
 
-    for (const row of items) {
-        let groupId: string;
-        let type: 'twitter' | 'pixiv' | 'other' = 'other';
-        let author: TimelinePost['author'] = undefined;
-        let content: string | undefined = undefined;
+    let conditions: SQL | undefined = undefined;
+    if (sourceFilter) {
+        conditions = eq(posts.extractorType, sourceFilter);
+    }
+
+    // Select Posts + Details
+    const rawPosts = await db.select({
+        post: posts,
+        twitter: postDetailsTwitter,
+        pixiv: postDetailsPixiv,
+        gelbooru: postDetailsGelbooruV02,
+        user: twitterUsers,
+        pixivUser: pixivUsers,
+        source: sources,
+    })
+        .from(posts)
+        .leftJoin(postDetailsTwitter, eq(posts.id, postDetailsTwitter.postId))
+        .leftJoin(postDetailsPixiv, eq(posts.id, postDetailsPixiv.postId))
+        .leftJoin(postDetailsGelbooruV02, eq(posts.id, postDetailsGelbooruV02.postId))
+        .leftJoin(twitterUsers, and(eq(posts.extractorType, 'twitter'), eq(posts.userId, twitterUsers.id)))
+        .leftJoin(pixivUsers, and(eq(posts.extractorType, 'pixiv'), eq(posts.userId, pixivUsers.id)))
+        .leftJoin(sources, eq(posts.internalSourceId, sources.id))
+        .where(conditions);
+
+    // 3. Transform and Filter
+    const filteredResults: (typeof rawPosts[number] & { stats?: TimelinePost['stats'] })[] = [];
+    const searchLower = searchQuery.toLowerCase();
+
+    for (const row of rawPosts) {
         let stats: TimelinePost['stats'] = undefined;
-        let sourceUrl: string | undefined = undefined;
+        let type: 'twitter' | 'pixiv' | 'other' = 'other';
+        if (row.post.extractorType === 'twitter') type = 'twitter';
+        else if (row.post.extractorType === 'pixiv') type = 'pixiv';
+
+        if (type === 'twitter') {
+            stats = {
+                likes: row.twitter?.favoriteCount || 0,
+                views: row.twitter?.viewCount || 0,
+                bookmarks: row.twitter?.bookmarkCount || 0,
+                retweets: row.twitter?.retweetCount || 0
+            };
+        } else if (type === 'pixiv') {
+            stats = {
+                likes: row.pixiv?.totalBookmarks || 0,
+                views: row.pixiv?.totalView || 0,
+            };
+        } else if (row.post.extractorType === 'gelbooruv02') {
+            stats = {
+                likes: row.gelbooru?.score || 0,
+            };
+        }
+
+        // Search Filter Check
+        let hit = true;
+        if (searchLower || minFavorites > 0) {
+            // Min Favorites
+            if (minFavorites > 0) {
+                if ((stats?.likes || 0) < minFavorites) hit = false;
+            }
+
+            // Text Search
+            if (hit && searchLower) {
+                hit = false;
+                // Check Author/Content
+                const authorName = row.user?.name || row.pixivUser?.name || (row.post.extractorType === 'gelbooruv02' ? 'Gelbooru' : '');
+                const authorNick = row.user?.nick || row.pixivUser?.account || '';
+
+                if (authorName.toLowerCase().includes(searchLower)) hit = true;
+                else if (authorNick.toLowerCase().includes(searchLower)) hit = true;
+                else if (row.post.content?.toLowerCase().includes(searchLower)) hit = true;
+                else if (row.post.title?.toLowerCase().includes(searchLower)) hit = true;
+
+                // Check Tags
+                if (!hit && tagMatchedPostIds && tagMatchedPostIds.has(row.post.id)) {
+                    hit = true;
+                }
+            }
+        }
+
+        if (hit) {
+            filteredResults.push({ ...row, stats });
+        }
+    }
+
+    // 4. Sort and Paginate Posts
+    filteredResults.sort((a, b) => {
+        const dateA = new Date(a.post.date || a.post.createdAt || 0).getTime();
+        const dateB = new Date(b.post.date || b.post.createdAt || 0).getTime();
+        return dateB - dateA;
+    });
+
+    const start = (page - 1) * limit;
+    const pagedResults = filteredResults.slice(start, start + limit);
+
+    if (pagedResults.length === 0) return [];
+
+    // 5. Fetch Media Items only for paged posts
+    const pagedPostIds = pagedResults.map(r => r.post.id);
+    const pageMedia = await db.select()
+        .from(mediaItems)
+        .where(and(
+            ne(mediaItems.mediaType, 'text'),
+            inArray(mediaItems.postId, pagedPostIds)
+        ));
+
+    const mediaMap = new Map<number, typeof pageMedia>();
+    for (const m of pageMedia) {
+        if (m.postId) {
+            if (!mediaMap.has(m.postId)) mediaMap.set(m.postId, []);
+            mediaMap.get(m.postId)!.push(m);
+        }
+    }
+
+    // 6. Final Transformation
+    const timelinePosts: TimelinePost[] = pagedResults.map(row => {
+        let type: 'twitter' | 'pixiv' | 'other' = 'other';
+        if (row.post.extractorType === 'twitter') type = 'twitter';
+        else if (row.post.extractorType === 'pixiv') type = 'pixiv';
+
+        let author: TimelinePost['author'] = undefined;
         let pixivMetadata: TimelinePost['pixivMetadata'] = undefined;
 
-        // Determine Group ID and Metadata
-        if (row.tweet) {
-            groupId = `twitter-${row.tweet.tweetId}`;
-            type = 'twitter';
+        if (type === 'twitter') {
             author = {
-                name: row.twitterUser?.name || undefined,
-                handle: row.twitterUser?.nick || undefined,
-                avatar: row.twitterUser?.id ? `/api/avatar/twitter/${row.twitterUser.id}` : undefined,
-                url: row.twitterUser ? `https://twitter.com/${row.twitterUser.nick}` : undefined
+                name: row.user?.name || undefined,
+                handle: row.user?.nick || undefined,
+                avatar: row.user?.id ? `/api/avatar/twitter/${row.user.id}` : undefined,
+                url: row.user ? `https://twitter.com/${row.user.nick}` : undefined
             };
-            content = row.tweet.content || undefined;
-            stats = {
-                likes: row.tweet.favoriteCount || 0,
-                views: row.tweet.viewCount || 0,
-                bookmarks: row.tweet.bookmarkCount || 0,
-                retweets: row.tweet.retweetCount || 0
-            };
-            sourceUrl = `https://twitter.com/${row.tweet.userId}/status/${row.tweet.tweetId}`; // Approximate
-        } else if (row.illust) {
-            groupId = `pixiv-${row.illust.pixivId}`;
-            type = 'pixiv';
+        } else if (type === 'pixiv') {
             author = {
                 name: row.pixivUser?.name || undefined,
                 handle: row.pixivUser?.account || undefined,
                 avatar: row.pixivUser?.id ? `/api/avatar/pixiv/${row.pixivUser.id}` : undefined,
                 url: row.pixivUser ? `https://www.pixiv.net/users/${row.pixivUser.id}` : undefined
             };
-            content = row.illust.caption || row.illust.title || undefined;
-            stats = {
-                likes: row.illust.totalBookmarks || 0, // Pixiv bookmarks is mostly like 'likes'
-                views: row.illust.totalView || 0,
-            };
-            sourceUrl = `https://www.pixiv.net/artworks/${row.illust.pixivId}`;
             pixivMetadata = {
-                dbId: row.illust.id,
-                illustId: row.illust.pixivId
+                dbId: row.post.id,
+                illustId: parseInt(row.post.jsonSourceId || '0')
             };
-        } else {
-            groupId = `item-${row.item.id}`; // Standalone
+        } else if (row.post.extractorType === 'gelbooruv02') {
             type = 'other';
-            // content = row.item.description // removed
-            sourceUrl = row.item.filePath; // fallback
+            author = {
+                name: 'Gelbooru',
+                handle: row.gelbooru?.md5 || undefined
+            };
         }
 
-        // Init Post if needed
-        if (!postsMap.has(groupId)) {
-            // Use the date of the first item encountered (which is latest due to sort)
-            const date = row.item.capturedAt || row.item.createdAt || new Date();
+        const postMedia = mediaMap.get(row.post.id) || [];
+        postMedia.sort((a, b) => a.filePath.localeCompare(b.filePath));
 
-            postsMap.set(groupId, {
-                id: groupId,
-                type,
-                internalDbId: type === 'twitter' ? row.tweet?.id : (type === 'pixiv' ? row.illust?.id : undefined),
-                date,
-                author,
-                content,
-                mediaItems: [],
-                stats,
-                sourceUrl,
-                pixivMetadata
-            });
-            processingOrder.push(groupId);
-        }
-
-        const post = postsMap.get(groupId)!;
-
-        // Add Media Item (include text items so they can be selected in lightbox)
-        post.mediaItems.push({
-            id: row.item.id,
-            url: row.item.filePath,
-            type: row.item.mediaType as 'image' | 'video' | 'audio' | 'text',
-            width: row.illust?.width || undefined,
-            height: row.illust?.height || undefined // Only Pixiv has reliable dimensions in DB currently
-        });
-    }
-
-    // Pagination (In Memory)
-    // Convert map to array in order
-    const allPosts = processingOrder.map(id => {
-        const post = postsMap.get(id)!;
-        // Sort media items by URL (filename) to ensure p0, p1, p2 order
-        post.mediaItems.sort((a, b) => a.url.localeCompare(b.url));
-        return post;
+        return {
+            id: `${type}-${row.post.jsonSourceId || row.post.id}`,
+            type,
+            internalDbId: row.post.id,
+            date: new Date(row.post.date || row.post.createdAt || Date.now()),
+            author,
+            content: row.post.content || row.post.title || undefined,
+            mediaItems: postMedia.map(m => ({
+                id: m.id,
+                url: m.filePath,
+                type: m.mediaType as 'image' | 'video' | 'audio' | 'text',
+                width: row.pixiv?.width || row.gelbooru?.width || undefined,
+                height: row.pixiv?.height || row.gelbooru?.height || undefined
+            })),
+            stats: row.stats,
+            sourceUrl: row.post.url || undefined,
+            pixivMetadata
+        };
     });
 
-    // Apply pagination
-    // Apply pagination
-    // Filter by text search if needed (in memory for now, same as gallery)
-    const searchLower = searchQuery.toLowerCase();
-    let filteredPosts = allPosts;
-
-    if (searchLower || minFavorites > 0) {
-        filteredPosts = allPosts.filter(post => {
-            // Min Favorites
-            if (minFavorites > 0) {
-                if ((post.stats?.likes || 0) < minFavorites) return false;
-            }
-
-            // Text Search
-            if (searchLower) {
-                let hit = false;
-                if (post.author?.name?.toLowerCase().includes(searchLower)) hit = true;
-                else if (post.author?.handle?.toLowerCase().includes(searchLower)) hit = true;
-                else if (post.content?.toLowerCase().includes(searchLower)) hit = true;
-
-                // Check Tags if pre-fetched
-                if (!hit && tagMatchedPostIds && post.internalDbId) {
-                    const key = `${post.type}:${post.internalDbId}`;
-                    if (tagMatchedPostIds.has(key)) {
-                        hit = true;
-                    }
-                }
-
-                if (!hit) return false;
-            }
-            return true;
-        });
-    }
-
-    const start = (page - 1) * limit;
-    const end = start + limit;
-
-    return filteredPosts.slice(start, end);
+    return timelinePosts;
 }
 
 export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
@@ -658,8 +619,9 @@ export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
                     } catch {
                         // Metadata might not exist, ignore
                     }
-                } catch (err: any) {
-                    console.error(`[deleteMediaItems] Failed to delete file: ${item.filePath}`, err.message);
+                } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : String(err);
+                    console.error(`[deleteMediaItems] Failed to delete file: ${item.filePath}`, msg);
                 }
             }
         }
@@ -699,24 +661,21 @@ export async function getTopTags(sort: 'count' | 'new' | 'recent' = 'count') {
             .from(tags)
             .orderBy(desc(tags.id))
             .limit(100);
-        return results.map(r => ({ name: r.name, count: 0 })); // Count 0 or we need to fetch it
+        return results.map(r => ({ name: r.name, count: 0 }));
     }
 
     if (sort === 'recent') {
-        // Tags used in most recently captured Pixiv posts
+        // Tags used in most recently created posts
         const results = await db.select({
             name: tags.name,
-            lastDate: sql<string>`MAX(${pixivIllusts.date})`,
+            lastDate: sql<string>`MAX(${posts.date})`,
             count: count(postTags.tagId)
         })
             .from(tags)
             .innerJoin(postTags, eq(tags.id, postTags.tagId))
-            .innerJoin(pixivIllusts, and(
-                eq(postTags.internalPostId, pixivIllusts.id),
-                eq(postTags.extractorType, 'pixiv')
-            ))
+            .innerJoin(posts, eq(postTags.postId, posts.id))
             .groupBy(tags.id)
-            .orderBy(desc(sql`MAX(${pixivIllusts.date})`))
+            .orderBy(desc(sql`MAX(${posts.date})`))
             .limit(100);
 
         return results;

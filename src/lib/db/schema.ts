@@ -70,31 +70,6 @@ export const twitterUsers = sqliteTable('twitter_users', {
     description: text('description'),
 });
 
-export const twitterTweets = sqliteTable('twitter_tweets', {
-    id: integer('id').primaryKey({ autoIncrement: true }),
-    tweetId: text('tweet_id').notNull().unique(), // The actual string ID from Twitter
-    retweetId: text('retweet_id'),
-    quoteId: text('quote_id'),
-    replyId: text('reply_id'),
-    conversationId: text('conversation_id'),
-    jsonSourceId: text('json_source_id'), // Renamed from sourceId
-    internalSourceId: integer('internal_source_id').references(() => sources.id), // Link to source table
-    date: text('date'),
-    userId: text('user_id').references(() => twitterUsers.id),
-    lang: text('lang'),
-    source: text('source'),
-    sensitive: integer('sensitive', { mode: 'boolean' }),
-    sensitiveFlags: text('sensitive_flags', { mode: 'json' }), // JSON array
-    favoriteCount: integer('favorite_count'),
-    quoteCount: integer('quote_count'),
-    replyCount: integer('reply_count'),
-    retweetCount: integer('retweet_count'),
-    bookmarkCount: integer('bookmark_count'),
-    viewCount: integer('view_count'),
-    content: text('content'),
-    category: text('category'),
-    subcategory: text('subcategory'),
-});
 
 export const pixivUsers = sqliteTable('pixiv_users', {
     id: text('id').primaryKey(),
@@ -105,20 +80,51 @@ export const pixivUsers = sqliteTable('pixiv_users', {
     isAcceptRequest: integer('is_accept_request', { mode: 'boolean' }),
 });
 
-export const pixivIllusts = sqliteTable('pixiv_illusts', {
+
+export const posts = sqliteTable('posts', {
     id: integer('id').primaryKey({ autoIncrement: true }),
-    pixivId: integer('pixiv_id').notNull().unique(),
-    userId: text('user_id').references(() => pixivUsers.id),
-    internalSourceId: integer('internal_source_id').references(() => sources.id), // Link to source table
+    extractorType: text('extractor_type').notNull(), // 'twitter', 'pixiv', 'gelbooruv02'
+    jsonSourceId: text('json_source_id'), // Original platform ID (tweet_id, pixiv_id)
+    internalSourceId: integer('internal_source_id').references(() => sources.id),
+    userId: text('user_id'), // Generic user identifier
+    date: text('date'), // Original creation date
     title: text('title'),
-    type: text('type'),
-    caption: text('caption'),
-    restrict: integer('restrict'),
-    xRestrict: integer('x_restrict'),
-    sanityLevel: integer('sanity_level'),
+    content: text('content'), // caption, body, etc.
+    url: text('url'), // Link to original post
+    metadataPath: text('metadata_path'), // Path to the JSON metadata file
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
+export const postDetailsTwitter = sqliteTable('post_details_twitter', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    postId: integer('post_id').references(() => posts.id, { onDelete: 'cascade' }).notNull(),
+    retweetId: text('retweet_id'),
+    quoteId: text('quote_id'),
+    replyId: text('reply_id'),
+    conversationId: text('conversation_id'),
+    lang: text('lang'),
+    source: text('source'),
+    sensitive: integer('sensitive', { mode: 'boolean' }),
+    sensitiveFlags: text('sensitive_flags', { mode: 'json' }),
+    favoriteCount: integer('favorite_count'),
+    quoteCount: integer('quote_count'),
+    replyCount: integer('reply_count'),
+    retweetCount: integer('retweet_count'),
+    bookmarkCount: integer('bookmark_count'),
+    viewCount: integer('view_count'),
+    category: text('category'),
+    subcategory: text('subcategory'),
+});
+
+export const postDetailsPixiv = sqliteTable('post_details_pixiv', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    postId: integer('post_id').references(() => posts.id, { onDelete: 'cascade' }).notNull(),
     width: integer('width'),
     height: integer('height'),
     pageCount: integer('page_count'),
+    restrict: integer('restrict'),
+    xRestrict: integer('x_restrict'),
+    sanityLevel: integer('sanity_level'),
     totalView: integer('total_view'),
     totalBookmarks: integer('total_bookmarks'),
     isBookmarked: integer('is_bookmarked', { mode: 'boolean' }),
@@ -126,23 +132,33 @@ export const pixivIllusts = sqliteTable('pixiv_illusts', {
     isMuted: integer('is_muted', { mode: 'boolean' }),
     illustAiType: integer('illust_ai_type'),
     illustBookStyle: integer('illust_book_style'),
-    tags: text('tags', { mode: 'json' }), // JSON array
-    date: text('date'),
+    tags: text('tags', { mode: 'json' }),
     category: text('category'),
     subcategory: text('subcategory'),
+    type: text('type'), // illust, manga, ugoira
+});
+
+export const postDetailsGelbooruV02 = sqliteTable('post_details_gelbooruv02', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    postId: integer('post_id').references(() => posts.id, { onDelete: 'cascade' }).notNull(),
+    rating: text('rating'),
+    score: integer('score'),
+    md5: text('md5'),
+    width: integer('width'),
+    height: integer('height'),
+    tags: text('tags', { mode: 'json' }),
+    directory: text('directory'),
 });
 
 export const mediaItems = sqliteTable('media_items', {
     id: integer('id').primaryKey({ autoIncrement: true }),
-    // Removed sourceId as it is now on the post table (internalSourceId)
     filePath: text('file_path').notNull(),
     mediaType: text('media_type').$type<'image' | 'video' | 'audio' | 'text'>().default('image'),
     capturedAt: integer('captured_at', { mode: 'timestamp' }),
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 
-    // Polymorphic Relationship
-    extractorType: text('extractor_type').references(() => gallerydlExtractorTypes.id),
-    internalPostId: integer('internal_post_id'), // Link to twitter_tweets.id or pixiv_illusts.id
+    // Relationship
+    postId: integer('post_id').references(() => posts.id, { onDelete: 'set null' }),
 });
 
 export const collections = sqliteTable('collections', {
@@ -166,8 +182,8 @@ export const tags = sqliteTable('tags', {
 
 export const postTags = sqliteTable('post_tags', {
     tagId: integer('tag_id').references(() => tags.id, { onDelete: 'cascade' }).notNull(),
-    extractorType: text('extractor_type').notNull(), // 'twitter', 'pixiv', etc.
-    internalPostId: integer('internal_post_id').notNull(),
+    postId: integer('post_id').references(() => posts.id, { onDelete: 'cascade' }).notNull(),
 }, (t) => ({
-    pk: primaryKey({ columns: [t.tagId, t.extractorType, t.internalPostId] }),
+    pk: primaryKey({ columns: [t.tagId, t.postId] }),
 }));
+

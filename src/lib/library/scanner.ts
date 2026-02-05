@@ -4,15 +4,18 @@ import { db } from '@/lib/db';
 import {
     mediaItems,
     twitterUsers,
-    twitterTweets,
     pixivUsers,
-    pixivIllusts,
     tags,
     postTags,
     scanHistory,
     gallerydlExtractorTypes,
     scraperDownloadLogs,
-    sources
+    sources,
+    // New Tables
+    posts,
+    postDetailsTwitter,
+    postDetailsPixiv,
+    postDetailsGelbooruV02
 } from '@/lib/db/schema';
 import { eq, and, inArray, isNull } from 'drizzle-orm';
 
@@ -46,7 +49,6 @@ function getAllFiles(dirPath: string): string[] {
 // Memory Cache Types
 type TagCache = Map<string, number>; // name -> id
 type UserCache = Set<string>; // id
-type PostCache = Set<string>; // id (stringified)
 
 export async function syncLibrary() {
     if (isScanning) {
@@ -72,7 +74,7 @@ export async function syncLibrary() {
     }).returning({ id: scanHistory.id });
     const scanId = scanRecord[0].id;
 
-    let stats = {
+    const stats = {
         processed: 0,
         added: 0,
         updated: 0,
@@ -142,16 +144,22 @@ export async function syncLibrary() {
         (await db.select({ id: tags.id, name: tags.name }).from(tags)).forEach(t => existingTags.set(t.name, t.id));
 
         // Cache existing posts to avoid constant duplicate inserts
-        const existingTweets = new Set<string>();
-        (await db.select({ id: twitterTweets.tweetId }).from(twitterTweets)).forEach(t => existingTweets.add(t.id));
-
-        const existingIllusts = new Set<number>();
-        (await db.select({ id: pixivIllusts.pixivId }).from(pixivIllusts)).forEach(i => existingIllusts.add(i.id));
+        // Cache existing posts to avoid constant duplicate inserts
+        // Map key format: "extractor:jsonId" -> postId
+        const existingPosts = new Map<string, number>();
+        (await db.select({ id: posts.id, extractor: posts.extractorType, jsonId: posts.jsonSourceId }).from(posts)).forEach(p => {
+            if (p.jsonId) {
+                existingPosts.set(`${p.extractor}:${p.jsonId}`, p.id);
+            }
+        });
 
         // Ensure Extractors
         await db.insert(gallerydlExtractorTypes).values([
             { id: 'twitter', description: 'Twitter/X' },
-            { id: 'pixiv', description: 'Pixiv' }
+            { id: 'pixiv', description: 'Pixiv' },
+            { id: 'gelbooruv02', description: 'Gelbooru/Safebooru' },
+            { id: 'gallery-dl', description: 'Generic gallery-dl' },
+            { id: 'local', description: 'Local Directory' }
         ]).onConflictDoNothing().run();
 
 
@@ -162,7 +170,7 @@ export async function syncLibrary() {
         // We will process groups of files that share JSON metadata
         // Actually, we can just pair them up like before, but inside processBatch check if post exists.
 
-        for (const [dir, group] of dirGroups) {
+        for (const [, group] of dirGroups) {
             const mediaToJson = new Map<string, string>();
             const usedJsons = new Set<string>();
 
@@ -173,12 +181,19 @@ export async function syncLibrary() {
 
                 for (const jsonPath of group.jsonFiles) {
                     const jsonName = path.basename(jsonPath, '.json');
-                    if (mediaName.startsWith(jsonName)) {
-                        if (mediaName === jsonName || ['-', '_', '.'].includes(mediaName[jsonName.length])) {
-                            if (jsonName.length > bestMatchLen) {
-                                bestMatchLen = jsonName.length;
-                                bestMatchJson = jsonPath;
-                            }
+
+                    // 1. Exact match or prefix match (Twitter/Pixiv)
+                    if (mediaName === jsonName || (mediaName.startsWith(jsonName) && ['-', '_', '.'].includes(mediaName[jsonName.length]))) {
+                        if (jsonName.length > bestMatchLen) {
+                            bestMatchLen = jsonName.length;
+                            bestMatchJson = jsonPath;
+                        }
+                    }
+                    // 2. Contains match (Safebooru: category_id_hash)
+                    else if (mediaName.includes('_' + jsonName + '_') || mediaName.includes('-' + jsonName + '-') || mediaName.endsWith('_' + jsonName) || mediaName.startsWith(jsonName + '_')) {
+                        if (jsonName.length > bestMatchLen) {
+                            bestMatchLen = jsonName.length;
+                            bestMatchJson = jsonPath;
                         }
                     }
                 }
@@ -212,9 +227,13 @@ export async function syncLibrary() {
                 });
             }
 
-            // Process unused JSONs (Text-only posts)
+            // Process unused JSONs (Text-only posts) - Do NOT add to mediaItems anymore
+            // But we might want to register them as Posts still if they were not registered via group.mediaFiles
             for (const jsonPath of group.jsonFiles) {
                 if (!usedJsons.has(jsonPath)) {
+                    // Create a task that has NO fsPath (or skip?)
+                    // For text-only posts, we still need a "task" to trigger processBatch to create the Post record.
+                    // We'll use the jsonPath as fsPath but defaultType = 'text'
                     let urlPath: string;
                     if (group.sourceId) {
                         const relativePath = path.relative(group.sourceRoot, jsonPath).split(path.sep).join('/');
@@ -224,7 +243,6 @@ export async function syncLibrary() {
                         urlPath = '/' + relativePath;
                     }
 
-                    processedPaths.add(urlPath);
                     tasks.push({
                         fsPath: jsonPath,
                         dbFilePath: urlPath,
@@ -246,7 +264,7 @@ export async function syncLibrary() {
             }
 
             const chunk = tasks.slice(i, i + BATCH_SIZE);
-            const batchStats = await processBatch(chunk, existingMediaPaths, existingTwitterUsers, existingPixivUsers, existingTags, existingTweets, existingIllusts);
+            const batchStats = await processBatch(chunk, existingMediaPaths, existingTwitterUsers, existingPixivUsers, existingTags, existingPosts);
 
             stats.processed += chunk.length;
             stats.added += batchStats.added;
@@ -289,7 +307,7 @@ export async function syncLibrary() {
         const finalStatus = stopRequested ? 'stopped' : 'completed';
 
         await db.update(scanHistory).set({
-            status: finalStatus as any,
+            status: finalStatus as 'completed' | 'stopped',
             endTime: new Date(),
             filesProcessed: stats.processed,
             filesAdded: stats.added,
@@ -300,7 +318,7 @@ export async function syncLibrary() {
 
         console.log(`Sync ${finalStatus} in ${(Date.now() - start) / 1000}s`);
 
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Scan failed with error:", e);
         await db.update(scanHistory).set({
             status: 'failed',
@@ -310,7 +328,7 @@ export async function syncLibrary() {
             filesUpdated: stats.updated,
             filesDeleted: stats.deleted,
             errors: stats.errors + 1,
-            lastError: e.message || String(e)
+            lastError: e instanceof Error ? e.message : String(e)
         }).where(eq(scanHistory.id, scanId));
     } finally {
         isScanning = false;
@@ -328,6 +346,7 @@ interface ProcessTask {
 
 interface PrepareResult {
     task: ProcessTask;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     meta: any | null;
     stat: fs.Stats | null;
     mediaType: 'image' | 'video' | 'audio' | 'text';
@@ -364,8 +383,7 @@ async function processBatch(
     existingTwitterUsers: UserCache,
     existingPixivUsers: UserCache,
     existingTags: TagCache,
-    existingTweets: PostCache,
-    existingIllusts: Set<number>
+    existingPosts: Map<string, number>
 ) {
     const results = await Promise.all(chunk.map(prepareTask));
     let added = 0;
@@ -390,7 +408,7 @@ async function processBatch(
         // Pixiv
         if (res.meta.category === 'pixiv' || res.meta.extractor === 'pixiv') {
             const userId = res.meta.user?.id;
-            const avatarUrl = res.meta.user?.profile_image_urls?.medium || res.meta.user?.profile_image_urls?.px_170x170;
+            const avatarUrl = res.meta.user?.profile_image_urls?.medium || res.meta.user?.profile_image_urls?.px_1600x1600 || res.meta.user?.profile_image_urls?.px_170x170;
             if (userId && avatarUrl) {
                 userAvatars.set(String(userId), avatarUrl);
             }
@@ -400,7 +418,7 @@ async function processBatch(
     db.transaction((tx) => {
         for (const res of results) {
             const { task, meta, stat, mediaType } = res;
-            let internalPostId: number | null = null;
+            let postId: number | null = null;
             let extractorType: string | null = null;
 
             // Lookup Internal Source ID from logs OR use explicit sourceId from scanner
@@ -408,9 +426,6 @@ async function processBatch(
 
             if (!internalSourceId) {
                 // Use absolute path for lookup to match scraper logs
-                // Scraper logs store absolute paths. task.dbFilePath is relative (/downloads/...).
-                // Construct absolute path from dbFilePath
-                // Note: dbFilePath startswith /
                 const cleanRelPath = task.dbFilePath.replace(/^\//, '').split('/').join(path.sep);
                 const absLookupPath = path.join(process.cwd(), 'public', cleanRelPath);
 
@@ -426,9 +441,13 @@ async function processBatch(
 
             // 2. Process Post Metadata (Users & Posts)
             if (meta) {
-                // TWITTER
-                if (meta.category === 'twitter' || meta.extractor === 'twitter' || meta.tweet_id) {
-                    extractorType = 'twitter';
+                // Determine Extractor Type
+                if (meta.category === 'twitter' || meta.extractor === 'twitter' || meta.tweet_id) extractorType = 'twitter';
+                else if (meta.category === 'pixiv' || meta.extractor === 'pixiv') extractorType = 'pixiv';
+                else if (meta.category === 'gelbooru' || meta.category === 'safebooru' || meta.extractor === 'gelbooru' || meta.extractor === 'gelbooruv02' || meta.extractor === 'safebooru') extractorType = 'gelbooruv02';
+
+                // TWITTER Processing
+                if (extractorType === 'twitter') {
                     // Update User
                     const userObj = meta.user || meta.author || {};
                     const userId = userObj.id || meta.user_id;
@@ -466,67 +485,56 @@ async function processBatch(
                         }
                     }
 
-                    // Update Tweet
+                    // Update Post
                     const tid = meta.tweet_id ? String(meta.tweet_id) : null;
                     if (tid) {
-                        if (!existingTweets.has(tid)) {
-                            // Insert Tweet
-                            const inserted = tx.insert(twitterTweets).values({
-                                tweetId: tid,
-                                date: meta.date,
-                                content: meta.content,
+                        const key = `twitter:${tid}`;
+                        if (!existingPosts.has(key)) {
+                            // Insert Post
+                            const inserted = tx.insert(posts).values({
+                                extractorType: 'twitter',
+                                jsonSourceId: tid,
+                                internalSourceId: internalSourceId,
                                 userId: uidStr,
+                                date: meta.date,
+                                title: userObj.name,
+                                content: meta.content,
+                                url: `https://twitter.com/${userObj.nick || 'i'}/status/${tid}`,
+                                metadataPath: task.jsonPath ? path.relative(path.join(process.cwd(), 'public'), task.jsonPath).split(path.sep).join('/') : null,
+                                createdAt: new Date()
+                            }).returning({ id: posts.id }).get();
+
+                            postId = inserted.id;
+                            existingPosts.set(key, postId);
+
+                            // Insert Details
+                            tx.insert(postDetailsTwitter).values({
+                                postId: postId,
                                 retweetId: meta.retweet_id ? String(meta.retweet_id) : null,
                                 quoteId: meta.quote_id ? String(meta.quote_id) : null,
                                 replyId: meta.reply_id ? String(meta.reply_id) : null,
                                 conversationId: meta.conversation_id ? String(meta.conversation_id) : null,
-                                jsonSourceId: meta.source_id ? String(meta.source_id) : null, // Renamed column
-                                internalSourceId: internalSourceId,
-                                source: meta.source, // The HTML source string
                                 lang: meta.lang,
+                                source: meta.source, // The HTML source string
                                 sensitive: meta.sensitive,
                                 sensitiveFlags: meta.sensitive_flags,
                                 favoriteCount: meta.favorite_count,
-                                retweetCount: meta.retweet_count,
                                 quoteCount: meta.quote_count,
                                 replyCount: meta.reply_count,
+                                retweetCount: meta.retweet_count,
                                 bookmarkCount: meta.bookmark_count,
                                 viewCount: meta.view_count,
                                 category: 'twitter',
                                 subcategory: 'tweet'
-                            }).onConflictDoNothing().returning({ id: twitterTweets.id }).get();
-
-                            if (inserted) {
-                                internalPostId = inserted.id;
-                                existingTweets.add(tid);
-                            } else {
-                                // Already exists, fetch ID
-                                const e = tx.select({ id: twitterTweets.id }).from(twitterTweets).where(eq(twitterTweets.tweetId, tid)).get();
-                                if (e) {
-                                    internalPostId = e.id;
-                                    // Optionally update internalSourceId if it was null and we found it now?
-                                    if (internalSourceId) {
-                                        tx.update(twitterTweets).set({ internalSourceId }).where(eq(twitterTweets.id, e.id)).run();
-                                    }
-                                }
-                            }
+                            }).run();
                         } else {
-                            // Already processed in session, find ID
-                            const e = tx.select({ id: twitterTweets.id }).from(twitterTweets).where(eq(twitterTweets.tweetId, tid)).get();
-                            if (e) {
-                                internalPostId = e.id;
-                                // Optionally update internalSourceId
-                                if (internalSourceId) {
-                                    tx.update(twitterTweets).set({ internalSourceId }).where(eq(twitterTweets.id, e.id)).run();
-                                }
-                            }
+                            postId = existingPosts.get(key)!;
                         }
                     }
                 }
 
-                // PIXIV
-                if (meta.category === 'pixiv' || meta.extractor === 'pixiv') {
-                    extractorType = 'pixiv';
+                // PIXIV Processing
+                else if (extractorType === 'pixiv') {
                     const userId = meta.user?.id;
                     const uidStr = userId ? String(userId) : null;
 
@@ -550,17 +558,29 @@ async function processBatch(
                         }
                     }
 
-                    const pid = meta.id ? Number(meta.id) : null;
+                    const pid = meta.id ? String(meta.id) : null;
                     if (pid) {
-                        if (!existingIllusts.has(pid)) {
-                            const inserted = tx.insert(pixivIllusts).values({
-                                pixivId: pid,
-                                userId: uidStr,
+                        const key = `pixiv:${pid}`;
+                        if (!existingPosts.has(key)) {
+                            const inserted = tx.insert(posts).values({
+                                extractorType: 'pixiv',
+                                jsonSourceId: pid,
                                 internalSourceId: internalSourceId,
-                                title: meta.title,
-                                caption: meta.caption,
-                                type: meta.type,
+                                userId: uidStr,
                                 date: meta.date || meta.create_date,
+                                title: meta.title,
+                                content: meta.caption,
+                                url: `https://www.pixiv.net/artworks/${pid}`,
+                                metadataPath: task.jsonPath ? path.relative(path.join(process.cwd(), 'public'), task.jsonPath).split(path.sep).join('/') : null,
+                                createdAt: new Date()
+                            }).returning({ id: posts.id }).get();
+
+                            postId = inserted.id;
+                            existingPosts.set(key, postId);
+
+                            // Detail Table
+                            tx.insert(postDetailsPixiv).values({
+                                postId: postId,
                                 width: meta.width,
                                 height: meta.height,
                                 pageCount: meta.page_count,
@@ -576,61 +596,107 @@ async function processBatch(
                                 illustBookStyle: meta.illust_book_style,
                                 tags: meta.tags,
                                 category: 'pixiv',
-                                subcategory: meta.subcategory
-                            }).onConflictDoNothing().returning({ id: pixivIllusts.id }).get();
-
-                            if (inserted) {
-                                internalPostId = inserted.id;
-                                existingIllusts.add(pid);
-
-                                // Tags
-                                if (meta.tags && Array.isArray(meta.tags)) {
-                                    for (const rawTag of meta.tags) {
-                                        let baseTagName = typeof rawTag === 'string' ? rawTag : rawTag.name;
-                                        if (!baseTagName) continue;
-
-                                        // No Prefix
-                                        const tagName = baseTagName.trim();
-                                        let tagId = existingTags.get(tagName);
-
-                                        if (!tagId) {
-                                            // Insert into tags (name only)
-                                            const newTag = tx.insert(tags).values({ name: tagName }).onConflictDoNothing().returning({ id: tags.id }).get();
-                                            if (newTag) tagId = newTag.id;
-                                            else {
-                                                const e = tx.select({ id: tags.id }).from(tags).where(eq(tags.name, tagName)).get();
-                                                if (e) tagId = e.id;
-                                            }
-                                            if (tagId) existingTags.set(tagName, tagId);
-                                        }
-
-                                        if (tagId && internalPostId) {
-                                            tx.insert(postTags).values({
-                                                tagId,
-                                                extractorType: 'pixiv',
-                                                internalPostId
-                                            }).onConflictDoNothing().run();
-                                        }
-                                    }
-                                }
-
-                            } else {
-                                // Find existing
-                                const e = tx.select({ id: pixivIllusts.id }).from(pixivIllusts).where(eq(pixivIllusts.pixivId, pid)).get();
-                                if (e) {
-                                    internalPostId = e.id;
-                                    if (internalSourceId) {
-                                        tx.update(pixivIllusts).set({ internalSourceId }).where(eq(pixivIllusts.id, e.id)).run();
-                                    }
-                                }
-                            }
+                                subcategory: meta.subcategory,
+                                type: meta.type
+                            }).run();
                         } else {
-                            const e = tx.select({ id: pixivIllusts.id }).from(pixivIllusts).where(eq(pixivIllusts.pixivId, pid)).get();
-                            if (e) {
-                                internalPostId = e.id;
-                                if (internalSourceId) {
-                                    tx.update(pixivIllusts).set({ internalSourceId }).where(eq(pixivIllusts.id, e.id)).run();
+                            postId = existingPosts.get(key)!;
+                        }
+                    }
+
+                    // Process Pixiv Tags
+                    if (pid && postId && meta.tags && Array.isArray(meta.tags)) {
+                        for (const rawTag of meta.tags) {
+                            const baseTagName = typeof rawTag === 'string' ? rawTag : rawTag.name;
+                            if (!baseTagName) continue;
+                            const tagName = baseTagName.trim();
+                            let tagId = existingTags.get(tagName);
+
+                            if (!tagId) {
+                                const newTag = tx.insert(tags).values({ name: tagName }).onConflictDoNothing().returning({ id: tags.id }).get();
+                                if (newTag) tagId = newTag.id;
+                                else {
+                                    const e = tx.select({ id: tags.id }).from(tags).where(eq(tags.name, tagName)).get();
+                                    if (e) tagId = e.id;
                                 }
+                                if (tagId) existingTags.set(tagName, tagId);
+                            }
+
+                            if (tagId) {
+                                tx.insert(postTags).values({
+                                    tagId,
+                                    postId
+                                }).onConflictDoNothing().run();
+                            }
+                        }
+                    }
+                }
+
+                // GELBOORU / SAFEBOORU Processing
+                else if (extractorType === 'gelbooruv02') {
+                    const gid = meta.id ? String(meta.id) : null;
+                    if (gid) {
+                        const key = `gelbooruv02:${gid}`;
+                        if (!existingPosts.has(key)) {
+                            // Common Gelbooru fields
+                            const createdDate = meta.created_at ? new Date(meta.created_at).toISOString() : (meta.date || null);
+                            const inserted = tx.insert(posts).values({
+                                extractorType: 'gelbooruv02',
+                                jsonSourceId: gid,
+                                internalSourceId: internalSourceId,
+                                userId: meta.owner || 'unknown',
+                                date: createdDate,
+                                title: meta.title || `Gelbooru Post ${gid}`,
+                                content: null,
+                                url: meta.file_url || (meta.directory && meta.image ? `https://safebooru.org/images/${meta.directory}/${meta.image}` : null),
+                                metadataPath: task.jsonPath ? path.relative(path.join(process.cwd(), 'public'), task.jsonPath).split(path.sep).join('/') : null,
+                                createdAt: new Date()
+                            }).returning({ id: posts.id }).get();
+
+                            postId = inserted.id;
+                            existingPosts.set(key, postId);
+
+                            tx.insert(postDetailsGelbooruV02).values({
+                                postId: postId,
+                                rating: meta.rating,
+                                score: meta.score,
+                                md5: meta.md5,
+                                width: meta.width,
+                                height: meta.height,
+                                tags: meta.tags,
+                                directory: meta.directory
+                            }).run();
+                        } else {
+                            postId = existingPosts.get(key)!;
+                        }
+                    }
+
+                    // Tags
+                    let tagList: string[] = [];
+                    if (Array.isArray(meta.tags)) {
+                        tagList = meta.tags;
+                    } else if (typeof meta.tags === 'string') {
+                        tagList = meta.tags.split(' ');
+                    }
+
+                    if (postId && tagList.length > 0) {
+                        for (const tagName of tagList) {
+                            if (!tagName) continue;
+                            const cleanTagName = tagName.trim();
+                            if (!cleanTagName) continue;
+
+                            let tagId = existingTags.get(cleanTagName);
+                            if (!tagId) {
+                                const newTag = tx.insert(tags).values({ name: cleanTagName }).onConflictDoNothing().returning({ id: tags.id }).get();
+                                if (newTag) tagId = newTag.id;
+                                else {
+                                    const e = tx.select({ id: tags.id }).from(tags).where(eq(tags.name, cleanTagName)).get();
+                                    if (e) tagId = e.id;
+                                }
+                                if (tagId) existingTags.set(cleanTagName, tagId);
+                            }
+                            if (tagId) {
+                                tx.insert(postTags).values({ tagId, postId }).onConflictDoNothing().run();
                             }
                         }
                     }
@@ -642,23 +708,22 @@ async function processBatch(
             if (meta) {
                 if (meta.date) capturedAt = new Date(meta.date);
                 else if (meta.create_date) capturedAt = new Date(meta.create_date);
+                else if (meta.created_at) capturedAt = new Date(meta.created_at);
             }
 
-            if (!existingMediaPaths.has(task.dbFilePath)) {
+            if (mediaType !== 'text' && !existingMediaPaths.has(task.dbFilePath)) {
                 tx.insert(mediaItems).values({
                     filePath: task.dbFilePath,
                     mediaType,
                     capturedAt,
-                    extractorType, // Polymorphic
-                    internalPostId // Polymorphic
+                    postId: postId // New FK
                 }).run();
                 existingMediaPaths.add(task.dbFilePath);
                 added++;
-            } else {
-                if (internalPostId && extractorType) {
+            } else if (mediaType !== 'text') {
+                if (postId) {
                     tx.update(mediaItems).set({
-                        extractorType,
-                        internalPostId
+                        postId
                     }).where(eq(mediaItems.filePath, task.dbFilePath)).run();
                     updated++;
                 }
