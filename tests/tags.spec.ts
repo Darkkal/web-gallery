@@ -5,7 +5,7 @@ test('tags page loads', async ({ page }) => {
     await expect(page).toHaveURL(/.*\/tags/);
 
     // Check main header
-    await expect(page.getByRole('heading', { name: /Tags/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Tag Statistics/i })).toBeVisible();
 });
 
 test('tags list visibility', async ({ page }) => {
