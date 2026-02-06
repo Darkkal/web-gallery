@@ -4,42 +4,62 @@ test('sources page loads', async ({ page }) => {
     await page.goto('/sources');
     await expect(page).toHaveURL(/.*\/sources/);
 
-    // Check for "Add Source" button or input
-    await expect(page.getByText('Add Source', { exact: false })).toBeVisible();
+    // Check for "Add Source" form
+    await expect(page.getByRole('heading', { name: 'Add Source' })).toBeVisible();
+    await expect(page.locator('input[type="url"]')).toBeVisible();
+    await expect(page.getByPlaceholder('Name (Optional)')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add' })).toBeVisible();
+});
+
+test('view toggle switches layout', async ({ page }) => {
+    await page.goto('/sources');
+
+    // Default should be Card View (Grid)
+    // We can check for a container or the buttons state
+    const cardViewBtn = page.getByTitle('Grid View');
+    const tableViewBtn = page.getByTitle('List View');
+
+    // Initially Grid is active (class check difficult without class names, checking logic)
+    // Let's assume default is grid, so table is not visible
+    await expect(page.locator('table')).not.toBeVisible();
+
+    // Switch to Table
+    await tableViewBtn.click();
+    await expect(page.locator('table')).toBeVisible();
+
+    // Verify Edit buttons are present (if there are items, which we can't guarantee lightly without seeding)
+    // But we added an item in the previous test (if state persisted? No, isolated contexts usually)
+    // Let's just assume empty state check or check if we can see the column headers at least?
+    // The table header has an extra column now.
+    await expect(page.locator('thead th')).toHaveCount(6); // Checkbox, Preview, Name/URL, Type, Created, Actions
+
+    // Switch to Grid
+    await cardViewBtn.click();
+    await expect(page.locator('table')).not.toBeVisible();
+});
+
+test('controls presence', async ({ page }) => {
+    await page.goto('/sources');
+
+    // Search input
+    await expect(page.getByPlaceholder('Search sources...')).toBeVisible();
+
+    // Sort dropdown
+    await expect(page.getByRole('combobox')).toBeVisible(); // Select element
 });
 
 test('add source interaction (mocked)', async ({ page }) => {
     await page.goto('/sources');
 
-    // We can't easily test adding a real source without side effects or external dependencies.
-    // So we will verify the UI interaction.
-
-    // Assuming there is an input and a button.
     const input = page.locator('input[type="url"]');
     await expect(input).toBeVisible();
 
     await input.fill('https://twitter.com/test_user');
     await expect(input).toHaveValue('https://twitter.com/test_user');
 
-    // We do NOT click add to avoid polluting DB in this basic suite unless we have a cleanup.
-});
+    await page.getByPlaceholder('Name (Optional)').fill('Test Source');
 
-test('sources list and delete', async ({ page }) => {
-    await page.goto('/sources');
-
-    // Check if sources list exists
-    const sourcesList = page.locator('div[class*="sourceItem"]');
-    // or checks table rows if it's a table
-
-    // This is purely conditional
-    if (await sourcesList.count() > 0) {
-        // Assert delete button exists
-        // The exact selector depends on implementation, often an icon or 'Delete' button
-        // Let's look for a generic button inside the item
-        const firstSource = sourcesList.first();
-        await expect(firstSource).toBeVisible();
-
-        // We won't actually click delete to avoid destruction, or we mock it.
-        // Just verifying visibility is good for now.
-    }
+    // Button state check
+    const addBtn = page.getByRole('button', { name: 'Add' });
+    await expect(addBtn).toBeEnabled();
 });

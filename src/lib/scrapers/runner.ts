@@ -3,6 +3,12 @@ import path from 'path';
 import fs from 'fs';
 import { ScraperOptions, ScrapeResult } from './types';
 
+export interface ScrapeLimits {
+    stopAfterCompleted?: number;
+    stopAfterSkipped?: number;
+    stopAfterPosts?: number;
+}
+
 // Helper function to parse size strings like "120MiB" or "5.2M" to bytes
 function parseSizeStringToBytes(sizeStr: string): number {
     if (!sizeStr) return 0;
@@ -68,7 +74,7 @@ export class ScraperRunner {
         }
     }
 
-    run(tool: 'gallery-dl' | 'yt-dlp', options: ScraperOptions): {
+    run(tool: 'gallery-dl' | 'yt-dlp', options: ScraperOptions, limits?: ScrapeLimits): {
         promise: Promise<ScrapeResult>,
         child: import('child_process').ChildProcess
     } {
@@ -86,6 +92,10 @@ export class ScraperRunner {
 
                 args.push(options.url);
                 args.push('--destination', this.basePath);
+
+                if (limits?.stopAfterSkipped) {
+                    args.push('-T', limits.stopAfterSkipped.toString());
+                }
             } else {
                 args.push(options.url);
                 args.push('-P', this.basePath);
@@ -106,7 +116,9 @@ export class ScraperRunner {
             let cumulativeBytes = 0; // Bytes from previously completed files
             let currentFileBytes = 0; // Bytes from the currently downloading file
             let errorCount = 0;
+            let skippedCount = 0;
             let isRateLimited = false;
+            let postsProcessed = 0;
 
             const processedFiles: string[] = [];
             const processedFilesSet = new Set<string>(); // avoid duplicates
@@ -117,6 +129,11 @@ export class ScraperRunner {
                 }
                 if (line.includes('[download][error]') || line.includes('[error]')) {
                     errorCount++;
+                }
+
+                // Check for custom post completion signal from exec postprocessor
+                if (line.includes('[post-complete]')) {
+                    postsProcessed++;
                 }
 
                 if (tool === 'yt-dlp') {
@@ -185,6 +202,7 @@ export class ScraperRunner {
                             }
                         }
                     } else if (line.startsWith('[skip]')) {
+                        skippedCount++;
                         // Capture file path from [skip] {0}
                         const parts = line.split('[skip] ');
                         if (parts.length > 1) {
@@ -226,9 +244,32 @@ export class ScraperRunner {
                         speed: currentSpeed,
                         totalSize: formatBytes(totalSoFar),
                         errorCount,
+                        skippedCount,
+                        postsProcessed,
                         isRateLimited,
                         isFinished: false
                     });
+
+                    // Check for completion limit (manual check as gallery-dl doesn't have it natively for count)
+                    if (limits?.stopAfterCompleted && downloadedCount >= limits.stopAfterCompleted) {
+                        // We reached the limit. Kill the process.
+                        console.log(`[ScraperRunner] Reached download limit of ${limits.stopAfterCompleted}. Stopping.`);
+                        if (process.platform === 'win32') {
+                            spawn('taskkill', ['/pid', child.pid!.toString(), '/f', '/t']);
+                        } else {
+                            child.kill();
+                        }
+                    }
+
+                    if (limits?.stopAfterPosts && postsProcessed >= limits.stopAfterPosts) {
+                        // We reached the post limit. Kill the process.
+                        console.log(`[ScraperRunner] Reached post limit of ${limits.stopAfterPosts}. Stopping.`);
+                        if (process.platform === 'win32') {
+                            spawn('taskkill', ['/pid', child.pid!.toString(), '/f', '/t']);
+                        } else {
+                            child.kill();
+                        }
+                    }
                 }
             };
 
@@ -275,6 +316,8 @@ export class ScraperRunner {
                         speed: '0B/s',
                         totalSize: formatBytes(totalSoFar),
                         errorCount,
+                        skippedCount,
+                        postsProcessed,
                         isRateLimited,
                         isFinished: true
                     });

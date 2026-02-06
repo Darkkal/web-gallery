@@ -1,9 +1,8 @@
 import { ChildProcess, spawn } from 'child_process';
-import { ScraperRunner } from './runner';
+import { ScraperRunner, ScrapeLimits } from './runner';
 import { ScrapeProgress } from './types';
-import path from 'path';
 import { db } from '@/lib/db';
-import { sources, mediaItems, twitterUsers, twitterTweets, collectionItems, scrapeHistory, pixivUsers, pixivIllusts, tags, postTags, scanHistory, gallerydlExtractorTypes, scraperDownloadLogs } from '@/lib/db/schema';
+import { scrapeHistory, scraperDownloadLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { syncLibrary } from '@/lib/library/scanner';
 
@@ -13,6 +12,7 @@ export interface ScrapingStatus extends ScrapeProgress {
     type: 'gallery-dl' | 'yt-dlp';
     startTime: Date;
     historyId?: number;
+    taskId?: number;
 }
 
 class ScraperManager {
@@ -31,7 +31,7 @@ class ScraperManager {
         return ScraperManager.instance;
     }
 
-    async startScrape(sourceId: number, type: 'gallery-dl' | 'yt-dlp', url: string, downloadDir: string, options: { mode?: 'full' | 'quick' } = {}) {
+    async startScrape(sourceId: number, type: 'gallery-dl' | 'yt-dlp', url: string, downloadDir: string, options: { mode?: 'full' | 'quick', taskId?: number, limits?: ScrapeLimits } = {}) {
         console.log(`[ScraperManager] STARTING scrape for source ID: ${sourceId} (${type}) - URL: ${url}`);
         if (this.activeScrapes.has(sourceId)) {
             console.warn(`[ScraperManager] Scrape already in progress for source ${sourceId}`);
@@ -49,7 +49,10 @@ class ScraperManager {
             filesDownloaded: 0,
             bytesDownloaded: 0,
             errorCount: 0,
+            skippedCount: 0,
+            postsProcessed: 0,
             averageSpeed: 0,
+            taskId: options.taskId,
         }).returning({ id: scrapeHistory.id }).get();
 
         const historyId = historyResult.id;
@@ -61,10 +64,13 @@ class ScraperManager {
             type,
             startTime,
             historyId,
+            taskId: options.taskId,
             downloadedCount: 0,
             speed: '0B/s',
             totalSize: '0B',
             errorCount: 0,
+            skippedCount: 0,
+            postsProcessed: 0,
             isRateLimited: false,
             isFinished: false
         };
@@ -78,7 +84,7 @@ class ScraperManager {
                     current.status = { ...current.status, ...p };
                 }
             }
-        });
+        }, options.limits);
 
         this.activeScrapes.set(sourceId, { process: child, status });
 
@@ -127,6 +133,8 @@ class ScraperManager {
                         filesDownloaded: current.status.downloadedCount,
                         bytesDownloaded,
                         errorCount: current.status.errorCount,
+                        skippedCount: current.status.skippedCount,
+                        postsProcessed: current.status.postsProcessed,
                         averageSpeed,
                         lastError: result.error || (result.success ? null : result.output), // Store error or output if failed
                     })
@@ -193,6 +201,8 @@ class ScraperManager {
                         filesDownloaded: active.status.downloadedCount,
                         bytesDownloaded,
                         errorCount: active.status.errorCount,
+                        skippedCount: active.status.skippedCount,
+                        postsProcessed: active.status.postsProcessed,
                         averageSpeed,
                     })
                     .where(eq(scrapeHistory.id, active.status.historyId))

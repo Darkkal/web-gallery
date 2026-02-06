@@ -27,7 +27,7 @@ export async function getPostTags(postId: number) {
     return pTags;
 }
 
-export async function addSource(url: string) {
+export async function addSource(url: string, name?: string) {
     // Check if it's a local path
     let isLocal = false;
     try {
@@ -56,9 +56,23 @@ export async function addSource(url: string) {
 
     await db.insert(sources).values({
         url,
-        extractorType: type, // New column
-        name: isLocal ? path.basename(url) : url, // Use folder name for local
+        extractorType: type,
+        name: name || (isLocal ? path.basename(url) : url), // Use provided name or fallback
     });
+
+    revalidatePath('/sources');
+}
+
+export async function updateSource(id: number, updates: { url?: string; name?: string }) {
+    if (!updates.url && !updates.name) return;
+
+    await db.update(sources)
+        .set({
+            ...(updates.url ? { url: updates.url } : {}),
+            ...(updates.name ? { name: updates.name } : {}),
+        })
+        .where(eq(sources.id, id))
+        .run();
 
     revalidatePath('/sources');
 }
@@ -71,9 +85,10 @@ export async function getSourcesWithHistory() {
     // Get all sources
     const allSources = await db.select().from(sources).where(isNull(sources.deletedAt));
 
-    // For each source, get the most recent scrape history
-    const sourcesWithHistory = await Promise.all(
+    // For each source, get the most recent scrape history AND a preview image
+    const sourcesWithData = await Promise.all(
         allSources.map(async (source) => {
+            // 1. History
             const recentHistory = await db
                 .select()
                 .from(scrapeHistory)
@@ -81,14 +96,37 @@ export async function getSourcesWithHistory() {
                 .orderBy(desc(scrapeHistory.startTime))
                 .limit(1);
 
+            // 2. Preview Image (Latest Post -> First Image)
+            let previewImage: string | null = null;
+            const recentPost = await db.select({ id: posts.id })
+                .from(posts)
+                .where(eq(posts.internalSourceId, source.id))
+                .orderBy(desc(posts.createdAt)) // or posts.date
+                .limit(1);
+
+            if (recentPost.length > 0) {
+                const media = await db.select({ filePath: mediaItems.filePath })
+                    .from(mediaItems)
+                    .where(and(
+                        eq(mediaItems.postId, recentPost[0].id),
+                        eq(mediaItems.mediaType, 'image')
+                    ))
+                    .limit(1);
+
+                if (media.length > 0) {
+                    previewImage = media[0].filePath;
+                }
+            }
+
             return {
                 ...source,
                 lastScrape: recentHistory[0] || null,
+                previewImage,
             };
         })
     );
 
-    return sourcesWithHistory;
+    return sourcesWithData;
 }
 
 export async function scrapeSource(sourceId: number, mode: 'full' | 'quick' = 'full') {
