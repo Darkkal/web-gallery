@@ -21,6 +21,18 @@ export const scraperDownloadLogs = sqliteTable('scraper_download_logs', {
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
+export const scrapingTasks = sqliteTable('scraping_tasks', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    sourceId: integer('source_id').references(() => sources.id).notNull(),
+    name: text('name'),
+    downloadOptions: text('download_options', { mode: 'json' }).$type<{ stopAfterCompleted?: number, stopAfterSkipped?: number }>(),
+    scheduleInterval: integer('schedule_interval'), // in seconds
+    nextRunAt: integer('next_run_at', { mode: 'timestamp' }),
+    lastRunAt: integer('last_run_at', { mode: 'timestamp' }),
+    enabled: integer('enabled', { mode: 'boolean' }).default(true),
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
 export const scrapeHistory = sqliteTable('scrape_history', {
     id: integer('id').primaryKey({ autoIncrement: true }),
     sourceId: integer('source_id').references(() => sources.id).notNull(),
@@ -30,8 +42,10 @@ export const scrapeHistory = sqliteTable('scrape_history', {
     filesDownloaded: integer('files_downloaded').default(0),
     bytesDownloaded: integer('bytes_downloaded').default(0),
     errorCount: integer('error_count').default(0),
+    skippedCount: integer('skipped_count').default(0),
     averageSpeed: integer('average_speed').default(0), // bytes per second
     lastError: text('last_error'),
+    taskId: integer('task_id').references(() => scrapingTasks.id),
 });
 
 export const scanHistory = sqliteTable('scan_history', {
