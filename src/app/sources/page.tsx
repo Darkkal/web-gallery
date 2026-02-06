@@ -1,323 +1,406 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { addSource, scrapeSource, deleteSource, getScrapingStatuses, stopScrapingSource, getSourcesWithHistory } from '../actions';
-import { ScrapingStatus } from '@/lib/scrapers/manager';
+import React, { useState, useEffect, useMemo } from 'react';
+import { addSource, deleteSource, updateSource, getSourcesWithHistory } from '../actions';
 import styles from './page.module.css';
+import {
+  LayoutGrid,
+  List as ListIcon,
+  Search,
+  Trash2,
+  Plus,
+  Image as ImageIcon,
+  Edit2,
+  Check,
+  X
+} from 'lucide-react';
+
+type Source = {
+  id: number;
+  url: string;
+  name?: string;
+  extractorType?: string;
+  createdAt: string | Date;
+  previewImage?: string;
+};
 
 export default function SourcesPage() {
-  const [sources, setSources] = useState<any[]>([]);
+  const [sources, setSources] = useState<Source[]>([]);
   const [newUrl, setNewUrl] = useState('');
+  const [newName, setNewName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [scrapingStatuses, setScrapingStatuses] = useState<ScrapingStatus[]>([]);
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
+  const [sortBy, setSortBy] = useState<'created' | 'name'>('created');
+  const [search, setSearch] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastActiveTimeRef = useRef<number>(Date.now());
-
-
-
-  const stopPolling = React.useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-  }, []);
-
-  const startPolling = React.useCallback(() => {
-    if (pollingIntervalRef.current) return;
-
-    console.log('[SourcesPage] Starting status polling...');
-    lastActiveTimeRef.current = Date.now();
-
-    pollingIntervalRef.current = setInterval(async () => {
-      const statuses = await getScrapingStatuses();
-      setScrapingStatuses(statuses);
-
-      const hasActive = statuses.some(s => !s.isFinished);
-      if (hasActive) {
-        lastActiveTimeRef.current = Date.now();
-      } else {
-        if (Date.now() - lastActiveTimeRef.current > 30000) {
-          console.log('[SourcesPage] No active scrapes for 30s, stopping polling.');
-          stopPolling();
-        }
-      }
-    }, 5000);
-  }, [stopPolling]);
-
-
-
-  useEffect(() => {
-    loadSources();
-    loadSources();
-
-    // Initial checks
-    getScrapingStatuses().then(statuses => {
-      setScrapingStatuses(statuses);
-      if (statuses.some(s => !s.isFinished)) {
-        startPolling();
-      }
-    });
-
-    return () => {
-      stopPolling();
-    };
-  }, [stopPolling]);
-
-
-
-
-  async function triggerStatusUpdate() {
-    const statuses = await getScrapingStatuses();
-    setScrapingStatuses(statuses);
-    if (statuses.some(s => !s.isFinished)) {
-      startPolling();
-    }
-  }
+  // Edit State
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<{ url: string; name: string }>({ url: '', name: '' });
 
   async function loadSources() {
     const data = await getSourcesWithHistory();
-    setSources(data);
+    return data as unknown as Source[];
   }
+
+  useEffect(() => {
+    let mounted = true;
+    loadSources().then((data) => {
+      if (mounted) setSources(data);
+    });
+    return () => { mounted = false; };
+  }, []);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!newUrl) return;
 
     setLoading(true);
-    await addSource(newUrl);
+    await addSource(newUrl, newName); // Pass optional name
     setNewUrl('');
-    await loadSources();
+    setNewName('');
+    const data = await loadSources();
+    setSources(data);
     setLoading(false);
   }
 
-  async function handleScrape(id: number, mode: 'full' | 'quick' = 'full') {
-    try {
-      await scrapeSource(id, mode);
-      await loadSources();
-      await triggerStatusUpdate();
-    } catch (err) {
-      console.error(err);
-      alert('Failed to scrape: ' + err);
-    }
-  }
+  async function handleDeleteSelected() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.size} sources?`)) return;
 
-  async function handleStop(id: number) {
-    try {
-      await stopScrapingSource(id);
-      await loadSources();
-    } catch (err) {
-      console.error(err);
-      alert('Failed to stop scrape: ' + err);
-    }
-  }
-
-  async function handleDelete(id: number) {
-    if (!confirm('Are you sure?')) return;
-    try {
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
       await deleteSource(id);
-      await loadSources();
-    } catch (err) {
-      console.error(err);
-      alert('Failed to delete source: ' + err);
+    }
+
+    setSelectedIds(new Set());
+    const data = await loadSources();
+    setSources(data);
+  }
+
+  // Edit Handlers
+  function startEditing(source: Source) {
+    // Only allow editing in table view for now as requested
+    setEditingId(source.id);
+    setEditForm({ url: source.url, name: source.name || '' });
+  }
+
+  function cancelEditing() {
+    setEditingId(null);
+    setEditForm({ url: '', name: '' });
+  }
+
+  async function saveEdit(id: number) {
+    // Optimistic update
+    setSources(prev => prev.map(s => s.id === id ? { ...s, url: editForm.url, name: editForm.name } : s));
+
+    await updateSource(id, { url: editForm.url, name: editForm.name });
+    setEditingId(null);
+    const data = await loadSources(); // Refresh to confirm
+    setSources(data);
+  }
+
+  function toggleSelection(id: number) {
+    if (editingId === id) return; // Don't select if editing
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  }
+
+  function selectAll(filteredIds: number[]) {
+    if (selectedIds.size === filteredIds.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredIds));
     }
   }
 
-  function formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-  }
+  const filteredAndSortedSources = useMemo(() => {
+    let result = [...sources];
 
-  function formatDuration(start: Date | string, end: Date | string): string {
-    const startTime = new Date(start).getTime();
-    const endTime = new Date(end).getTime();
-    const durationMs = endTime - startTime;
-    const seconds = Math.floor(durationMs / 1000);
+    if (search) {
+      const lower = search.toLowerCase();
+      result = result.filter(s =>
+        (s.name || '').toLowerCase().includes(lower) ||
+        s.url.toLowerCase().includes(lower) ||
+        (s.extractorType || '').toLowerCase().includes(lower)
+      );
+    }
 
-    if (seconds < 60) return `${seconds}s`;
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return `${hours}h ${remainingMinutes}m`;
-  }
+    result.sort((a, b) => {
+      if (sortBy === 'name') {
+        return (a.name || a.url).localeCompare(b.name || b.url);
+      } else {
+        // Created desc
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+    });
+
+    return result;
+  }, [sources, search, sortBy]);
 
   return (
     <div className={styles.container}>
-
-
+      {/* Add Source Form */}
       <form onSubmit={handleAdd} className={styles.addForm}>
-        <input
-          type="url"
-          className={styles.input}
-          placeholder="Enter URL (Instagram, Twitter, YouTube, etc.)"
-          value={newUrl}
-          onChange={(e) => setNewUrl(e.target.value)}
-          required
-        />
+        <h3>Add Source</h3>
+        <div style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
+          <input
+            type="url"
+            className={styles.input}
+            placeholder=" https://..."
+            value={newUrl}
+            onChange={(e) => setNewUrl(e.target.value)}
+            required
+            style={{ flex: 2 }}
+          />
+          <input
+            type="text"
+            className={styles.input}
+            placeholder="Name (Optional)"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            style={{ flex: 1 }}
+          />
+        </div>
         <button type="submit" className={styles.button} disabled={loading}>
-          {loading ? 'Adding...' : 'Add Source'}
+          <Plus size={18} />
+          {loading ? 'Adding...' : 'Add'}
         </button>
       </form>
 
-      <div className={styles.list}>
-        {sources.map((source) => {
-          const status = scrapingStatuses.find(s => s.sourceId === source.id);
-          const isScraping = !!status && !status.isFinished;
+      {/* Controls */}
+      <div className={styles.controlsBar}>
+        <div className={styles.leftControls}>
+          <div className={styles.searchWrapper}>
+            <Search className={styles.searchIcon} />
+            <input
+              type="text"
+              className={styles.searchInput}
+              placeholder="Search sources..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
 
-          return (
-            <div key={source.id} className={styles.sourceItem} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div className={styles.sourceInfo}>
-                  <h3>{source.name || source.url}</h3>
-                  <div className={styles.meta}>
-                    <span className={styles.badge}>{source.type}</span>
+          <select
+            className={styles.select}
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as 'created' | 'name')}
+          >
+            <option value="created">Recently Added</option>
+            <option value="name">Name (A-Z)</option>
+          </select>
+        </div>
+
+        <div className={styles.rightControls}>
+          {selectedIds.size > 0 && (
+            <button
+              className={styles.deleteButton}
+              onClick={handleDeleteSelected}
+            >
+              <Trash2 size={18} />
+              Delete ({selectedIds.size})
+            </button>
+          )}
+
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              className={`${styles.actionButton} ${viewMode === 'card' ? styles.active : ''}`}
+              onClick={() => setViewMode('card')}
+              title="Grid View"
+            >
+              <LayoutGrid size={20} />
+            </button>
+            <button
+              className={`${styles.actionButton} ${viewMode === 'table' ? styles.active : ''}`}
+              onClick={() => setViewMode('table')}
+              title="List View"
+            >
+              <ListIcon size={20} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* List Area */}
+      {viewMode === 'card' ? (
+        <div className={styles.grid}>
+          {filteredAndSortedSources.map(source => {
+            const isSelected = selectedIds.has(source.id);
+            const displayTitle = source.name || source.url.replace(/^https?:\/\//, '');
+
+            return (
+              <div
+                key={source.id}
+                className={`${styles.card} ${isSelected ? styles.selected : ''}`}
+                onClick={() => toggleSelection(source.id)}
+              >
+                <div
+                  className={styles.cardBg}
+                  style={{
+                    backgroundImage: source.previewImage ? `url(${source.previewImage})` : 'none',
+                    backgroundColor: source.previewImage ? 'transparent' : 'hsl(var(--muted))'
+                  }}
+                />
+                {!source.previewImage && (
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--muted-foreground))' }}>
+                    <ImageIcon size={48} opacity={0.2} />
+                  </div>
+                )}
+
+                <div className={styles.cardOverlay}>
+                  <div className={styles.cardContent}>
+                    <div className={styles.cardTitle} title={source.url}>{displayTitle}</div>
+                    <div className={styles.cardMeta}>
+                      <span className={styles.badge}>{source.extractorType}</span>
+                    </div>
                   </div>
                 </div>
-                <div className={styles.actions}>
-                  {isScraping ? (
-                    <button
-                      className={styles.stopButton}
-                      onClick={() => handleStop(source.id)}
-                    >
-                      Stop
-                    </button>
-                  ) : !source.lastScrape ? (
-                    <button
-                      className={styles.button}
-                      onClick={() => handleScrape(source.id, 'full')}
-                    >
-                      Start Scan
-                    </button>
-                  ) : (
-                    <>
-                      {source.lastScrape.status === 'completed' ? (
-                        <button
-                          className={styles.button}
-                          onClick={() => handleScrape(source.id, 'quick')}
-                          title="Check for new posts (fast)"
-                        >
-                          Quick Update
-                        </button>
-                      ) : (
-                        <button
-                          className={styles.button}
-                          onClick={() => handleScrape(source.id, 'full')}
-                          title="Resume previous scan"
-                        >
-                          Continue
-                        </button>
-                      )}
 
-                      <button
-                        className={styles.secondaryButton}
-                        onClick={() => handleScrape(source.id, 'full')}
-                        title="Deep scan all items"
-                      >
-                        Full Scan
-                      </button>
-                    </>
-                  )}
-                  <button
-                    className={styles.secondaryButton}
-                    onClick={() => handleDelete(source.id)}
-                    disabled={isScraping}
-                  >
-                    Delete
-                  </button>
+                <div className={styles.checkboxOverlay}>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    readOnly
+                    className={styles.checkbox}
+                  />
                 </div>
               </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className={styles.tableContainer}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th style={{ width: '40px' }}>
+                  <input
+                    type="checkbox"
+                    className={styles.checkbox}
+                    checked={filteredAndSortedSources.length > 0 && selectedIds.size === filteredAndSortedSources.length}
+                    onChange={() => selectAll(filteredAndSortedSources.map(s => s.id))}
+                  />
+                </th>
+                <th style={{ width: '60px' }}>Preview</th>
+                <th style={{ width: '60px' }}></th>
+                <th>Name / URL</th>
+                <th>Type</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAndSortedSources.map(source => {
+                const isSelected = selectedIds.has(source.id);
+                const displayTitle = source.name || source.url;
+                const isEditing = editingId === source.id;
 
-              {/* Display last scrape history if available */}
-              {source.lastScrape && !status && (
-                <div className={styles.historyInfo}>
-                  <div className={styles.progressRows}>
-                    <div className={styles.progressItem}>
-                      <span className={styles.progressLabel}>Last Attempt:</span>
-                      <span>
-                        {new Date(source.lastScrape.startTime).toLocaleString()}
-                        {' '}
-                        <span className={`${styles.badge} ${styles[`status-${source.lastScrape.status}`]}`}>
-                          {source.lastScrape.status}
-                        </span>
+                return (
+                  <tr
+                    key={source.id}
+                    className={`${styles.tableRow} ${isSelected ? styles.selected : ''}`}
+                    onClick={(e) => {
+                      // Don't select if clicking specific specific controls
+                      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'BUTTON') return;
+                      if (!isEditing) toggleSelection(source.id);
+                    }}
+                  >
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        readOnly
+                        className={styles.checkbox}
+                        disabled={isEditing}
+                      />
+                    </td>
+                    <td>
+                      {source.previewImage ? (
+                        <img
+                          src={source.previewImage}
+                          alt=""
+                          className={styles.thumbnail}
+                        />
+                      ) : (
+                        <div className={styles.placeholderThumb}>
+                          <ImageIcon size={16} />
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      {isEditing ? (
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button className={styles.iconButton} onClick={() => saveEdit(source.id)} title="Save">
+                            <Check size={16} className="text-green-500" />
+                          </button>
+                          <button className={styles.iconButton} onClick={cancelEditing} title="Cancel">
+                            <X size={16} className="text-red-500" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className={styles.iconButton}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEditing(source);
+                          }}
+                          title="Edit"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                      )}
+                    </td>
+                    <td>
+                      {isEditing ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <input
+                            className={styles.input}
+                            style={{ padding: '4px 8px', fontSize: '0.9rem' }}
+                            value={editForm.name}
+                            onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder="Name"
+                          />
+                          <input
+                            className={styles.input}
+                            style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+                            value={editForm.url}
+                            onChange={e => setEditForm(prev => ({ ...prev, url: e.target.value }))}
+                            placeholder="URL"
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ fontWeight: 500 }}>{displayTitle}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>{source.url}</div>
+                        </>
+                      )}
+                    </td>
+                    <td>
+                      <span className={styles.badge} style={{ color: 'hsl(var(--foreground))', border: '1px solid hsl(var(--border))' }}>
+                        {source.extractorType}
                       </span>
-                    </div>
-                    {source.lastScrape.filesDownloaded > 0 && (
-                      <div className={styles.progressItem}>
-                        <span className={styles.progressLabel}>Files:</span>
-                        <span>{source.lastScrape.filesDownloaded}</span>
-                      </div>
-                    )}
-                    {source.lastScrape.bytesDownloaded > 0 && (
-                      <div className={styles.progressItem}>
-                        <span className={styles.progressLabel}>Data:</span>
-                        <span>{formatBytes(source.lastScrape.bytesDownloaded)}</span>
-                      </div>
-                    )}
-                    {source.lastScrape.endTime && (
-                      <div className={styles.progressItem}>
-                        <span className={styles.progressLabel}>Duration:</span>
-                        <span>{formatDuration(source.lastScrape.startTime, source.lastScrape.endTime)}</span>
-                      </div>
-                    )}
-                    {source.lastScrape.averageSpeed > 0 && (
-                      <div className={styles.progressItem}>
-                        <span className={styles.progressLabel}>Avg Speed:</span>
-                        <span>{formatBytes(source.lastScrape.averageSpeed)}/s</span>
-                      </div>
-                    )}
-                    {source.lastScrape.errorCount > 0 && (
-                      <div className={styles.progressItem}>
-                        <span className={styles.progressLabel}>Errors:</span>
-                        <span className={styles.errorItem}>{source.lastScrape.errorCount}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+                    </td>
+                    <td>
+                      {new Date(source.createdAt).toLocaleDateString()}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-              {status && (
-                <div className={styles.progressInfo}>
-                  <div className={styles.progressRows}>
-                    <div className={styles.progressItem}>
-                      <span className={styles.progressLabel}>Status:</span>
-                      <span>
-                        {status.isFinished ? 'Finished' : 'Scraping...'}
-                        {status.isRateLimited && <span className={styles.rateLimit}>Rate Limited</span>}
-                      </span>
-                    </div>
-                    <div className={styles.progressItem}>
-                      <span className={styles.progressLabel}>Downloaded:</span>
-                      <span>{status.downloadedCount} posts/files</span>
-                    </div>
-                    <div className={styles.progressItem}>
-                      <span className={styles.progressLabel}>Speed:</span>
-                      <span>{status.speed}</span>
-                    </div>
-                    <div className={styles.progressItem}>
-                      <span className={styles.progressLabel}>Total Size:</span>
-                      <span>{status.totalSize}</span>
-                    </div>
-                    {status.errorCount > 0 && (
-                      <div className={styles.progressItem}>
-                        <span className={styles.progressLabel}>Errors:</span>
-                        <span className={styles.errorItem}>{status.errorCount}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {sources.length === 0 && (
-          <p style={{ textAlign: 'center', color: '#64748b' }}>No sources added yet.</p>
-        )}
-      </div>
+      {filteredAndSortedSources.length === 0 && (
+        <div style={{ padding: '4rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))' }}>
+          No sources found.
+        </div>
+      )}
     </div>
   );
 }
