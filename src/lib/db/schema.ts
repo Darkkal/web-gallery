@@ -16,16 +16,16 @@ export const sources = sqliteTable('sources', {
 
 export const scraperDownloadLogs = sqliteTable('scraper_download_logs', {
     id: integer('id').primaryKey({ autoIncrement: true }),
-    sourceId: integer('source_id').references(() => sources.id).notNull(),
+    sourceId: integer('source_id').references(() => sources.id, { onDelete: 'cascade' }).notNull(),
     filePath: text('file_path').notNull().unique(), // Unique path to map back to source
     createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
 export const scrapingTasks = sqliteTable('scraping_tasks', {
     id: integer('id').primaryKey({ autoIncrement: true }),
-    sourceId: integer('source_id').references(() => sources.id).notNull(),
+    sourceId: integer('source_id').references(() => sources.id, { onDelete: 'cascade' }).notNull(),
     name: text('name'),
-    downloadOptions: text('download_options', { mode: 'json' }).$type<{ stopAfterCompleted?: number, stopAfterSkipped?: number }>(),
+    downloadOptions: text('download_options', { mode: 'json' }).$type<{ stopAfterCompleted?: number, stopAfterSkipped?: number, stopAfterPosts?: number }>(),
     scheduleInterval: integer('schedule_interval'), // in seconds
     nextRunAt: integer('next_run_at', { mode: 'timestamp' }),
     lastRunAt: integer('last_run_at', { mode: 'timestamp' }),
@@ -35,7 +35,7 @@ export const scrapingTasks = sqliteTable('scraping_tasks', {
 
 export const scrapeHistory = sqliteTable('scrape_history', {
     id: integer('id').primaryKey({ autoIncrement: true }),
-    sourceId: integer('source_id').references(() => sources.id).notNull(),
+    sourceId: integer('source_id').references(() => sources.id, { onDelete: 'cascade' }).notNull(),
     startTime: integer('start_time', { mode: 'timestamp' }).notNull(),
     endTime: integer('end_time', { mode: 'timestamp' }),
     status: text('status').$type<'running' | 'completed' | 'stopped' | 'failed'>().notNull(),
@@ -43,9 +43,10 @@ export const scrapeHistory = sqliteTable('scrape_history', {
     bytesDownloaded: integer('bytes_downloaded').default(0),
     errorCount: integer('error_count').default(0),
     skippedCount: integer('skipped_count').default(0),
+    postsProcessed: integer('posts_processed').default(0),
     averageSpeed: integer('average_speed').default(0), // bytes per second
     lastError: text('last_error'),
-    taskId: integer('task_id').references(() => scrapingTasks.id),
+    taskId: integer('task_id').references(() => scrapingTasks.id, { onDelete: 'set null' }),
 });
 
 export const scanHistory = sqliteTable('scan_history', {
@@ -99,7 +100,7 @@ export const posts = sqliteTable('posts', {
     id: integer('id').primaryKey({ autoIncrement: true }),
     extractorType: text('extractor_type').notNull(), // 'twitter', 'pixiv', 'gelbooruv02'
     jsonSourceId: text('json_source_id'), // Original platform ID (tweet_id, pixiv_id)
-    internalSourceId: integer('internal_source_id').references(() => sources.id),
+    internalSourceId: integer('internal_source_id').references(() => sources.id, { onDelete: 'cascade' }),
     userId: text('user_id'), // Generic user identifier
     date: text('date'), // Original creation date
     title: text('title'),

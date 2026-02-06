@@ -6,6 +6,7 @@ import { ScraperOptions, ScrapeResult } from './types';
 export interface ScrapeLimits {
     stopAfterCompleted?: number;
     stopAfterSkipped?: number;
+    stopAfterPosts?: number;
 }
 
 // Helper function to parse size strings like "120MiB" or "5.2M" to bytes
@@ -117,6 +118,7 @@ export class ScraperRunner {
             let errorCount = 0;
             let skippedCount = 0;
             let isRateLimited = false;
+            let postsProcessed = 0;
 
             const processedFiles: string[] = [];
             const processedFilesSet = new Set<string>(); // avoid duplicates
@@ -127,6 +129,11 @@ export class ScraperRunner {
                 }
                 if (line.includes('[download][error]') || line.includes('[error]')) {
                     errorCount++;
+                }
+
+                // Check for custom post completion signal from exec postprocessor
+                if (line.includes('[post-complete]')) {
+                    postsProcessed++;
                 }
 
                 if (tool === 'yt-dlp') {
@@ -238,6 +245,7 @@ export class ScraperRunner {
                         totalSize: formatBytes(totalSoFar),
                         errorCount,
                         skippedCount,
+                        postsProcessed,
                         isRateLimited,
                         isFinished: false
                     });
@@ -246,6 +254,16 @@ export class ScraperRunner {
                     if (limits?.stopAfterCompleted && downloadedCount >= limits.stopAfterCompleted) {
                         // We reached the limit. Kill the process.
                         console.log(`[ScraperRunner] Reached download limit of ${limits.stopAfterCompleted}. Stopping.`);
+                        if (process.platform === 'win32') {
+                            spawn('taskkill', ['/pid', child.pid!.toString(), '/f', '/t']);
+                        } else {
+                            child.kill();
+                        }
+                    }
+
+                    if (limits?.stopAfterPosts && postsProcessed >= limits.stopAfterPosts) {
+                        // We reached the post limit. Kill the process.
+                        console.log(`[ScraperRunner] Reached post limit of ${limits.stopAfterPosts}. Stopping.`);
                         if (process.platform === 'win32') {
                             spawn('taskkill', ['/pid', child.pid!.toString(), '/f', '/t']);
                         } else {
@@ -299,6 +317,7 @@ export class ScraperRunner {
                         totalSize: formatBytes(totalSoFar),
                         errorCount,
                         skippedCount,
+                        postsProcessed,
                         isRateLimited,
                         isFinished: true
                     });

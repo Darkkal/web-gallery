@@ -1,7 +1,9 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import styles from './page.module.css';
+import { getActiveScrapeStatuses } from './actions';
 
 interface HistoryItem {
     id: number;
@@ -10,11 +12,59 @@ interface HistoryItem {
     status: 'running' | 'completed' | 'stopped' | 'failed';
     filesDownloaded: number | null;
     skippedCount: number | null;
+    postsProcessed: number | null;
     bytesDownloaded: number | null;
     errorCount: number | null;
 }
 
 export default function ScrapeHistoryTable({ initialHistory }: { initialHistory: HistoryItem[] }) {
+    const [historyItems, setHistoryItems] = useState<HistoryItem[]>(initialHistory);
+
+    useEffect(() => {
+        setHistoryItems(initialHistory);
+    }, [initialHistory]);
+
+    useEffect(() => {
+        const hasRunning = historyItems.some(i => i.status === 'running');
+        if (!hasRunning) return;
+
+        const interval = setInterval(async () => {
+            try {
+                const active = await getActiveScrapeStatuses();
+
+                setHistoryItems(prev => prev.map(item => {
+                    const activeStatus = active.find(a => a.historyId === item.id);
+                    if (activeStatus) {
+                        return {
+                            ...item,
+                            filesDownloaded: activeStatus.downloadedCount,
+                            skippedCount: activeStatus.skippedCount,
+                            postsProcessed: activeStatus.postsProcessed,
+                            errorCount: activeStatus.errorCount,
+                            // Convert string size to bytes approximation if needed, 
+                            // but ScrapeProgress has totalSize string. 
+                            // Wait, activeStatus has 'totalSize' string, item has 'bytesDownloaded' number.
+                            // We need access to parseSizeToBytes logic or similar if we want to update bytes.
+                            // For UI display, formatBytes expects number.
+                            // Let's assume we can't update bytes accurately from string easily without parser,
+                            // or we just skip updating bytes live for now, OR we parse it.
+                            // However, the actions.ts import of manage doesn't expose parseSizeToBytes.
+                            // Let's accept that live bytes might lag or simpler: ignore bytes updating or parse rough.
+                            // Let's just update counts which are most important.
+                        };
+                    }
+                    // If item says running but not in active list, it might have finished just now.
+                    // The revalidatePath in actions should handle refreshing the page eventually,
+                    // or we rely on the next refresh.
+                    return item;
+                }));
+            } catch (err) {
+                console.error("Failed to poll status:", err);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [historyItems]);
 
     // Helper for bytes formatting
     const formatBytes = (bytes: number) => {
@@ -34,13 +84,14 @@ export default function ScrapeHistoryTable({ initialHistory }: { initialHistory:
                         <th>Duration</th>
                         <th>Status</th>
                         <th style={{ textAlign: 'right' }}>Downloaded</th>
+                        <th style={{ textAlign: 'right' }}>Posts</th>
                         <th style={{ textAlign: 'right' }}>Skipped</th>
                         <th style={{ textAlign: 'right' }}>Size</th>
                         <th style={{ textAlign: 'right' }}>Errors</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {initialHistory.map((item) => (
+                    {historyItems.map((item) => (
                         <tr key={item.id} className={styles.tableRow}>
                             <td>
                                 {formatDistanceToNow(new Date(item.startTime), { addSuffix: true })}
@@ -70,14 +121,15 @@ export default function ScrapeHistoryTable({ initialHistory }: { initialHistory:
                                 </span>
                             </td>
                             <td style={{ textAlign: 'right' }}>{item.filesDownloaded}</td>
+                            <td style={{ textAlign: 'right' }}>{item.postsProcessed ?? 0}</td>
                             <td style={{ textAlign: 'right' }}>{item.skippedCount ?? 0}</td>
                             <td style={{ textAlign: 'right' }}>{formatBytes(item.bytesDownloaded || 0)}</td>
                             <td style={{ textAlign: 'right', color: item.errorCount ? 'hsl(var(--destructive))' : 'inherit' }}>{item.errorCount}</td>
                         </tr>
                     ))}
-                    {initialHistory.length === 0 && (
+                    {historyItems.length === 0 && (
                         <tr>
-                            <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'hsl(var(--muted-foreground))' }}>
+                            <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'hsl(var(--muted-foreground))' }}>
                                 No history available.
                             </td>
                         </tr>

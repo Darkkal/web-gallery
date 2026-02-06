@@ -16,6 +16,7 @@ export default function ScrapeTaskForm({ sources }: { sources: Source[] }) {
     const [sourceId, setSourceId] = useState<string>('');
     const [stopAfterCompleted, setStopAfterCompleted] = useState('');
     const [stopAfterSkipped, setStopAfterSkipped] = useState('');
+    const [stopAfterPosts, setStopAfterPosts] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -30,6 +31,7 @@ export default function ScrapeTaskForm({ sources }: { sources: Source[] }) {
                 downloadOptions: {
                     stopAfterCompleted: stopAfterCompleted ? parseInt(stopAfterCompleted) : undefined,
                     stopAfterSkipped: stopAfterSkipped ? parseInt(stopAfterSkipped) : undefined,
+                    stopAfterPosts: stopAfterPosts ? parseInt(stopAfterPosts) : undefined,
                 },
                 scheduleInterval: undefined,
                 enabled: true
@@ -38,6 +40,7 @@ export default function ScrapeTaskForm({ sources }: { sources: Source[] }) {
             setSourceId('');
             setStopAfterCompleted('');
             setStopAfterSkipped('');
+            setStopAfterPosts('');
         } catch (error) {
             console.error('Failed to create task:', error);
             alert('Failed to create task');
@@ -97,6 +100,19 @@ export default function ScrapeTaskForm({ sources }: { sources: Source[] }) {
                     min="1"
                     value={stopAfterSkipped}
                     onChange={(e) => setStopAfterSkipped(e.target.value)}
+                    placeholder="Unlimited"
+                    className={styles.input}
+                />
+            </div>
+
+            <div className={styles.formGroup}>
+                <label htmlFor="stopAfterPosts" className={styles.label}>Stop after # posts</label>
+                <input
+                    id="stopAfterPosts"
+                    type="number"
+                    min="1"
+                    value={stopAfterPosts}
+                    onChange={(e) => setStopAfterPosts(e.target.value)}
                     placeholder="Unlimited"
                     className={styles.input}
                 />

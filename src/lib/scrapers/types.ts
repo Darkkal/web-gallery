@@ -4,6 +4,7 @@ export interface ScrapeProgress {
     totalSize: string; // e.g., "120MiB"
     errorCount: number;
     skippedCount: number;
+    postsProcessed: number;
     isRateLimited: boolean;
     isFinished: boolean;
 }

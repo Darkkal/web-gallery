@@ -3,14 +3,19 @@
 import { db } from '@/lib/db';
 import { scrapingTasks, scrapeHistory, sources } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { scraperManager } from '@/lib/scrapers/manager';
+import { scraperManager, ScrapingStatus } from '@/lib/scrapers/manager';
 import { revalidatePath } from 'next/cache';
+import { isNull, and } from 'drizzle-orm';
+
+export async function getActiveScrapeStatuses(): Promise<ScrapingStatus[]> {
+    return scraperManager.getAllStatuses();
+}
 
 export async function getScrapeTasks() {
     return await db.query.scrapingTasks.findMany({
-        with: {
-            // we can join source explicitly if needed, but simple query is fine
-        },
+        where: (tasks, { exists }) => exists(
+            db.select().from(sources).where(and(eq(sources.id, tasks.sourceId), isNull(sources.deletedAt)))
+        ),
         orderBy: desc(scrapingTasks.createdAt),
     });
 }
@@ -24,7 +29,7 @@ export async function getScrapeTask(id: number) {
 export async function createScrapeTask(data: {
     sourceId: number;
     name?: string;
-    downloadOptions?: { stopAfterCompleted?: number; stopAfterSkipped?: number };
+    downloadOptions?: { stopAfterCompleted?: number; stopAfterSkipped?: number; stopAfterPosts?: number };
     scheduleInterval?: number;
     enabled?: boolean;
 }) {
@@ -40,7 +45,7 @@ export async function createScrapeTask(data: {
 
 export async function updateScrapeTask(id: number, data: {
     name?: string;
-    downloadOptions?: { stopAfterCompleted?: number; stopAfterSkipped?: number };
+    downloadOptions?: { stopAfterCompleted?: number; stopAfterSkipped?: number; stopAfterPosts?: number };
     scheduleInterval?: number;
     enabled?: boolean;
 }) {
@@ -131,6 +136,7 @@ export async function getScrapeHistory(limit = 50) {
 // Helper to get all sources for the dropdown
 export async function getSources() {
     return await db.query.sources.findMany({
+        where: isNull(sources.deletedAt),
         orderBy: desc(sources.createdAt),
     });
 }

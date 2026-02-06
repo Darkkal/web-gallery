@@ -38,3 +38,12 @@ try {
 }
 
 console.log("Schema update completed.");
+
+// 3. Alter scrape_history table for posts_processed
+try {
+    sqlite.prepare(`ALTER TABLE "scrape_history" ADD COLUMN "posts_processed" integer DEFAULT 0;`).run();
+    console.log("Added posts_processed to scrape_history");
+} catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!msg.includes('duplicate column name')) console.error("Error adding posts_processed:", msg);
+}

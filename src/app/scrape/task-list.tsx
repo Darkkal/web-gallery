@@ -13,7 +13,7 @@ interface Task {
     enabled: boolean | null;
     lastRunAt: Date | null;
     nextRunAt: Date | null;
-    downloadOptions: { stopAfterCompleted?: number; stopAfterSkipped?: number } | null;
+    downloadOptions: { stopAfterCompleted?: number; stopAfterSkipped?: number; stopAfterPosts?: number } | null;
 }
 
 export default function ScrapeTaskList({ initialTasks }: { initialTasks: Task[] }) {
@@ -77,7 +77,10 @@ export default function ScrapeTaskList({ initialTasks }: { initialTasks: Task[] 
                                     {task.downloadOptions?.stopAfterSkipped && (
                                         <span>Max Skip: {task.downloadOptions.stopAfterSkipped}</span>
                                     )}
-                                    {!task.downloadOptions?.stopAfterCompleted && !task.downloadOptions?.stopAfterSkipped && (
+                                    {task.downloadOptions?.stopAfterPosts && (
+                                        <span>Max Posts: {task.downloadOptions.stopAfterPosts}</span>
+                                    )}
+                                    {!task.downloadOptions?.stopAfterCompleted && !task.downloadOptions?.stopAfterSkipped && !task.downloadOptions?.stopAfterPosts && (
                                         <span style={{ color: 'hsl(var(--muted-foreground))' }}>No limits</span>
                                     )}
                                 </div>

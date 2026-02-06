@@ -7,9 +7,9 @@ import ScrapeHistoryTable from './history-table';
 import styles from './page.module.css';
 
 export default function ScrapePageClient({ tasks, sources, history }: {
-    tasks: { id: number; name: string | null; sourceId: number; enabled: boolean | null; lastRunAt: Date | null; nextRunAt: Date | null; downloadOptions: { stopAfterCompleted?: number; stopAfterSkipped?: number } | null }[],
+    tasks: { id: number; name: string | null; sourceId: number; enabled: boolean | null; lastRunAt: Date | null; nextRunAt: Date | null; downloadOptions: { stopAfterCompleted?: number; stopAfterSkipped?: number; stopAfterPosts?: number } | null }[],
     sources: { id: number; name: string | null; url: string }[],
-    history: { id: number; startTime: Date; endTime: Date | null; status: 'running' | 'completed' | 'stopped' | 'failed'; filesDownloaded: number | null; skippedCount: number | null; bytesDownloaded: number | null; errorCount: number | null }[]
+    history: { id: number; startTime: Date; endTime: Date | null; status: 'running' | 'completed' | 'stopped' | 'failed'; filesDownloaded: number | null; skippedCount: number | null; postsProcessed: number | null; bytesDownloaded: number | null; errorCount: number | null }[]
 }) {
 
     const [activeTab, setActiveTab] = useState<'tasks' | 'history'>('tasks');

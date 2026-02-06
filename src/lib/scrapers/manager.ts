@@ -50,6 +50,7 @@ class ScraperManager {
             bytesDownloaded: 0,
             errorCount: 0,
             skippedCount: 0,
+            postsProcessed: 0,
             averageSpeed: 0,
             taskId: options.taskId,
         }).returning({ id: scrapeHistory.id }).get();
@@ -69,6 +70,7 @@ class ScraperManager {
             totalSize: '0B',
             errorCount: 0,
             skippedCount: 0,
+            postsProcessed: 0,
             isRateLimited: false,
             isFinished: false
         };
@@ -132,6 +134,7 @@ class ScraperManager {
                         bytesDownloaded,
                         errorCount: current.status.errorCount,
                         skippedCount: current.status.skippedCount,
+                        postsProcessed: current.status.postsProcessed,
                         averageSpeed,
                         lastError: result.error || (result.success ? null : result.output), // Store error or output if failed
                     })
@@ -199,6 +202,7 @@ class ScraperManager {
                         bytesDownloaded,
                         errorCount: active.status.errorCount,
                         skippedCount: active.status.skippedCount,
+                        postsProcessed: active.status.postsProcessed,
                         averageSpeed,
                     })
                     .where(eq(scrapeHistory.id, active.status.historyId))
