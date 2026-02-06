@@ -255,10 +255,40 @@ export async function getMediaItems(
         }
     });
 
+    // 3. Group by Post Logic
+    // We want to return a list where each element represents a Post (or isolated Media Item)
+    // and contains a list of all media items belonging to it.
+
+    // Type definition for the grouped result (inferred)
+    type GroupedResult = typeof results[number] & {
+        groupItems: typeof results[number][]; // All sibling rows
+        groupCount: number;
+    };
+
+    const groupedMap = new Map<string, GroupedResult>();
+
+    for (const row of results) {
+        // Key: Post ID if available, otherwise Item ID (unique for orphans)
+        const key = row.post ? `p_${row.post.id}` : `i_${row.item.id}`;
+
+        if (!groupedMap.has(key)) {
+            groupedMap.set(key, {
+                ...row, // Inherit properties of the first item (primary)
+                groupItems: [],
+                groupCount: 0
+            });
+        }
+
+        const group = groupedMap.get(key)!;
+        group.groupItems.push(row);
+        group.groupCount++;
+    }
+
+    const groupedResults = Array.from(groupedMap.values());
     const searchLower = searchQuery.toLowerCase();
 
-    // Filter results
-    const filtered = results.filter(row => {
+    // 4. Filter Groups
+    const filtered = groupedResults.filter(row => {
         // 1. Min Favorites Filter
         if (minFavorites > 0) {
             if (row.twitter) {
@@ -312,10 +342,11 @@ export async function getMediaItems(
         return true;
     });
 
-    // Apply sorting
+    // 5. Sort Groups
     const sortBy = filters?.sortBy || 'created-desc';
 
     filtered.sort((a, b) => {
+        // Use group's primary item/post for sorting
         switch (sortBy) {
             case 'created-asc': // Oldest Imported First
                 const cDateA = new Date(a.post?.createdAt || a.item.capturedAt || 0).getTime();
