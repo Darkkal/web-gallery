@@ -163,6 +163,7 @@ export const postDetailsGelbooruV02 = sqliteTable('post_details_gelbooruv02', {
     height: integer('height'),
     tags: text('tags', { mode: 'json' }),
     directory: text('directory'),
+    source: text('source'),
 });
 
 export const mediaItems = sqliteTable('media_items', {

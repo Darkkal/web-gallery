@@ -1,35 +1,43 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import { getPostTags } from '@/app/actions';
 import styles from './Lightbox.module.css';
+import { UnifiedPixivData, UnifiedTwitterData, UnifiedUserData, UnifiedGelbooruv02Data } from '@/lib/metadata';
 
 interface LightboxProps {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     item: any; // Using any for now matching the page usage
-    tweet?: any;
-    user?: any;
-    pixiv?: any;
-    pixivUser?: any;
+    tweet?: UnifiedTwitterData;
+    user?: UnifiedUserData;
+    pixiv?: UnifiedPixivData;
+    pixivUser?: UnifiedUserData;
+    gelbooru?: UnifiedGelbooruv02Data;
     onClose: () => void;
     onNext?: () => void;
     onPrev?: () => void;
     onDelete?: (id: number, deleteFile: boolean) => void;
 }
 
-export default function Lightbox({ item, tweet, user, pixiv, pixivUser, onClose, onNext, onPrev, onDelete }: LightboxProps) {
+export default function Lightbox({ item, tweet, user, pixiv, pixivUser, gelbooru, onClose, onNext, onPrev, onDelete }: LightboxProps) {
     const [showInfo, setShowInfo] = useState(true);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [tags, setTags] = useState<{ name: string }[]>([]);
+    const [pixivTags, setPixivTags] = useState<{ name: string }[]>([]);
     const videoRef = useRef<HTMLVideoElement>(null);
 
     // Fetch Pixiv Tags
     useEffect(() => {
         if (pixiv?.id) {
-            getPostTags(pixiv.id, 'pixiv').then(setTags).catch(console.error);
+            getPostTags(pixiv.id).then(setPixivTags).catch(console.error);
         } else {
-            setTags([]);
+            // eslint-disable-next-line
+            setPixivTags([]);
         }
-    }, [pixiv, pixiv?.id]);
+    }, [pixiv?.id]);
+
+    const tags = gelbooru?.tags
+        ? gelbooru.tags.map(tag => ({ name: tag, id: 0 }))
+        : pixivTags;
 
     // Handle video playback errors
     useEffect(() => {
@@ -37,8 +45,8 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, onClose,
             const playVideo = async () => {
                 try {
                     await videoRef.current?.play();
-                } catch (err: any) {
-                    if (err.name !== 'AbortError') {
+                } catch (err: unknown) {
+                    if (err instanceof Error && err.name !== 'AbortError') {
                         console.error('Video playback error:', err);
                     }
                 }
@@ -179,7 +187,7 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, onClose,
                 {user && (
                     <div className={`${styles.section} ${styles.userCard}`}>
                         {user.profileImage && (
-                            <img src={user.profileImage} alt={user.name} className={styles.avatar} />
+                            <Image src={user.profileImage || ''} alt={user.name || 'User'} width={48} height={48} className={styles.avatar} unoptimized />
                         )}
                         <div className={styles.userInfo}>
                             <span className={styles.userName}>{user.name}</span>
@@ -191,7 +199,7 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, onClose,
                 {pixivUser && (
                     <div className={`${styles.section} ${styles.userCard}`}>
                         {pixivUser.profileImage && (
-                            <img src={pixivUser.profileImage} alt={pixivUser.name} className={styles.avatar} />
+                            <Image src={pixivUser.profileImage || ''} alt={pixivUser.name || 'User'} width={48} height={48} className={styles.avatar} unoptimized />
                         )}
                         <div className={styles.userInfo}>
                             <span className={styles.userName}>{pixivUser.name}</span>
@@ -254,10 +262,42 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, onClose,
                                 <span className={styles.statValue}>{pixiv.totalView}</span>
                                 <span className={styles.statLabel}>Views</span>
                             </div>
-                            {pixiv.pageCount > 1 && (
+                            {(pixiv.pageCount || 0) > 1 && (
                                 <div className={styles.statItem}>
-                                    <span className={styles.statValue}>{pixiv.pageCount}</span>
+                                    <span className={styles.statValue}>{pixiv.pageCount || 0}</span>
                                     <span className={styles.statLabel}>Pages</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Gelbooru Info */}
+                {gelbooru && (
+                    <div className={styles.section}>
+                        <h3 className={styles.sectionTitle}>Gelbooru Info</h3>
+                        <div className={styles.statsGrid}>
+                            {gelbooru.source && (
+                                <div className={styles.statItem} style={{ gridColumn: '1 / -1' }}>
+                                    {/* Assuming Link component is available or replace with <a> */}
+                                    {/* <Link size={16} /> */}
+                                    <a href={gelbooru.source || undefined} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                                        Source
+                                    </a>
+                                </div>
+                            )}
+                            <div className={styles.statItem}>
+                                {/* Assuming Heart component is available or replace with icon */}
+                                {/* <Heart size={16} /> */}
+                                <span className={styles.statValue}>{gelbooru.score || 0}</span>
+                                <span className={styles.statLabel}>Score</span>
+                            </div>
+                            {gelbooru.rating && (
+                                <div className={styles.statItem}>
+                                    <span className={styles.badge} style={{ textTransform: 'uppercase' }}>
+                                        {gelbooru.rating}
+                                    </span>
+                                    <span className={styles.statLabel}>Rating</span>
                                 </div>
                             )}
                         </div>

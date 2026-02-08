@@ -8,6 +8,7 @@ import MasonryGrid from '../../components/MasonryGrid';
 import styles from './page.module.css';
 import Image from 'next/image';
 import { CheckSquare, Square } from 'lucide-react';
+import { mergePixivMetadata, mergeTwitterMetadata, mergeGelbooruv02Metadata } from '@/lib/metadata';
 
 interface MediaItem {
     id: number;
@@ -53,6 +54,7 @@ interface TwitterDetails {
     retweetCount: number | null;
     replyCount: number | null;
     viewCount: number | null;
+    bookmarkCount: number | null;
 }
 
 interface PixivDetails {
@@ -61,11 +63,20 @@ interface PixivDetails {
     pageCount: number | null;
 }
 
+interface GelbooruDetails {
+    score: number | null;
+    rating: string | null;
+    tags: unknown; // string[] or string
+    source: string | null;
+    md5: string | null;
+}
+
 interface GalleryRow {
     item: MediaItem;
     post?: Post;
     twitter?: TwitterDetails;
     pixiv?: PixivDetails;
+    gelbooru?: GelbooruDetails;
     user?: TwitterUser;
     pixivUser?: PixivUser;
     source?: {
@@ -342,10 +353,11 @@ export default function GalleryPage() {
                 currentGroup && currentItemRow && (
                     <Lightbox
                         item={currentItemRow.item}
-                        tweet={currentItemRow.twitter}
-                        user={currentItemRow.user}
-                        pixiv={currentItemRow.pixiv}
-                        pixivUser={currentItemRow.pixivUser}
+                        tweet={currentItemRow.post?.extractorType === 'twitter' ? mergeTwitterMetadata(currentItemRow.post, currentItemRow.twitter) : undefined}
+                        user={currentItemRow.post?.extractorType === 'twitter' ? currentItemRow.user : undefined}
+                        pixiv={currentItemRow.post?.extractorType === 'pixiv' ? mergePixivMetadata(currentItemRow.post, currentItemRow.pixiv) : undefined}
+                        gelbooru={currentItemRow.post?.extractorType === 'gelbooruv02' ? mergeGelbooruv02Metadata(currentItemRow.post, currentItemRow.gelbooru) : undefined}
+                        pixivUser={currentItemRow.post?.extractorType === 'pixiv' ? currentItemRow.pixivUser : undefined}
                         onClose={() => setSelectedIndex(null)}
                         onNext={() => {
                             if (mediaIndex < currentGroup.groupItems.length - 1) {

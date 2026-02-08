@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { getTimelinePosts, TimelinePost } from '../actions';
 import Lightbox from '../../components/Lightbox';
 import styles from './page.module.css';
+import { mergePixivMetadata, mergeTwitterMetadata, mergeGelbooruv02Metadata } from '@/lib/metadata';
 
 export default function TimelinePage() {
     const [posts, setPosts] = useState<TimelinePost[]>([]);
@@ -12,16 +14,16 @@ export default function TimelinePage() {
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
+        async function loadPosts() {
+            const data = await getTimelinePosts(1, 100, searchQuery); // Fetch 100 posts for now
+            setPosts(data);
+        }
+
         const timer = setTimeout(() => {
             loadPosts();
         }, 1000);
         return () => clearTimeout(timer);
     }, [searchQuery]);
-
-    async function loadPosts() {
-        const data = await getTimelinePosts(1, 100, searchQuery); // Fetch 100 posts for now
-        setPosts(data);
-    }
 
     const openLightbox = (postIndex: number, mediaIndex: number, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -36,8 +38,35 @@ export default function TimelinePage() {
         const post = posts[selectedIndex.postIndex];
         const media = post.mediaItems[selectedIndex.mediaIndex];
 
-        // Adapt Post data to Lightbox expectations (backward compatibility format)
-        // We construct "fake" objects that resemble the DB schema enough for Lightbox
+        // Helper call adaptation
+        const pixivInput = post.type === 'pixiv' ? {
+            id: post.pixivMetadata?.dbId || 0,
+            jsonSourceId: post.pixivMetadata?.illustId?.toString() || null,
+            title: post.content || null,
+            content: post.content || null // TimelinePost doesn't separate title/caption well, checking content
+        } : null;
+
+        const pixivDetails = post.type === 'pixiv' ? {
+            totalBookmarks: post.stats?.likes || 0,
+            totalView: post.stats?.views || 0,
+            pageCount: null
+        } : null;
+
+        const twitterInput = post.type === 'twitter' ? {
+            jsonSourceId: null, // TimelinePost doesn't define tweetId explicitly in top level, maybe in ID string? skipping for now or assume internal logic
+            content: post.content || null
+        } : null;
+
+        const twitterDetails = post.type === 'twitter' ? {
+            favoriteCount: post.stats?.likes || 0,
+            retweetCount: post.stats?.retweets || 0,
+            bookmarkCount: post.stats?.bookmarks || 0,
+            viewCount: post.stats?.views || 0
+        } : null;
+
+        // Note: TimelinePost structure is slightly different from DB row structure used in helper.
+        // We are adapting it here to use the consistent helper output format.
+
         return {
             item: {
                 id: media.id,
@@ -46,25 +75,22 @@ export default function TimelinePage() {
                 title: post.content, // Fallback
                 capturedAt: post.date,
             },
-            tweet: post.type === 'twitter' ? {
-                content: post.content,
-                favoriteCount: post.stats?.likes,
-                retweetCount: post.stats?.retweets,
-                bookmarkCount: post.stats?.bookmarks,
-                viewCount: post.stats?.views,
-            } : undefined,
+            tweet: post.type === 'twitter' ? mergeTwitterMetadata(twitterInput, twitterDetails) : undefined,
             user: post.type === 'twitter' ? {
                 name: post.author?.name,
                 nick: post.author?.handle,
                 profileImage: post.author?.avatar,
             } : undefined,
-            pixiv: post.type === 'pixiv' ? {
-                id: post.pixivMetadata?.dbId,
-                pixivId: post.pixivMetadata?.illustId,
-                title: post.content,
-                totalBookmarks: post.stats?.likes,
-                totalView: post.stats?.views,
-            } : undefined,
+            pixiv: post.type === 'pixiv' ? mergePixivMetadata(pixivInput, pixivDetails) : undefined,
+            gelbooru: post.type === 'other' && post.author?.name === 'Gelbooru' ? mergeGelbooruv02Metadata({
+                id: post.internalDbId || 0,
+                jsonSourceId: null, // TimelinePost gelbooru metadata doesn't have ID? It has md5.
+                url: post.sourceUrl || null
+            }, {
+                score: post.stats?.likes || 0,
+                rating: null, // TimelinePost doesn't carry rating currently
+                tags: post.gelbooruMetadata?.tags
+            }) : undefined,
             pixivUser: post.type === 'pixiv' ? {
                 name: post.author?.name,
                 account: post.author?.handle,
@@ -95,7 +121,7 @@ export default function TimelinePage() {
                         {/* Header: Avatar, Name, Date */}
                         <div className={styles.postHeader}>
                             {post.author?.avatar ? (
-                                <img src={post.author.avatar} alt={post.author.name} className={styles.avatar} />
+                                <Image src={post.author.avatar} alt={post.author.name || 'User'} width={40} height={40} className={styles.avatar} unoptimized />
                             ) : (
                                 <div className={styles.avatarPlaceholder} />
                             )}

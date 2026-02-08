@@ -442,6 +442,11 @@ export type TimelinePost = {
         dbId: number;
         illustId: number;
     };
+    gelbooruMetadata?: {
+        tags: string[];
+        source?: string;
+        md5?: string;
+    };
 };
 
 export async function getTimelinePosts(page = 1, limit = 20, search = ''): Promise<TimelinePost[]> {
@@ -604,6 +609,7 @@ export async function getTimelinePosts(page = 1, limit = 20, search = ''): Promi
 
         let author: TimelinePost['author'] = undefined;
         let pixivMetadata: TimelinePost['pixivMetadata'] = undefined;
+        let gelbooruMetadata: TimelinePost['gelbooruMetadata'] = undefined;
 
         if (type === 'twitter') {
             author = {
@@ -629,6 +635,25 @@ export async function getTimelinePosts(page = 1, limit = 20, search = ''): Promi
                 name: 'Gelbooru',
                 handle: row.gelbooru?.md5 || undefined
             };
+
+            let parsedTags: string[] = [];
+            if (row.gelbooru?.tags) {
+                if (typeof row.gelbooru.tags === 'string') {
+                    try {
+                        parsedTags = JSON.parse(row.gelbooru.tags);
+                    } catch {
+                        parsedTags = [];
+                    }
+                } else if (Array.isArray(row.gelbooru.tags)) {
+                    parsedTags = row.gelbooru.tags;
+                }
+            }
+
+            gelbooruMetadata = {
+                tags: parsedTags,
+                source: row.gelbooru?.source || undefined,
+                md5: row.gelbooru?.md5 || undefined
+            };
         }
 
         const postMedia = mediaMap.get(row.post.id) || [];
@@ -650,7 +675,8 @@ export async function getTimelinePosts(page = 1, limit = 20, search = ''): Promi
             })),
             stats: row.stats,
             sourceUrl: row.post.url || undefined,
-            pixivMetadata
+            pixivMetadata,
+            gelbooruMetadata
         };
     });
 
