@@ -28,40 +28,61 @@ export async function getPostTags(postId: number) {
 }
 
 export async function addSource(url: string, name?: string) {
-    // Check if it's a local path
     let isLocal = false;
-    try {
-        // Simple check for absolute path (starts with / or C:\ etc) or existing directory
-        // We use fs.stat to check if it exists and is a directory
-        const stat = await fs.stat(url);
-        if (stat.isDirectory()) {
-            isLocal = true;
-            // SECURITY: Prevent adding root or system dirs
-            const resolved = path.resolve(url);
-            const { root } = path.parse(resolved);
-            if (resolved === root || resolved === path.resolve('/')) {
-                throw new Error("Cannot add root directory as source.");
-            }
-            // Basic block list for windows/linux
-            const blocked = ['/etc', '/var', '/bin', '/usr', 'C:\\Windows', 'C:\\Program Files'];
-            for (const b of blocked) {
-                if (resolved.startsWith(path.resolve(b))) {
-                    throw new Error("Cannot add system directory as source.");
-                }
-            }
-        }
-    } catch {
-        // Not a local path or doesn't exist
-    }
-
     let type: 'twitter' | 'pixiv' | 'gallery-dl' | 'local' | 'gelbooruv02' = 'gallery-dl';
 
-    if (isLocal) {
-        type = 'local';
-    } else {
-        if (url.includes('twitter.com') || url.includes('x.com')) type = 'twitter';
-        if (url.includes('pixiv.net')) type = 'pixiv';
-        if (url.includes('gelbooru.com') || url.includes('safebooru.org')) type = 'gelbooruv02';
+    // 1. Determine if it's a likely web URL to avoid unnecessary/unsafe fs.stat on web inputs
+    const isWebUrl = url.startsWith('http://') || url.startsWith('https://');
+
+    if (!isWebUrl) {
+        try {
+            // Check for null bytes or other dangerous characters if needed, mostly handled by fs but good practice
+            if (url.includes('\0')) throw new Error("Invalid path characters");
+
+            // Simple check for absolute path (starts with / or C:\ etc) or existing directory
+            // We use fs.stat to check if it exists and is a directory
+            const stat = await fs.stat(url);
+            if (stat.isDirectory()) {
+                isLocal = true;
+                type = 'local';
+
+                // SECURITY: Prevent adding root or system dirs
+                const resolved = path.resolve(url);
+                const { root } = path.parse(resolved);
+                if (resolved === root || resolved === path.resolve('/')) {
+                    throw new Error("Cannot add root directory as source.");
+                }
+                // Basic block list for windows/linux
+                const blocked = ['/etc', '/var', '/bin', '/usr', 'C:\\Windows', 'C:\\Program Files'];
+                for (const b of blocked) {
+                    if (resolved.startsWith(path.resolve(b))) {
+                        throw new Error("Cannot add system directory as source.");
+                    }
+                }
+            }
+        } catch {
+            // Not a local path or doesn't exist
+        }
+    }
+
+    if (!isLocal) {
+        // SECURITY: Secure URL parsing for type detection
+        try {
+            const parsed = new URL(url);
+            const hostname = parsed.hostname.toLowerCase();
+
+            // Strict hostname matching
+            if (hostname === 'twitter.com' || hostname === 'www.twitter.com' || hostname === 'x.com' || hostname === 'www.x.com') {
+                type = 'twitter';
+            } else if (hostname === 'pixiv.net' || hostname === 'www.pixiv.net') {
+                type = 'pixiv';
+            } else if (hostname.endsWith('gelbooru.com') || hostname.endsWith('safebooru.org')) {
+                type = 'gelbooruv02';
+            }
+        } catch {
+            // If invalid URL, we treat it as generic gallery-dl source (might be a specific gallery-dl supported string)
+            // or just let it fail later if it's garbage.
+        }
     }
 
     // Ensure Extractor Type Exists

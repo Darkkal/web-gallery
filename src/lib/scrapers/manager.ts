@@ -111,7 +111,8 @@ class ScraperManager {
                         const batch = values.slice(i, i + chunkSize);
                         db.insert(scraperDownloadLogs).values(batch).onConflictDoNothing().run();
                     }
-                } catch (err: any) {
+                } catch (e: unknown) {
+                    const err = e as Error;
                     console.error("[ScraperManager] Failed to save download logs:", err.message);
                 }
             }
@@ -153,7 +154,7 @@ class ScraperManager {
                 }, 30000); // 30 seconds
             }
         }).catch(err => {
-            console.error(`[ScraperManager] ERROR for source ID: ${sourceId}:`, err);
+            console.error(`[ScraperManager] ERROR for source ID:`, sourceId, err);
 
             // Update history record as failed
             db.update(scrapeHistory)
