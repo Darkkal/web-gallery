@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
-import fs, { promises as fsPromises } from 'fs';
+import { promises as fsPromises } from 'fs';
 import { db } from '@/lib/db';
 import { twitterUsers, pixivUsers } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -61,11 +61,31 @@ export async function GET(
 
     // 3. Download with Rate Limiting
     try {
+        // SECURITY: SSRF Protection
+        // 1. Must be HTTP/HTTPS
         if (!avatarUrl || !avatarUrl.startsWith('http')) {
-            // If it's a legacy local path, we can try to redirect, but if the file is deleted, it's a 404.
-            // If we don't have the remote URL, we can't recover.
-            console.warn(`[API] No remote URL for ${platform}/${userId}. DB value: ${avatarUrl}`);
+            console.warn(`[API] Invalid or non-remote URL for ${platform}/${userId}. DB value: ${avatarUrl}`);
             return new NextResponse(`Avatar not found and no remote URL available`, { status: 404 });
+        }
+
+        // 2. Validate URL parsing
+        let parsedUrl: URL;
+        try {
+            parsedUrl = new URL(avatarUrl);
+            if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+                throw new Error('Invalid protocol');
+            }
+            // Optional: Block loopback/private IPs if needed, but 'localhost' might be valid in some dev setups. 
+            // generally good to block 127.0.0.1, localhost, 169.254, 10., 192.168. etc.
+            // For now, protocol check is a good start.
+        } catch {
+            return new NextResponse('Invalid Avatar URL', { status: 400 });
+        }
+
+        // SECURITY: Path Traversal Protection
+        // userId should be safe characters only.
+        if (!/^[a-zA-Z0-9_-]+$/.test(userId)) {
+            return new NextResponse('Invalid User ID', { status: 400 });
         }
 
         let filename: string | null = null;
@@ -103,11 +123,12 @@ export async function GET(
             return new NextResponse('Download failed', { status: 502 });
         }
 
-    } catch (e: any) {
-        if (e.message === 'Aborted' || request.signal.aborted) {
+    } catch (e: unknown) {
+        const err = e as Error;
+        if (err.message === 'Aborted' || request.signal.aborted) {
             return new NextResponse('Aborted', { status: 503 });
         }
-        console.error(`[API] Avatar download failed for ${userId}:`, e);
-        return new NextResponse(`Internal Server Error: ${e.message}`, { status: 500 });
+        console.error(`[API] Avatar download failed for ${userId}:`, err);
+        return new NextResponse(`Internal Server Error: ${err.message}`, { status: 500 });
     }
 }

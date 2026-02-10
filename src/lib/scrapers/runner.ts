@@ -90,14 +90,14 @@ export class ScraperRunner {
                     args.push('-A', '15');
                 }
 
-                args.push(options.url);
+                args.push('--', options.url);
                 args.push('--destination', this.basePath);
 
                 if (limits?.stopAfterSkipped) {
                     args.push('-T', limits.stopAfterSkipped.toString());
                 }
             } else {
-                args.push(options.url);
+                args.push('--', options.url);
                 args.push('-P', this.basePath);
                 // yt-dlp shows progress by default for files.
                 args.push('--newline'); // Easier to parse line by line

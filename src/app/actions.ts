@@ -36,6 +36,19 @@ export async function addSource(url: string, name?: string) {
         const stat = await fs.stat(url);
         if (stat.isDirectory()) {
             isLocal = true;
+            // SECURITY: Prevent adding root or system dirs
+            const resolved = path.resolve(url);
+            const { root } = path.parse(resolved);
+            if (resolved === root || resolved === path.resolve('/')) {
+                throw new Error("Cannot add root directory as source.");
+            }
+            // Basic block list for windows/linux
+            const blocked = ['/etc', '/var', '/bin', '/usr', 'C:\\Windows', 'C:\\Program Files'];
+            for (const b of blocked) {
+                if (resolved.startsWith(path.resolve(b))) {
+                    throw new Error("Cannot add system directory as source.");
+                }
+            }
         }
     } catch {
         // Not a local path or doesn't exist
@@ -698,14 +711,28 @@ export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
             for (const item of itemsToDelete) {
                 try {
                     // filePath is likely relative to public, e.g., /downloads/...
-                    const absolutePath = path.join(process.cwd(), 'public', item.filePath);
+                    // Prevent Path Traversal
+                    const publicRoot = path.resolve(process.cwd(), 'public');
+                    const absolutePath = path.resolve(publicRoot, item.filePath.replace(/^\//, '')); // Remove leading slash to be safe for join/resolve
+
+                    if (!absolutePath.startsWith(publicRoot)) {
+                        console.error(`[deleteMediaItems] Security Check Failed: Path ${absolutePath} is outside public dir.`);
+                        continue;
+                    }
+
                     console.log(`[deleteMediaItems] Unlinking media: ${absolutePath}`);
                     await fs.unlink(absolutePath);
 
                     // Also try to delete associated .json metadata file
                     const ext = path.extname(item.filePath);
                     const jsonPathStr = item.filePath.substring(0, item.filePath.length - ext.length) + '.json';
-                    const absoluteJsonPath = path.join(process.cwd(), 'public', jsonPathStr);
+                    // Re-resolve for metadata security check
+                    const absoluteJsonPath = path.resolve(publicRoot, jsonPathStr.replace(/^\//, ''));
+
+                    if (!absoluteJsonPath.startsWith(publicRoot)) {
+                        // Skip silently or log
+                        continue;
+                    }
 
                     try {
                         await fs.access(absoluteJsonPath);
