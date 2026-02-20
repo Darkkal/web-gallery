@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { getMediaItems, deleteMediaItems } from '../actions';
 import { useSearchParams } from 'next/navigation';
 import Lightbox from '../../components/Lightbox';
@@ -91,7 +91,7 @@ interface GalleryGroup extends GalleryRow {
     groupCount: number;
 }
 
-export default function GalleryPage() {
+function GalleryContent() {
     const searchParams = useSearchParams();
     const [items, setItems] = useState<GalleryGroup[]>([]);
 
@@ -382,5 +382,13 @@ export default function GalleryPage() {
                 )
             }
         </div >
+    );
+}
+
+export default function GalleryPage() {
+    return (
+        <Suspense fallback={<div>Loading gallery...</div>}>
+            <GalleryContent />
+        </Suspense>
     );
 }

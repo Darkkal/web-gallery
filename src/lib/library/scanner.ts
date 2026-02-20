@@ -18,6 +18,8 @@ import {
     postDetailsGelbooruV02
 } from '@/lib/db/schema';
 import { eq, and, inArray, isNull } from 'drizzle-orm';
+import { ProcessTask, ProcessorContext, UserCache, TagCache } from './types';
+import { MetadataProcessorFactory } from './processors/factory';
 
 const DOWNLOAD_DIR = path.join(process.cwd(), 'public', 'downloads');
 // Global control flags for this module process
@@ -46,9 +48,6 @@ function getAllFiles(dirPath: string): string[] {
     return results;
 }
 
-// Memory Cache Types
-type TagCache = Map<string, number>; // name -> id
-type UserCache = Set<string>; // id
 
 export async function syncLibrary() {
     if (isScanning) {
@@ -336,14 +335,6 @@ export async function syncLibrary() {
     }
 }
 
-interface ProcessTask {
-    fsPath: string;
-    dbFilePath: string;
-    jsonPath: string | undefined;
-    defaultType: 'image' | 'video' | 'audio' | 'text';
-    sourceId: number | null;
-}
-
 interface PrepareResult {
     task: ProcessTask;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -446,259 +437,19 @@ async function processBatch(
                 else if (meta.category === 'pixiv' || meta.extractor === 'pixiv') extractorType = 'pixiv';
                 else if (meta.category === 'gelbooru' || meta.category === 'safebooru' || meta.extractor === 'gelbooru' || meta.extractor === 'gelbooruv02' || meta.extractor === 'safebooru') extractorType = 'gelbooruv02';
 
-                // TWITTER Processing
-                if (extractorType === 'twitter') {
-                    // Update User
-                    const userObj = meta.user || meta.author || {};
-                    const userId = userObj.id || meta.user_id;
-                    const uidStr = userId ? String(userId) : null;
-
-                    if (uidStr) {
-                        const avatarPath = userAvatars.get(uidStr);
-                        // Upsert User
-                        if (!existingTwitterUsers.has(uidStr)) {
-                            tx.insert(twitterUsers).values({
-                                id: uidStr,
-                                name: userObj.name || meta.uploader,
-                                nick: userObj.nick,
-                                description: userObj.description,
-                                location: userObj.location,
-                                date: userObj.date,
-                                verified: userObj.verified,
-                                protected: userObj.protected,
-                                profileBanner: userObj.profile_banner,
-                                profileImage: avatarPath,
-                                favouritesCount: userObj.favourites_count,
-                                followersCount: userObj.followers_count,
-                                friendsCount: userObj.friends_count,
-                                listedCount: userObj.listed_count,
-                                mediaCount: userObj.media_count,
-                                statusesCount: userObj.statuses_count
-                            }).onConflictDoUpdate({
-                                target: twitterUsers.id, set: {
-                                    name: userObj.name,
-                                    profileImage: avatarPath,
-                                    followersCount: userObj.followers_count
-                                }
-                            }).run();
-                            existingTwitterUsers.add(uidStr);
-                        }
-                    }
-
-                    // Update Post
-                    const tid = meta.tweet_id ? String(meta.tweet_id) : null;
-                    if (tid) {
-                        const key = `twitter:${tid}`;
-                        if (!existingPosts.has(key)) {
-                            // Insert Post
-                            const inserted = tx.insert(posts).values({
-                                extractorType: 'twitter',
-                                jsonSourceId: tid,
-                                internalSourceId: internalSourceId,
-                                userId: uidStr,
-                                date: meta.date,
-                                title: userObj.name,
-                                content: meta.content,
-                                url: `https://twitter.com/${userObj.nick || 'i'}/status/${tid}`,
-                                metadataPath: task.jsonPath ? path.relative(path.join(process.cwd(), 'public'), task.jsonPath).split(path.sep).join('/') : null,
-                                createdAt: new Date()
-                            }).returning({ id: posts.id }).get();
-
-                            postId = inserted.id;
-                            existingPosts.set(key, postId);
-
-                            // Insert Details
-                            tx.insert(postDetailsTwitter).values({
-                                postId: postId,
-                                retweetId: meta.retweet_id ? String(meta.retweet_id) : null,
-                                quoteId: meta.quote_id ? String(meta.quote_id) : null,
-                                replyId: meta.reply_id ? String(meta.reply_id) : null,
-                                conversationId: meta.conversation_id ? String(meta.conversation_id) : null,
-                                lang: meta.lang,
-                                source: meta.source, // The HTML source string
-                                sensitive: meta.sensitive,
-                                sensitiveFlags: meta.sensitive_flags,
-                                favoriteCount: meta.favorite_count,
-                                quoteCount: meta.quote_count,
-                                replyCount: meta.reply_count,
-                                retweetCount: meta.retweet_count,
-                                bookmarkCount: meta.bookmark_count,
-                                viewCount: meta.view_count,
-                                category: 'twitter',
-                                subcategory: 'tweet'
-                            }).run();
-                        } else {
-                            postId = existingPosts.get(key)!;
-                        }
-                    }
-                }
-
-                // PIXIV Processing
-                else if (extractorType === 'pixiv') {
-                    const userId = meta.user?.id;
-                    const uidStr = userId ? String(userId) : null;
-
-                    if (uidStr) {
-                        const avatarPath = userAvatars.get(uidStr);
-                        if (!existingPixivUsers.has(uidStr)) {
-                            tx.insert(pixivUsers).values({
-                                id: uidStr,
-                                name: meta.user.name,
-                                account: meta.user.account,
-                                profileImage: avatarPath,
-                                isFollowed: meta.user.is_followed,
-                                isAcceptRequest: meta.user.is_accept_request
-                            }).onConflictDoUpdate({
-                                target: pixivUsers.id, set: {
-                                    name: meta.user.name,
-                                    profileImage: avatarPath
-                                }
-                            }).run();
-                            existingPixivUsers.add(uidStr);
-                        }
-                    }
-
-                    const pid = meta.id ? String(meta.id) : null;
-                    if (pid) {
-                        const key = `pixiv:${pid}`;
-                        if (!existingPosts.has(key)) {
-                            const inserted = tx.insert(posts).values({
-                                extractorType: 'pixiv',
-                                jsonSourceId: pid,
-                                internalSourceId: internalSourceId,
-                                userId: uidStr,
-                                date: meta.date || meta.create_date,
-                                title: meta.title,
-                                content: meta.caption,
-                                url: `https://www.pixiv.net/artworks/${pid}`,
-                                metadataPath: task.jsonPath ? path.relative(path.join(process.cwd(), 'public'), task.jsonPath).split(path.sep).join('/') : null,
-                                createdAt: new Date()
-                            }).returning({ id: posts.id }).get();
-
-                            postId = inserted.id;
-                            existingPosts.set(key, postId);
-
-                            // Detail Table
-                            tx.insert(postDetailsPixiv).values({
-                                postId: postId,
-                                width: meta.width,
-                                height: meta.height,
-                                pageCount: meta.page_count,
-                                restrict: meta.restrict,
-                                xRestrict: meta.x_restrict,
-                                sanityLevel: meta.sanity_level,
-                                totalView: meta.total_view,
-                                totalBookmarks: meta.total_bookmarks,
-                                isBookmarked: meta.is_bookmarked,
-                                visible: meta.visible,
-                                isMuted: meta.is_muted,
-                                illustAiType: meta.illust_ai_type,
-                                illustBookStyle: meta.illust_book_style,
-                                tags: meta.tags,
-                                category: 'pixiv',
-                                subcategory: meta.subcategory,
-                                type: meta.type
-                            }).run();
-                        } else {
-                            postId = existingPosts.get(key)!;
-                        }
-                    }
-
-                    // Process Pixiv Tags
-                    if (pid && postId && meta.tags && Array.isArray(meta.tags)) {
-                        for (const rawTag of meta.tags) {
-                            const baseTagName = typeof rawTag === 'string' ? rawTag : rawTag.name;
-                            if (!baseTagName) continue;
-                            const tagName = baseTagName.trim();
-                            let tagId = existingTags.get(tagName);
-
-                            if (!tagId) {
-                                const newTag = tx.insert(tags).values({ name: tagName }).onConflictDoNothing().returning({ id: tags.id }).get();
-                                if (newTag) tagId = newTag.id;
-                                else {
-                                    const e = tx.select({ id: tags.id }).from(tags).where(eq(tags.name, tagName)).get();
-                                    if (e) tagId = e.id;
-                                }
-                                if (tagId) existingTags.set(tagName, tagId);
-                            }
-
-                            if (tagId) {
-                                tx.insert(postTags).values({
-                                    tagId,
-                                    postId
-                                }).onConflictDoNothing().run();
-                            }
-                        }
-                    }
-                }
-
-                // GELBOORU / SAFEBOORU Processing
-                else if (extractorType === 'gelbooruv02') {
-                    const gid = meta.id ? String(meta.id) : null;
-                    if (gid) {
-                        const key = `gelbooruv02:${gid}`;
-                        if (!existingPosts.has(key)) {
-                            // Common Gelbooru fields
-                            const createdDate = meta.created_at ? new Date(meta.created_at).toISOString() : (meta.date || null);
-                            const inserted = tx.insert(posts).values({
-                                extractorType: 'gelbooruv02',
-                                jsonSourceId: gid,
-                                internalSourceId: internalSourceId,
-                                userId: meta.owner || 'unknown',
-                                date: createdDate,
-                                title: meta.title || `Gelbooru Post ${gid}`,
-                                content: null,
-                                url: meta.file_url || (meta.directory && meta.image ? `https://safebooru.org/images/${meta.directory}/${meta.image}` : null),
-                                metadataPath: task.jsonPath ? path.relative(path.join(process.cwd(), 'public'), task.jsonPath).split(path.sep).join('/') : null,
-                                createdAt: new Date()
-                            }).returning({ id: posts.id }).get();
-
-                            postId = inserted.id;
-                            existingPosts.set(key, postId);
-
-                            tx.insert(postDetailsGelbooruV02).values({
-                                postId: postId,
-                                rating: meta.rating,
-                                score: meta.score,
-                                md5: meta.md5,
-                                width: meta.width,
-                                height: meta.height,
-                                tags: meta.tags,
-                                directory: meta.directory
-                            }).run();
-                        } else {
-                            postId = existingPosts.get(key)!;
-                        }
-                    }
-
-                    // Tags
-                    let tagList: string[] = [];
-                    if (Array.isArray(meta.tags)) {
-                        tagList = meta.tags;
-                    } else if (typeof meta.tags === 'string') {
-                        tagList = meta.tags.split(' ');
-                    }
-
-                    if (postId && tagList.length > 0) {
-                        for (const tagName of tagList) {
-                            if (!tagName) continue;
-                            const cleanTagName = tagName.trim();
-                            if (!cleanTagName) continue;
-
-                            let tagId = existingTags.get(cleanTagName);
-                            if (!tagId) {
-                                const newTag = tx.insert(tags).values({ name: cleanTagName }).onConflictDoNothing().returning({ id: tags.id }).get();
-                                if (newTag) tagId = newTag.id;
-                                else {
-                                    const e = tx.select({ id: tags.id }).from(tags).where(eq(tags.name, cleanTagName)).get();
-                                    if (e) tagId = e.id;
-                                }
-                                if (tagId) existingTags.set(cleanTagName, tagId);
-                            }
-                            if (tagId) {
-                                tx.insert(postTags).values({ tagId, postId }).onConflictDoNothing().run();
-                            }
-                        }
+                if (extractorType) {
+                    const processor = MetadataProcessorFactory.getProcessor(extractorType);
+                    if (processor) {
+                        const context: ProcessorContext = {
+                            tx,
+                            existingTwitterUsers,
+                            existingPixivUsers,
+                            existingTags,
+                            existingPosts,
+                            userAvatars,
+                            internalSourceId
+                        };
+                        postId = processor.process(meta, task, context);
                     }
                 }
             }

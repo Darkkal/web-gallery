@@ -22,6 +22,7 @@ export interface ScrapedMediaItem {
     filename: string;
     sourceUrl: string;
     capturedAt: Date;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata: any;
     type: 'image' | 'video';
 }
