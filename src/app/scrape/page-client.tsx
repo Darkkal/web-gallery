@@ -38,7 +38,7 @@ export default function ScrapePageClient({ tasks, sources, history }: {
                 </div>
 
                 {activeTab === 'tasks' && (
-                    <ScrapeTaskList initialTasks={tasks} />
+                    <ScrapeTaskList initialTasks={tasks} sources={sources} />
                 )}
                 {activeTab === 'history' && (
                     <ScrapeHistoryTable initialHistory={history} />
