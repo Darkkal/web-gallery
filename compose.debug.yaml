@@ -1,0 +1,15 @@
+services:
+  webgallery:
+    image: webgallery
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      NODE_ENV: development
+    ports:
+      - 3000:3000
+      - 9229:9229
+    command: ["node", "--inspect=0.0.0.0:9229", "../node_modules/.bin/next", "dev", "-H", "0.0.0.0"]
+    volumes:
+      # TODO: kind of a hack, I'm debugging this on a Fedora host machine and this is where firefox cookies are stored.
+      - ~/.config/mozilla/firefox:/home/node/.mozilla/firefox:ro
