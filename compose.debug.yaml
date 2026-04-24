@@ -1,6 +1,7 @@
 services:
   webgallery:
     image: webgallery
+    userns_mode: keep-id
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -9,7 +10,14 @@ services:
     ports:
       - 3000:3000
       - 9229:9229
-    command: ["node", "--inspect=0.0.0.0:9229", "../node_modules/.bin/next", "dev", "-H", "0.0.0.0"]
+    # Run npm install to ensure devDependencies (like typescript) are present, then start the dev server
+    command: sh -c "npm install && node --inspect=0.0.0.0:9229 node_modules/.bin/next dev -H 0.0.0.0"
     volumes:
-      # TODO: kind of a hack, I'm debugging this on a Fedora host machine and this is where firefox cookies are stored.
+      # Mount source code for hot-reloading (with :z for SELinux on Fedora/Nobara)
+      - .:/usr/src/app:z
+      # Prevent host node_modules from overwriting container node_modules (anonymous volume)
+      - /usr/src/app/node_modules
+      # Fix permission errors by keeping the Next.js cache inside the container
+      - /usr/src/app/.next
+      # Firefox cookies, this is where it's hosted on Fedora
       - ~/.config/mozilla/firefox:/home/node/.mozilla/firefox:ro
