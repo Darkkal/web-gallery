@@ -5,8 +5,32 @@ import { scraperManager } from '@/lib/scrapers/manager';
 import { stopScanning } from '@/lib/library/scanner';
 import fs from 'fs/promises';
 import path from 'path';
-import { sql } from 'drizzle-orm';
+import { sql, is, getTableName } from 'drizzle-orm';
+import { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { revalidatePath } from 'next/cache';
+import * as schema from '@/lib/db/schema';
+
+/**
+ * Throws if called in a production environment.
+ * All destructive debug actions must call this before proceeding.
+ */
+function assertNonProduction() {
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('Debug actions are disabled in production');
+    }
+}
+
+/**
+ * All schema tables, derived automatically from the schema module.
+ * New tables added to schema.ts are picked up without any changes here.
+ *
+ * Uses Drizzle's `is()` type guard to filter for SQLiteTable instances,
+ * avoiding the need for a manually maintained hardcoded list.
+ * Deletion order is irrelevant because FK checks are disabled beforehand.
+ */
+const allTables: SQLiteTable[] = Object.values(schema).filter(
+    (value) => is(value, SQLiteTable)
+);
 
 async function stopAllActivities() {
     console.log('[debug] Stopping library scan...');
@@ -23,6 +47,8 @@ async function stopAllActivities() {
 }
 
 export async function purgeDatabases() {
+    assertNonProduction();
+
     console.log('[purgeDatabases] STARTING PURGE...');
     await stopAllActivities();
 
@@ -49,14 +75,10 @@ export async function purgeDatabases() {
         // Disable Foreign Keys
         db.run(sql`PRAGMA foreign_keys = OFF`);
 
-        // Get all tables
-        const tables = db.all(sql`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`);
-
-        for (const table of tables) {
-            // @ts-ignore
-            const tableName = table.name;
-            console.log(`[purgeDatabases] Clearing table: ${tableName}`);
-            db.run(sql.raw(`DELETE FROM ${tableName}`));
+        // Delete from each table using the type-safe list
+        for (const table of allTables) {
+            console.log(`[purgeDatabases] Clearing table: ${getTableName(table)}`);
+            db.delete(table).run();
         }
 
         // Reset Sequence
@@ -82,6 +104,8 @@ export async function purgeDatabases() {
 }
 
 export async function purgeAvatars() {
+    assertNonProduction();
+
     console.log('[purgeAvatars] Starting...');
     await stopAllActivities();
 
@@ -100,6 +124,8 @@ export async function purgeAvatars() {
 }
 
 export async function purgeDownloads() {
+    assertNonProduction();
+
     console.log('[purgeDownloads] Starting...');
     await stopAllActivities();
 
