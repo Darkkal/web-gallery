@@ -11,7 +11,8 @@ By leveraging powerful scraping tools like `gallery-dl` and `yt-dlp`, this appli
 ## Project Status
 
 > [!IMPORTANT]
-> This project is currently in an **Early Alpha** stage. 
+> This project is currently in an **Early Alpha** stage.
+>
 > - Most implemented features provide only basic functionality.
 > - Many features listed in the roadmap have not yet been started.
 > - Expect bugs, breaking changes, and incomplete UI.
@@ -47,17 +48,20 @@ By leveraging powerful scraping tools like `gallery-dl` and `yt-dlp`, this appli
 ### Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/yourusername/web-gallery.git
    cd web-gallery
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    ```
 
 3. Initialize the database:
+
    ```bash
    npm run db:push
    ```
@@ -81,9 +85,10 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ### Tool & AI Usage Disclaimer
 
-**Personal Web Gallery** is a tool intended for personal use and the archival of content for which you have legal access. The developers of this software are not responsible for how you use the tool, nor for any content you choose to scrape or store. 
+**Personal Web Gallery** is a tool intended for personal use and the archival of content for which you have legal access. The developers of this software are not responsible for how you use the tool, nor for any content you choose to scrape or store.
 
 Users are responsible for:
+
 - Complying with the Terms of Service of any website they scrape.
 - Adhering to local and international copyright laws.
 - Ensuring their use of the software is legal in their jurisdiction.
@@ -91,6 +96,7 @@ Users are responsible for:
 This software is provided "as is," without warranty of any kind.
 
 ### AI Assistance Notice
+
 Large portions of this codebase have been generated or assisted by AI models. While the author has provided oversight, manual verification, and architectural direction, please be aware that AI-generated code may contain bugs, security vulnerabilities, or suboptimal patterns that differ from human-written code. Use with appropriate caution.
 
 ## License
