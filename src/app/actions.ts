@@ -29,9 +29,6 @@ export async function updateSource(id: number, updates: { url?: string; name?: s
     revalidatePath('/sources');
 }
 
-export async function getSources() {
-    return sourcesRepo.getSources();
-}
 
 export async function getSourcesWithHistory() {
     return sourcesRepo.getSourcesWithHistory();
@@ -50,9 +47,6 @@ export async function scrapeSource(sourceId: number, mode: 'full' | 'quick' = 'f
     return { success: true, message: 'Scrape started in background' };
 }
 
-export async function getScrapingStatuses(): Promise<ScrapingStatus[]> {
-    return scraperManager.getAllStatuses();
-}
 
 export async function stopScrapingSource(sourceId: number) {
     const success = scraperManager.stopScrape(sourceId);
@@ -76,9 +70,6 @@ export async function stopLibraryScan() {
     return { requested: true };
 }
 
-export async function getScanHistory() {
-    return await db.select().from(scanHistory).orderBy(desc(scanHistory.startTime));
-}
 
 export async function getLatestScan() {
     const scans = await db.select().from(scanHistory).orderBy(desc(scanHistory.startTime)).limit(1);
