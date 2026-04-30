@@ -51,14 +51,15 @@ interface GalleryGroup extends GalleryRow {
 export default function GalleryPageClient({ 
     initialItems, 
     initialSearch, 
-    initialSort 
+    initialSort,
+    initialNextCursor
 }: { 
     initialItems: GalleryGroup[],
     initialSearch: string,
-    initialSort: string
+    initialSort: string,
+    initialNextCursor: string | null
 }) {
     const [items, setItems] = useState<GalleryGroup[]>(initialItems);
-
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [sortBy, setSortBy] = useState(initialSort);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -70,23 +71,38 @@ export default function GalleryPageClient({
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [deleting, setDeleting] = useState(false);
 
-    const loadItems = useCallback(async () => {
-        const res = await fetch(`/api/gallery?search=${encodeURIComponent(searchQuery)}&sortBy=${sortBy}`);
-        if (res.ok) {
-            const data = await res.json();
-            setItems(data as GalleryGroup[]);
-        }
-    }, [searchQuery, sortBy]);
+    const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
+    const [isLoading, setIsLoading] = useState(false);
 
-    // Initial load handled by props, but we need to react to changes
+    const loadItems = useCallback(async (isAppending = false) => {
+        setIsLoading(true);
+        try {
+            const currentCursor = isAppending ? nextCursor : '';
+            const res = await fetch(`/api/gallery?search=${encodeURIComponent(searchQuery)}&sortBy=${sortBy}&cursor=${currentCursor}&limit=50`);
+            if (res.ok) {
+                const data = await res.json();
+                if (isAppending) {
+                    setItems(prev => [...prev, ...data.items]);
+                } else {
+                    setItems(data.items);
+                }
+                setNextCursor(data.nextCursor);
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    }, [searchQuery, sortBy, nextCursor]);
+
+    // Handle search/sort changes
     useEffect(() => {
         const timer = setTimeout(() => {
-            // Only fetch if something changed from initial state OR it's a subsequent change
-            loadItems();
+            // Reset cursor and items when search or sort changes
+            setNextCursor(null);
+            loadItems(false);
         }, 1000);
 
         return () => clearTimeout(timer);
-    }, [searchQuery, sortBy, loadItems]);
+    }, [searchQuery, sortBy]);
 
 
     function toggleSelection(group: GalleryGroup) {
@@ -302,6 +318,19 @@ export default function GalleryPageClient({
                     )
                 }}
             />
+
+            {nextCursor && (
+                <div className={styles.loadMoreContainer}>
+                    <button 
+                        onClick={() => loadItems(true)} 
+                        disabled={isLoading}
+                        className={styles.secondaryButton}
+                        style={{ margin: '2rem auto', display: 'block', padding: '0.8rem 2rem' }}
+                    >
+                        {isLoading ? 'Loading...' : 'Load More'}
+                    </button>
+                </div>
+            )}
 
             {items.length === 0 && (
                 <div className={styles.emptyState}>

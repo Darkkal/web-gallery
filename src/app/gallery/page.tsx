@@ -11,8 +11,8 @@ export default async function GalleryPage({
     const sortBy = (params.sortBy as string) || 'created-desc';
 
     // Initial data fetch on the server
-    const filters = (search || sortBy !== 'created-desc') ? { search, sortBy } : undefined;
-    const items = await getMediaItems(filters);
+    const filters = { search, sortBy, limit: 50 };
+    const { items, nextCursor } = await getMediaItems(filters);
     
     // Ensure data is serializable
     const initialItems = JSON.parse(JSON.stringify(items));
@@ -22,6 +22,7 @@ export default async function GalleryPage({
             initialItems={initialItems} 
             initialSearch={search} 
             initialSort={sortBy} 
+            initialNextCursor={nextCursor}
         />
     );
 }

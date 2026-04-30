@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { posts, postDetailsTwitter, postDetailsPixiv, postDetailsGelbooruV02, twitterUsers, pixivUsers, sources, tags, postTags, mediaItems } from '@/lib/db/schema';
-import { eq, ne, inArray, and, like, SQL } from 'drizzle-orm';
+import { eq, ne, inArray, and, like, SQL, or, desc, asc, lt, gt, exists } from 'drizzle-orm';
 import { parseSearchQuery } from '@/lib/utils/search-parser';
 
 export type TimelinePost = {
@@ -28,7 +28,7 @@ export type TimelinePost = {
         bookmarks?: number;
         retweets?: number;
     };
-    sourceUrl?: string; // Original Post URL
+    sourceUrl?: string;
     pixivMetadata?: {
         dbId: number;
         illustId: number;
@@ -40,27 +40,107 @@ export type TimelinePost = {
     };
 };
 
-export async function getTimelinePosts(page = 1, limit = 20, search = ''): Promise<TimelinePost[]> {
-    const { cleanQuery, minFavorites, sourceFilter } = parseSearchQuery(search);
+export async function getTimelinePosts(filters?: {
+    search?: string;
+    sortBy?: string;
+    limit?: number;       // default 50
+    cursor?: string;      // base64 encoded cursor for pagination
+}): Promise<{ posts: TimelinePost[]; nextCursor: string | null }> {
+    const limit = filters?.limit ?? 50;
+    const search = filters?.search ?? '';
+    const sortBy = filters?.sortBy ?? 'created-desc';
+
+    const { cleanQuery, sourceFilter } = parseSearchQuery(search);
     const searchLower = cleanQuery.toLowerCase();
 
-    let tagMatchedPostIds: Set<number> | null = null;
-    if (searchLower.length > 1) {
-        const matchedTags = await db.selectDistinct({
-            postId: postTags.postId
-        })
-            .from(tags)
-            .innerJoin(postTags, eq(tags.id, postTags.tagId))
-            .where(like(tags.name, `%${searchLower}%`));
+    const whereConditions: SQL[] = [];
 
-        if (matchedTags.length > 0) {
-            tagMatchedPostIds = new Set(matchedTags.map(m => m.postId));
+    if (sourceFilter) {
+        whereConditions.push(eq(posts.extractorType, sourceFilter));
+    }
+
+    if (searchLower) {
+        const textMatch = or(
+            like(posts.title, `%${searchLower}%`),
+            like(posts.content, `%${searchLower}%`),
+            like(twitterUsers.name, `%${searchLower}%`),
+            like(twitterUsers.nick, `%${searchLower}%`),
+            like(pixivUsers.name, `%${searchLower}%`),
+            like(pixivUsers.account, `%${searchLower}%`),
+            like(sources.name, `%${searchLower}%`)
+        );
+
+        const tagMatch = exists(
+            db.select()
+                .from(postTags)
+                .innerJoin(tags, eq(postTags.tagId, tags.id))
+                .where(
+                    and(
+                        eq(postTags.postId, posts.id),
+                        like(tags.name, `%${searchLower}%`)
+                    )
+                )
+        );
+
+        whereConditions.push(or(textMatch, tagMatch)!);
+    }
+
+    let cursorSortVal: string | null = null;
+    let cursorId: number | null = null;
+    if (filters?.cursor) {
+        try {
+            const decoded = Buffer.from(filters?.cursor, 'base64').toString('utf-8');
+            const lastUnderscore = decoded.lastIndexOf('_');
+            if (lastUnderscore !== -1) {
+                cursorSortVal = decoded.substring(0, lastUnderscore);
+                cursorId = parseInt(decoded.substring(lastUnderscore + 1), 10);
+            }
+        } catch (e) {
+            // Invalid cursor, ignore
         }
     }
 
-    let conditions: SQL | undefined = undefined;
-    if (sourceFilter) {
-        conditions = eq(posts.extractorType, sourceFilter);
+    const orderBys: SQL[] = [];
+    let cursorCond: SQL | undefined = undefined;
+
+    if (sortBy === 'created-asc') {
+        orderBys.push(asc(posts.createdAt), asc(posts.id));
+        if (cursorSortVal !== null && cursorId !== null && !isNaN(cursorId)) {
+            const dateVal = new Date(parseInt(cursorSortVal, 10));
+            cursorCond = or(
+                gt(posts.createdAt, dateVal),
+                and(eq(posts.createdAt, dateVal), gt(posts.id, cursorId))
+            );
+        }
+    } else if (sortBy === 'created-desc') {
+        orderBys.push(desc(posts.createdAt), desc(posts.id));
+        if (cursorSortVal !== null && cursorId !== null && !isNaN(cursorId)) {
+            const dateVal = new Date(parseInt(cursorSortVal, 10));
+            cursorCond = or(
+                lt(posts.createdAt, dateVal),
+                and(eq(posts.createdAt, dateVal), lt(posts.id, cursorId))
+            );
+        }
+    } else if (sortBy === 'captured-asc') {
+        orderBys.push(asc(posts.date), asc(posts.id));
+        if (cursorSortVal !== null && cursorId !== null && !isNaN(cursorId)) {
+            cursorCond = or(
+                gt(posts.date, cursorSortVal),
+                and(eq(posts.date, cursorSortVal), gt(posts.id, cursorId))
+            );
+        }
+    } else { // captured-desc
+        orderBys.push(desc(posts.date), desc(posts.id));
+        if (cursorSortVal !== null && cursorId !== null && !isNaN(cursorId)) {
+            cursorCond = or(
+                lt(posts.date, cursorSortVal),
+                and(eq(posts.date, cursorSortVal), lt(posts.id, cursorId))
+            );
+        }
+    }
+
+    if (cursorCond) {
+        whereConditions.push(cursorCond);
     }
 
     const rawPosts = await db.select({
@@ -79,73 +159,13 @@ export async function getTimelinePosts(page = 1, limit = 20, search = ''): Promi
         .leftJoin(twitterUsers, and(eq(posts.extractorType, 'twitter'), eq(posts.userId, twitterUsers.id)))
         .leftJoin(pixivUsers, and(eq(posts.extractorType, 'pixiv'), eq(posts.userId, pixivUsers.id)))
         .leftJoin(sources, eq(posts.internalSourceId, sources.id))
-        .where(conditions);
+        .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+        .orderBy(...orderBys)
+        .limit(limit);
 
-    const filteredResults: (typeof rawPosts[number] & { stats?: TimelinePost['stats'] })[] = [];
+    if (rawPosts.length === 0) return { posts: [], nextCursor: null };
 
-    for (const row of rawPosts) {
-        let stats: TimelinePost['stats'] = undefined;
-        let type: 'twitter' | 'pixiv' | 'other' = 'other';
-        if (row.post.extractorType === 'twitter') type = 'twitter';
-        else if (row.post.extractorType === 'pixiv') type = 'pixiv';
-
-        if (type === 'twitter') {
-            stats = {
-                likes: row.twitter?.favoriteCount || 0,
-                views: row.twitter?.viewCount || 0,
-                bookmarks: row.twitter?.bookmarkCount || 0,
-                retweets: row.twitter?.retweetCount || 0
-            };
-        } else if (type === 'pixiv') {
-            stats = {
-                likes: row.pixiv?.totalBookmarks || 0,
-                views: row.pixiv?.totalView || 0,
-            };
-        } else if (row.post.extractorType === 'gelbooruv02') {
-            stats = {
-                likes: row.gelbooru?.score || 0,
-            };
-        }
-
-        let hit = true;
-        if (searchLower || minFavorites > 0) {
-            if (minFavorites > 0) {
-                if ((stats?.likes || 0) < minFavorites) hit = false;
-            }
-
-            if (hit && searchLower) {
-                hit = false;
-                const authorName = row.user?.name || row.pixivUser?.name || (row.post.extractorType === 'gelbooruv02' ? 'Gelbooru' : '');
-                const authorNick = row.user?.nick || row.pixivUser?.account || '';
-
-                if (authorName.toLowerCase().includes(searchLower)) hit = true;
-                else if (authorNick.toLowerCase().includes(searchLower)) hit = true;
-                else if (row.post.content?.toLowerCase().includes(searchLower)) hit = true;
-                else if (row.post.title?.toLowerCase().includes(searchLower)) hit = true;
-
-                if (!hit && tagMatchedPostIds && tagMatchedPostIds.has(row.post.id)) {
-                    hit = true;
-                }
-            }
-        }
-
-        if (hit) {
-            filteredResults.push({ ...row, stats });
-        }
-    }
-
-    filteredResults.sort((a, b) => {
-        const dateA = new Date(a.post.date || a.post.createdAt || 0).getTime();
-        const dateB = new Date(b.post.date || b.post.createdAt || 0).getTime();
-        return dateB - dateA;
-    });
-
-    const start = (page - 1) * limit;
-    const pagedResults = filteredResults.slice(start, start + limit);
-
-    if (pagedResults.length === 0) return [];
-
-    const pagedPostIds = pagedResults.map(r => r.post.id);
+    const pagedPostIds = rawPosts.map(r => r.post.id);
     const pageMedia = await db.select()
         .from(mediaItems)
         .where(and(
@@ -161,7 +181,8 @@ export async function getTimelinePosts(page = 1, limit = 20, search = ''): Promi
         }
     }
 
-    const timelinePosts: TimelinePost[] = pagedResults.map(row => {
+    const timelinePosts: TimelinePost[] = rawPosts.map(row => {
+        let stats: TimelinePost['stats'] = undefined;
         let type: 'twitter' | 'pixiv' | 'other' = 'other';
         if (row.post.extractorType === 'twitter') type = 'twitter';
         else if (row.post.extractorType === 'pixiv') type = 'pixiv';
@@ -171,6 +192,12 @@ export async function getTimelinePosts(page = 1, limit = 20, search = ''): Promi
         let gelbooruMetadata: TimelinePost['gelbooruMetadata'] = undefined;
 
         if (type === 'twitter') {
+            stats = {
+                likes: row.twitter?.favoriteCount || 0,
+                views: row.twitter?.viewCount || 0,
+                bookmarks: row.twitter?.bookmarkCount || 0,
+                retweets: row.twitter?.retweetCount || 0
+            };
             author = {
                 name: row.user?.name || undefined,
                 handle: row.user?.nick || undefined,
@@ -178,6 +205,10 @@ export async function getTimelinePosts(page = 1, limit = 20, search = ''): Promi
                 url: row.user ? `https://twitter.com/${row.user.nick}` : undefined
             };
         } else if (type === 'pixiv') {
+            stats = {
+                likes: row.pixiv?.totalBookmarks || 0,
+                views: row.pixiv?.totalView || 0,
+            };
             author = {
                 name: row.pixivUser?.name || undefined,
                 handle: row.pixivUser?.account || undefined,
@@ -190,6 +221,9 @@ export async function getTimelinePosts(page = 1, limit = 20, search = ''): Promi
             };
         } else if (row.post.extractorType === 'gelbooruv02') {
             type = 'other';
+            stats = {
+                likes: row.gelbooru?.score || 0,
+            };
             author = {
                 name: 'Gelbooru',
                 handle: row.gelbooru?.md5 || undefined
@@ -232,14 +266,26 @@ export async function getTimelinePosts(page = 1, limit = 20, search = ''): Promi
                 width: row.pixiv?.width || row.gelbooru?.width || undefined,
                 height: row.pixiv?.height || row.gelbooru?.height || undefined
             })),
-            stats: row.stats,
+            stats,
             sourceUrl: row.post.url || undefined,
             pixivMetadata,
             gelbooruMetadata
         };
     });
 
-    return timelinePosts;
+    let nextCursor: string | null = null;
+    if (rawPosts.length === limit) {
+        const lastItem = rawPosts[rawPosts.length - 1];
+        let sortValStr = '';
+        if (sortBy === 'created-asc' || sortBy === 'created-desc') {
+            sortValStr = lastItem.post.createdAt?.getTime().toString() || '0';
+        } else {
+            sortValStr = lastItem.post.date || '';
+        }
+        nextCursor = Buffer.from(`${sortValStr}_${lastItem.post.id}`).toString('base64');
+    }
+
+    return { posts: timelinePosts, nextCursor };
 }
 
 export async function getPostTags(postId: number) {

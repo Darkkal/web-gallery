@@ -76,14 +76,14 @@ export async function getLatestScan() {
     return scans[0] || null;
 }
 
-export async function getMediaItems(filters?: { search?: string; sortBy?: string; }) {
+export async function getMediaItems(filters?: { search?: string; sortBy?: string; limit?: number; cursor?: string; }) {
     return mediaRepo.getMediaItems(filters);
 }
 
 export type { TimelinePost } from '@/lib/db/repositories/posts';
 
-export async function getTimelinePosts(page = 1, limit = 20, search = '') {
-    return postsRepo.getTimelinePosts(page, limit, search);
+export async function getTimelinePosts(filters?: { search?: string; sortBy?: string; limit?: number; cursor?: string; }) {
+    return postsRepo.getTimelinePosts(filters);
 }
 
 export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
