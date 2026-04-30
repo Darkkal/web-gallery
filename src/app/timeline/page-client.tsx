@@ -129,20 +129,20 @@ export default function TimelinePageClient({
     return (
         <div className={styles.container}>
 
-            <div className={styles.filterBar} style={{ marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
+            <div className={styles.filterBar}>
                 <input
                     type="text"
                     placeholder="Search timeline (e.g. source:twitter)..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     className={styles.input}
-                    style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                    style={{ flex: 1 }}
                 />
+                <div className={styles.separator} />
                 <select
                     value={sortBy}
                     onChange={e => setSortBy(e.target.value)}
                     className={styles.input}
-                    style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
                 >
                     <option value="created-desc">Imported: Newest First</option>
                     <option value="created-asc">Oldest First</option>
@@ -240,7 +240,7 @@ export default function TimelinePageClient({
                     <button 
                         onClick={() => loadPosts(true)} 
                         disabled={isLoading}
-                        style={{ margin: '2rem auto', display: 'block', padding: '0.8rem 2rem', borderRadius: '4px', border: '1px solid #ccc', background: '#f0f0f0', cursor: 'pointer' }}
+                        className={styles.secondaryButton}
                     >
                         {isLoading ? 'Loading...' : 'Load More'}
                     </button>

@@ -56,3 +56,26 @@ test('timeline lightbox opens', async ({ page }) => {
         test.skip(true, 'No media items found to test lightbox');
     }
 });
+
+test('timeline sorting interaction', async ({ page }) => {
+    await page.goto('/timeline');
+    
+    // Check for the sort select
+    const sortSelect = page.locator('select');
+    await expect(sortSelect).toBeVisible();
+    
+    // Change sort to "Oldest First"
+    await sortSelect.selectOption('created-asc');
+    await expect(sortSelect).toHaveValue('created-asc');
+});
+
+test('timeline load more button', async ({ page }) => {
+    await page.goto('/timeline');
+    
+    const loadMoreButton = page.getByRole('button', { name: 'Load More' });
+    const articles = page.locator('article');
+    
+    if (await articles.count() >= 50) {
+        await expect(loadMoreButton).toBeVisible();
+    }
+});

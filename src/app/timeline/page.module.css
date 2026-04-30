@@ -247,3 +247,36 @@
     padding: 4rem;
     color: hsl(var(--muted-foreground));
 }
+
+.filterBar {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: hsl(var(--card));
+    margin-bottom: 1rem;
+    border-radius: var(--radius);
+    align-items: center;
+    border: 1px solid hsl(var(--border));
+}
+
+.input {
+    padding: 0.5rem;
+    border: 1px solid hsl(var(--input));
+    border-radius: var(--radius);
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: inherit;
+}
+
+.separator {
+    width: 1px;
+    height: 24px;
+    background: hsl(var(--border));
+    margin: 0 0.5rem;
+}
+
+.loadMoreContainer {
+    display: flex;
+    justify-content: center;
+    padding: 2rem 0;
+}
