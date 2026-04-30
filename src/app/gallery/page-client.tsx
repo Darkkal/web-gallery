@@ -5,48 +5,14 @@ import { deleteMediaItems } from '../actions';
 import Lightbox from '../../components/Lightbox';
 import MasonryGrid from '../../components/MasonryGrid';
 import styles from './page.module.css';
-import Image from 'next/image';
-import { CheckSquare, Square } from 'lucide-react';
 import { mergePixivMetadata, mergeTwitterMetadata, mergeGelbooruv02Metadata } from '@/lib/metadata';
-
-interface MediaItem {
-    id: number;
-    filePath: string;
-    mediaType: 'image' | 'video' | 'audio' | 'text';
-    capturedAt: Date | null;
-    createdAt: Date;
-    postId: number | null;
-}
-
-interface Post {
-    id: number;
-    extractorType: string;
-    jsonSourceId: string | null;
-    internalSourceId: number | null;
-    userId: string | null;
-    date: string | null;
-    title: string | null;
-    content: string | null;
-    url: string | null;
-    metadataPath: string | null;
-    createdAt: Date;
-}
-
-interface GalleryRow {
-    item: MediaItem;
-    post?: Post;
-    twitter?: any;
-    pixiv?: any;
-    gelbooru?: any;
-    user?: any;
-    pixivUser?: any;
-    source?: any;
-}
-
-interface GalleryGroup extends GalleryRow {
-    groupItems: GalleryRow[];
-    groupCount: number;
-}
+import { GalleryGroup } from '@/types/gallery';
+import { useSelection } from '@/hooks/useSelection';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useLightbox } from '@/hooks/useLightbox';
+import FilterBar from './components/FilterBar';
+import BulkActionBar from './components/BulkActionBar';
+import GalleryItem from './components/GalleryItem';
 
 export default function GalleryPageClient({ 
     initialItems, 
@@ -62,17 +28,35 @@ export default function GalleryPageClient({
     const [items, setItems] = useState<GalleryGroup[]>(initialItems);
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [sortBy, setSortBy] = useState(initialSort);
-    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-    const [mediaIndex, setMediaIndex] = useState(0); 
     const [columnCount, setColumnCount] = useState(4);
-
-    // Selection state
-    const [selectionMode, setSelectionMode] = useState(false);
-    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [deleting, setDeleting] = useState(false);
-
     const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Shared Hooks
+    const debouncedSearch = useDebouncedValue(searchQuery, 1000);
+    const debouncedSort = useDebouncedValue(sortBy, 1000);
+    
+    const { 
+        selectionMode, 
+        setSelectionMode, 
+        selectedIds, 
+        toggleGroupSelection, 
+        selectAll, 
+        clearSelection,
+        selectedCount 
+    } = useSelection();
+
+    const {
+        selectedIndex,
+        mediaIndex,
+        open: openLightbox,
+        close: closeLightbox,
+        next: nextLightbox,
+        prev: prevLightbox,
+        setSelectedIndex,
+        setMediaIndex
+    } = useLightbox(items.length, (idx) => items[idx].groupItems.length);
 
     const loadItems = useCallback(async (isAppending = false) => {
         setIsLoading(true);
@@ -93,51 +77,25 @@ export default function GalleryPageClient({
         }
     }, [searchQuery, sortBy, nextCursor]);
 
-    // Handle search/sort changes
+    // Handle search/sort changes via debounced values
     useEffect(() => {
-        const timer = setTimeout(() => {
-            // Reset cursor and items when search or sort changes
-            setNextCursor(null);
-            loadItems(false);
-        }, 1000);
-
-        return () => clearTimeout(timer);
-    }, [searchQuery, sortBy]);
-
-
-    function toggleSelection(group: GalleryGroup) {
-        const groupIds = group.groupItems.map((i) => i.item.id);
-        const newSelected = new Set(selectedIds);
-
-        const isPrimarySelected = newSelected.has(group.item.id);
-
-        if (isPrimarySelected) {
-            groupIds.forEach((id: number) => newSelected.delete(id));
-        } else {
-            groupIds.forEach((id: number) => newSelected.add(id));
-        }
-        setSelectedIds(newSelected);
-    }
-
-    function selectAll() {
-        const allIds = items.flatMap(group => group.groupItems.map((i) => i.item.id));
-        setSelectedIds(new Set(allIds));
-    }
+        setNextCursor(null);
+        loadItems(false);
+    }, [debouncedSearch, debouncedSort]);
 
     async function handleBulkDelete(deleteFiles: boolean) {
-        if (selectedIds.size === 0) return;
+        if (selectedCount === 0) return;
 
         const message = deleteFiles
-            ? `Permanently delete ${selectedIds.size} files from disk and database?`
-            : `Delete ${selectedIds.size} records from the database? (Files stay on disk)`;
+            ? `Permanently delete ${selectedCount} files from disk and database?`
+            : `Delete ${selectedCount} records from the database? (Files stay on disk)`;
 
         if (!confirm(message)) return;
 
         setDeleting(true);
         try {
             await deleteMediaItems(Array.from(selectedIds), deleteFiles);
-            setSelectedIds(new Set());
-            setSelectionMode(false);
+            clearSelection();
             await loadItems();
         } catch (err) {
             alert("Failed to delete items: " + err);
@@ -164,159 +122,48 @@ export default function GalleryPageClient({
 
     return (
         <div className={styles.container}>
-            {selectionMode && selectedIds.size > 0 && (
-                <div className={styles.bulkActionBar}>
-                    <span>{selectedIds.size} items selected</span>
-                    <div className={styles.bulkActionButtons}>
-                        <button
-                            className={styles.secondaryDeleteButton}
-                            onClick={() => handleBulkDelete(false)}
-                            disabled={deleting}
-                        >
-                            {deleting ? '...' : 'Delete from DB'}
-                        </button>
-                        <button
-                            className={styles.deleteButton}
-                            onClick={() => handleBulkDelete(true)}
-                            disabled={deleting}
-                        >
-                            {deleting ? 'Deleting...' : 'Delete from Disk & DB'}
-                        </button>
-                    </div>
-                </div>
+            {selectionMode && (
+                <BulkActionBar 
+                    selectedCount={selectedCount} 
+                    onBulkDelete={handleBulkDelete} 
+                    deleting={deleting} 
+                />
             )}
 
-            <div className={styles.filterBar}>
-                <button
-                    className={selectionMode ? styles.activeButton : styles.secondaryButton}
-                    onClick={() => {
-                        setSelectionMode(!selectionMode);
-                        if (!selectionMode) setSelectedIds(new Set());
-                    }}
-                    title={selectionMode ? 'Cancel Selection' : 'Select Items'}
-                    style={{ padding: '0.4rem', lineHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                    {selectionMode ? <CheckSquare size={20} /> : <Square size={20} />}
-                </button>
-
-                {selectionMode && (
-                    <button
-                        className={styles.secondaryButton}
-                        onClick={selectAll}
-                        title="Select All"
-                    >
-                        Select All
-                    </button>
-                )}
-
-                <div className={styles.separator} />
-
-                <input
-                    type="text"
-                    placeholder="Search (e.g. source:pixiv, min_favs:100, tag)..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && loadItems()}
-                    className={styles.input}
-                    style={{ flex: 2 }}
-                />
-                <select
-                    value={sortBy}
-                    onChange={e => setSortBy(e.target.value)}
-                    className={styles.input}
-                >
-                    <option value="created-desc">Imported: Newest First</option>
-                    <option value="created-asc">Oldest First</option>
-                    <option value="captured-desc">Content Date: Newest First</option>
-                    <option value="captured-asc">Content Date: Oldest First</option>
-                </select>
-                <div className={styles.separator} />
-                <div className={styles.sliderContainer}>
-                    <label htmlFor="columns" className={styles.label}>Columns: {columnCount}</label>
-                    <input
-                        id="columns"
-                        type="range"
-                        min="1"
-                        max="10"
-                        value={columnCount}
-                        onChange={e => setColumnCount(parseInt(e.target.value))}
-                        className={styles.slider}
-                    />
-                </div>
-            </div>
+            <FilterBar 
+                selectionMode={selectionMode}
+                setSelectionMode={(mode) => {
+                    setSelectionMode(mode);
+                    if (!mode) clearSelection();
+                }}
+                onSelectAll={() => selectAll(items.flatMap(group => group.groupItems.map(i => i.item.id)))}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                columnCount={columnCount}
+                setColumnCount={setColumnCount}
+                onRefresh={() => loadItems(false)}
+            />
 
             <MasonryGrid
                 items={items}
                 columnCount={columnCount}
-                renderItem={(row: GalleryGroup, index: number) => {
-                    const item = row.item;
-                    const isSelected = selectedIds.has(item.id);
-                    const count = row.groupCount || 1;
-
-                    return (
-                        <div
-                            key={item.id}
-                            className={`${styles.item} ${isSelected ? styles.selectedItem : ''}`}
-                            onClick={() => {
-                                if (selectionMode) {
-                                    toggleSelection(row);
-                                } else {
-                                    setSelectedIndex(index);
-                                    setMediaIndex(0);
-                                }
-                            }}
-                        >
-                            {selectionMode && (
-                                <div className={styles.checkbox}>
-                                    {isSelected ? '✓' : ''}
-                                </div>
-                            )}
-
-                            {count > 1 && (
-                                <div className={styles.countBadge} title={`${count} items`}>
-                                    <span>❐</span> {count}
-                                </div>
-                            )}
-
-                            {item.mediaType === 'video' ? (
-                                <>
-                                    <video
-                                        src={item.filePath}
-                                        className={styles.media}
-                                        muted
-                                        loop
-                                        onMouseOver={async e => {
-                                            try {
-                                                await (e.currentTarget as HTMLVideoElement).play();
-                                            } catch (err: unknown) {
-                                                if (err instanceof Error && err.name !== 'AbortError') console.error(err);
-                                            }
-                                        }}
-                                        onMouseOut={e => (e.currentTarget as HTMLVideoElement).pause()}
-                                    />
-                                    <div className={styles.videoBadge}>VIDEO</div>
-                                </>
-                            ) : (
-                                <Image
-                                    src={item.filePath}
-                                    alt={row.post?.title || 'Media thumbnail'}
-                                    className={styles.media}
-                                    width={400}
-                                    height={400}
-                                    style={{ width: '100%', height: 'auto' }}
-                                    unoptimized
-                                    loading="lazy"
-                                />
-                            )}
-                            {row.twitter && (
-                                <div style={{ position: 'absolute', bottom: 0, background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '11px', width: '100%', padding: '4px', display: 'flex', justifyContent: 'space-between' }}>
-                                    <span>❤️ {row.twitter.favoriteCount}</span>
-                                    {row.user && <span>@{row.user.username}</span>}
-                                </div>
-                            )}
-                        </div>
-                    )
-                }}
+                renderItem={(row: GalleryGroup, index: number) => (
+                    <GalleryItem 
+                        key={row.item.id}
+                        row={row}
+                        isSelected={row.groupItems.some(i => selectedIds.has(i.item.id))}
+                        selectionMode={selectionMode}
+                        onClick={() => {
+                            if (selectionMode) {
+                                toggleGroupSelection(row.groupItems.map(i => i.item.id), row.item.id);
+                            } else {
+                                openLightbox(index, 0);
+                            }
+                        }}
+                    />
+                )}
             />
 
             {nextCursor && (
@@ -347,24 +194,9 @@ export default function GalleryPageClient({
                         pixiv={currentItemRow.post?.extractorType === 'pixiv' ? mergePixivMetadata(currentItemRow.post, currentItemRow.pixiv) : undefined}
                         gelbooru={currentItemRow.post?.extractorType === 'gelbooruv02' ? mergeGelbooruv02Metadata(currentItemRow.post, currentItemRow.gelbooru) : undefined}
                         pixivUser={currentItemRow.post?.extractorType === 'pixiv' ? currentItemRow.pixivUser : undefined}
-                        onClose={() => setSelectedIndex(null)}
-                        onNext={() => {
-                            if (mediaIndex < currentGroup.groupItems.length - 1) {
-                                setMediaIndex(mediaIndex + 1);
-                            } else if (selectedIndex! < items.length - 1) {
-                                setSelectedIndex(selectedIndex! + 1);
-                                setMediaIndex(0);
-                            }
-                        }}
-                        onPrev={() => {
-                            if (mediaIndex > 0) {
-                                setMediaIndex(mediaIndex - 1);
-                            } else if (selectedIndex! > 0) {
-                                const prevGroup = items[selectedIndex! - 1];
-                                setSelectedIndex(selectedIndex! - 1);
-                                setMediaIndex(prevGroup.groupItems.length - 1);
-                            }
-                        }}
+                        onClose={closeLightbox}
+                        onNext={nextLightbox}
+                        onPrev={prevLightbox}
                         onDelete={handleDeleteItem}
                     />
                 )
