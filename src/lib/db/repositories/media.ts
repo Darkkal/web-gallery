@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { mediaItems, posts, postDetailsTwitter, postDetailsPixiv, postDetailsGelbooruV02, twitterUsers, pixivUsers, sources, tags, postTags, collectionItems } from '@/lib/db/schema';
-import { eq, ne, inArray, and, like, SQL } from 'drizzle-orm';
+import { eq, ne, inArray, and, like, SQL, or, desc, asc, lt, gt, exists, sql } from 'drizzle-orm';
 import { parseSearchQuery } from '@/lib/utils/search-parser';
 import fs from 'fs/promises';
 import path from 'path';
@@ -9,29 +9,88 @@ export async function getMediaItems(
     filters?: {
         search?: string;
         sortBy?: string;
+        limit?: number;
+        cursor?: string;
     }
 ) {
-    const { cleanQuery, minFavorites, sourceFilter } = parseSearchQuery(filters?.search);
+    const limit = filters?.limit ?? 50;
+    const search = filters?.search ?? '';
+    const sortBy = filters?.sortBy ?? 'created-desc';
+
+    const { cleanQuery, sourceFilter } = parseSearchQuery(search);
     const searchLower = cleanQuery.toLowerCase();
 
-    let conditions: SQL | undefined = ne(mediaItems.mediaType, 'text');
+    const whereConditions: SQL[] = [ne(mediaItems.mediaType, 'text')];
 
     if (sourceFilter) {
-        conditions = and(conditions, eq(posts.extractorType, sourceFilter));
+        whereConditions.push(eq(posts.extractorType, sourceFilter));
     }
 
-    let tagMatchedPostIds: Set<number> | null = null;
-    if (searchLower.length > 1) {
-        const matchedTags = await db.selectDistinct({
-            postId: postTags.postId
-        })
-            .from(tags)
-            .innerJoin(postTags, eq(tags.id, postTags.tagId))
-            .where(like(tags.name, `%${searchLower}%`));
+    if (searchLower) {
+        const textMatch = or(
+            like(posts.title, `%${searchLower}%`),
+            like(posts.content, `%${searchLower}%`),
+            like(twitterUsers.name, `%${searchLower}%`),
+            like(twitterUsers.nick, `%${searchLower}%`),
+            like(pixivUsers.name, `%${searchLower}%`),
+            like(pixivUsers.account, `%${searchLower}%`),
+            like(sources.name, `%${searchLower}%`)
+        );
 
-        if (matchedTags.length > 0) {
-            tagMatchedPostIds = new Set(matchedTags.map(m => m.postId));
+        const tagMatch = exists(
+            db.select()
+                .from(postTags)
+                .innerJoin(tags, eq(postTags.tagId, tags.id))
+                .where(
+                    and(
+                        eq(postTags.postId, posts.id),
+                        like(tags.name, `%${searchLower}%`)
+                    )
+                )
+        );
+
+        whereConditions.push(or(textMatch, tagMatch)!);
+    }
+
+    let cursorSortVal: number | null = null;
+    let cursorId: number | null = null;
+    if (filters?.cursor) {
+        try {
+            const decoded = Buffer.from(filters.cursor, 'base64').toString('utf-8');
+            const [valStr, idStr] = decoded.split('_');
+            cursorSortVal = parseInt(valStr, 10);
+            cursorId = parseInt(idStr, 10);
+        } catch (e) {
+            // Invalid cursor
         }
+    }
+
+    const orderBys: SQL[] = [];
+    let cursorCond: SQL | undefined = undefined;
+
+    // Use coalesce to get a numeric timestamp for sorting
+    const sortField = sql`COALESCE(${posts.createdAt}, ${mediaItems.capturedAt}, 0)`;
+
+    if (sortBy === 'created-asc' || sortBy === 'captured-asc') {
+        orderBys.push(asc(sortField), asc(mediaItems.id));
+        if (cursorSortVal !== null && cursorId !== null && !isNaN(cursorId)) {
+            cursorCond = or(
+                gt(sortField, cursorSortVal),
+                and(eq(sortField, cursorSortVal), gt(mediaItems.id, cursorId))
+            );
+        }
+    } else { // created-desc, captured-desc
+        orderBys.push(desc(sortField), desc(mediaItems.id));
+        if (cursorSortVal !== null && cursorId !== null && !isNaN(cursorId)) {
+            cursorCond = or(
+                lt(sortField, cursorSortVal),
+                and(eq(sortField, cursorSortVal), lt(mediaItems.id, cursorId))
+            );
+        }
+    }
+
+    if (cursorCond) {
+        whereConditions.push(cursorCond);
     }
 
     const results = await db.select({
@@ -43,6 +102,7 @@ export async function getMediaItems(
         user: twitterUsers,
         pixivUser: pixivUsers,
         source: sources,
+        sortVal: sortField // include sortVal to easily compute the next cursor
     })
         .from(mediaItems)
         .leftJoin(posts, eq(mediaItems.postId, posts.id))
@@ -58,7 +118,9 @@ export async function getMediaItems(
             eq(posts.userId, pixivUsers.id)
         ))
         .leftJoin(sources, eq(posts.internalSourceId, sources.id))
-        .where(conditions);
+        .where(and(...whereConditions))
+        .orderBy(...orderBys)
+        .limit(limit);
 
     results.forEach(row => {
         if (row.user && row.user.id) {
@@ -92,84 +154,25 @@ export async function getMediaItems(
         group.groupCount++;
     }
 
-    const groupedResults = Array.from(groupedMap.values());
+    let nextCursor: string | null = null;
+    if (results.length === limit) {
+        const lastItem = results[results.length - 1];
+        nextCursor = Buffer.from(`${lastItem.sortVal}_${lastItem.item.id}`).toString('base64');
+    }
 
-    const filtered = groupedResults.filter(row => {
-        if (minFavorites > 0) {
-            if (row.twitter) {
-                if ((row.twitter.favoriteCount || 0) < minFavorites) return false;
-            }
-            if (row.pixiv) {
-                if ((row.pixiv.totalBookmarks || 0) < minFavorites) return false;
-            }
-            if (row.gelbooru) {
-                if ((row.gelbooru.score || 0) < minFavorites) return false;
-            }
-        }
-
-        if (searchLower) {
-            let hit = false;
-
-            if (row.post) {
-                if (row.post.title?.toLowerCase().includes(searchLower)) hit = true;
-                if (row.post.content?.toLowerCase().includes(searchLower)) hit = true;
-            }
-
-            if (!hit) {
-                if (row.user) {
-                    if (row.user.name?.toLowerCase().includes(searchLower)) hit = true;
-                    if (row.user.nick?.toLowerCase().includes(searchLower)) hit = true;
-                }
-                if (row.pixivUser) {
-                    if (row.pixivUser.name?.toLowerCase().includes(searchLower)) hit = true;
-                    if (row.pixivUser.account?.toLowerCase().includes(searchLower)) hit = true;
-                }
-            }
-
-            if (!hit && tagMatchedPostIds) {
-                if (row.post && tagMatchedPostIds.has(row.post.id)) {
-                    hit = true;
-                }
-            }
-
-            if (!hit && row.source) {
-                if (row.source.name?.toLowerCase().includes(searchLower)) hit = true;
-            }
-
-            if (!hit) return false;
-        }
-
-        return true;
+    // Return the items minus the internal sortVal to match the previous structure as closely as possible
+    const items = Array.from(groupedMap.values()).map(g => {
+        const { sortVal, ...rest } = g;
+        return {
+            ...rest,
+            groupItems: g.groupItems.map(gi => {
+                const { sortVal: _, ...giRest } = gi;
+                return giRest;
+            })
+        };
     });
 
-    const sortBy = filters?.sortBy || 'created-desc';
-
-    filtered.sort((a, b) => {
-        switch (sortBy) {
-            case 'created-asc':
-                const cDateA = new Date(a.post?.createdAt || a.item.capturedAt || 0).getTime();
-                const cDateB = new Date(b.post?.createdAt || b.item.capturedAt || 0).getTime();
-                return cDateA - cDateB;
-
-            case 'created-desc':
-            default:
-                const cDateA2 = new Date(a.post?.createdAt || a.item.capturedAt || 0).getTime();
-                const cDateB2 = new Date(b.post?.createdAt || b.item.capturedAt || 0).getTime();
-                return cDateB2 - cDateA2;
-
-            case 'captured-asc':
-                const capDateA = new Date(a.post?.date || a.item.capturedAt || 0).getTime();
-                const capDateB = new Date(b.post?.date || b.item.capturedAt || 0).getTime();
-                return capDateA - capDateB;
-
-            case 'captured-desc':
-                const capDateA2 = new Date(a.post?.date || a.item.capturedAt || 0).getTime();
-                const capDateB2 = new Date(b.post?.date || b.item.capturedAt || 0).getTime();
-                return capDateB2 - capDateA2;
-        }
-    });
-
-    return filtered;
+    return { items, nextCursor };
 }
 
 export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
