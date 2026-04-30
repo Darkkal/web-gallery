@@ -1,32 +1,57 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import type { TimelinePost } from '@/lib/db/repositories/posts';
 import Lightbox from '../../components/Lightbox';
 import styles from './page.module.css';
 import { mergePixivMetadata, mergeTwitterMetadata, mergeGelbooruv02Metadata } from '@/lib/metadata';
 
-export default function TimelinePageClient({ initialPosts }: { initialPosts: TimelinePost[] }) {
+export default function TimelinePageClient({ 
+    initialPosts, 
+    initialNextCursor,
+    initialSearch,
+    initialSort
+}: { 
+    initialPosts: TimelinePost[], 
+    initialNextCursor: string | null,
+    initialSearch: string,
+    initialSort: string
+}) {
     const [posts, setPosts] = useState<TimelinePost[]>(initialPosts);
     const [selectedIndex, setSelectedIndex] = useState<{ postIndex: number, mediaIndex: number } | null>(null);
 
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(initialSearch);
+    const [sortBy, setSortBy] = useState(initialSort);
+    const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
+    const [isLoading, setIsLoading] = useState(false);
 
-    useEffect(() => {
-        async function loadPosts() {
-            const res = await fetch(`/api/timeline?page=1&limit=100&search=${encodeURIComponent(searchQuery)}`);
+    const loadPosts = useCallback(async (isAppending = false) => {
+        setIsLoading(true);
+        try {
+            const currentCursor = isAppending ? nextCursor : '';
+            const res = await fetch(`/api/timeline?search=${encodeURIComponent(searchQuery)}&sortBy=${sortBy}&cursor=${currentCursor}&limit=50`);
             if (res.ok) {
                 const data = await res.json();
-                setPosts(data);
+                if (isAppending) {
+                    setPosts(prev => [...prev, ...data.posts]);
+                } else {
+                    setPosts(data.posts);
+                }
+                setNextCursor(data.nextCursor);
             }
+        } finally {
+            setIsLoading(false);
         }
+    }, [searchQuery, sortBy, nextCursor]);
 
+    useEffect(() => {
         const timer = setTimeout(() => {
-            loadPosts();
+            setNextCursor(null);
+            loadPosts(false);
         }, 1000);
         return () => clearTimeout(timer);
-    }, [searchQuery]);
+    }, [searchQuery, sortBy]);
 
     const openLightbox = (postIndex: number, mediaIndex: number, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -104,15 +129,26 @@ export default function TimelinePageClient({ initialPosts }: { initialPosts: Tim
     return (
         <div className={styles.container}>
 
-            <div className={styles.filterBar} style={{ marginBottom: '1rem' }}>
+            <div className={styles.filterBar} style={{ marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
                 <input
                     type="text"
                     placeholder="Search timeline (e.g. source:twitter)..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     className={styles.input}
-                    style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                    style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
                 />
+                <select
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value)}
+                    className={styles.input}
+                    style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                >
+                    <option value="created-desc">Imported: Newest First</option>
+                    <option value="created-asc">Oldest First</option>
+                    <option value="captured-desc">Content Date: Newest First</option>
+                    <option value="captured-asc">Content Date: Oldest First</option>
+                </select>
             </div>
 
             <div className={styles.feed}>
@@ -198,6 +234,18 @@ export default function TimelinePageClient({ initialPosts }: { initialPosts: Tim
 
                 {posts.length === 0 && <p className={styles.empty}>No posts found.</p>}
             </div>
+
+            {nextCursor && (
+                <div className={styles.loadMoreContainer}>
+                    <button 
+                        onClick={() => loadPosts(true)} 
+                        disabled={isLoading}
+                        style={{ margin: '2rem auto', display: 'block', padding: '0.8rem 2rem', borderRadius: '4px', border: '1px solid #ccc', background: '#f0f0f0', cursor: 'pointer' }}
+                    >
+                        {isLoading ? 'Loading...' : 'Load More'}
+                    </button>
+                </div>
+            )}
 
             {selectedIndex && lightboxProps && (
                 <Lightbox
