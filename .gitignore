@@ -40,15 +40,15 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-
-public/downloads/*
+# user generated files
+public/downloads/
+public/avatars/
 gallery-dl.conf
 gallery-dl.log
 *.sqlite3
 sqlite.db
 sqlite.db-journal
 gallery-dl-*archive*
-public/avatars/*
 
 # Playwright
 node_modules/
@@ -58,5 +58,5 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 
-.vscode/*
-.zed/*
+.vscode
+.zed
