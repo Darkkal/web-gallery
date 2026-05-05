@@ -74,7 +74,7 @@ export default function TimelinePageClient({
         const pixivInput = post.type === 'pixiv' ? {
             id: post.pixivMetadata?.dbId || 0,
             jsonSourceId: post.pixivMetadata?.illustId?.toString() || null,
-            title: post.content || null,
+            title: post.title || null,
             content: post.content || null 
         } : null;
 
@@ -101,7 +101,7 @@ export default function TimelinePageClient({
                 id: media.id,
                 filePath: media.url,
                 mediaType: media.type,
-                title: post.content,
+                title: post.title || post.content,
                 capturedAt: post.date,
             },
             tweet: post.type === 'twitter' ? mergeTwitterMetadata(twitterInput, twitterDetails) : undefined,

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { getPostTags } from '@/app/actions';
 import styles from './Lightbox.module.css';
 import { UnifiedPixivData, UnifiedTwitterData, UnifiedUserData, UnifiedGelbooruv02Data } from '@/lib/metadata';
+import FormattedContent from './FormattedContent';
 
 interface LightboxProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,9 +121,14 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, gelbooru
                     ) : item.mediaType === 'text' ? (
                         <div
                             className={styles.textContent}
-                            onClick={(e) => { e.stopPropagation(); setShowInfo(!showInfo); }}
+                            onClick={(e) => { 
+                                // Don't toggle info if clicking a link
+                                if ((e.target as HTMLElement).tagName === 'A') return;
+                                e.stopPropagation(); 
+                                setShowInfo(!showInfo); 
+                            }}
                         >
-                            {item.title}
+                            <FormattedContent content={item.title} />
                         </div>
                     ) : (
                         <img
@@ -211,7 +217,7 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, gelbooru
                 <div className={styles.section}>
                     <h3 className={styles.sectionTitle}>Details</h3>
                     <div className={styles.sectionContent}>
-                        <p>{pixiv?.caption || item.description || tweet?.content || 'No description available.'}</p>
+                        <FormattedContent content={pixiv?.caption || item.description || tweet?.content || 'No description available.'} />
                     </div>
                 </div>
 

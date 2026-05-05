@@ -5,6 +5,8 @@ import Image from 'next/image';
 import type { TimelinePost } from '@/lib/db/repositories/posts';
 import styles from '../page.module.css';
 
+import FormattedContent from '@/components/FormattedContent';
+
 interface PostCardProps {
     post: TimelinePost;
     postIndex: number;
@@ -53,6 +55,9 @@ export default function PostCard({
                 <div
                     className={styles.postContent}
                     onClick={(e) => {
+                        // Don't trigger media click if we're clicking a link in the HTML
+                        if ((e.target as HTMLElement).tagName === 'A') return;
+                        
                         const textMediaIndex = post.mediaItems.findIndex(m => m.type === 'text');
                         if (textMediaIndex !== -1) {
                             onMediaClick(postIndex, textMediaIndex, e);
@@ -60,7 +65,7 @@ export default function PostCard({
                     }}
                     style={{ cursor: post.mediaItems.some(m => m.type === 'text') ? 'pointer' : 'default' }}
                 >
-                    {post.content}
+                    <FormattedContent content={post.content} />
                 </div>
             )}
 

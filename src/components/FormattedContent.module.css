@@ -1,0 +1,35 @@
+.formattedContent {
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.plainText {
+    white-space: pre-wrap;
+}
+
+.formattedContent a {
+    color: hsl(var(--primary));
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+.formattedContent a:hover {
+    text-decoration: underline;
+    opacity: 0.8;
+}
+
+.formattedContent br {
+    content: "";
+    display: block;
+    margin-bottom: 0.5em;
+}
+
+/* Pixiv sometimes uses nested structures or specific classes if they come from different scrapers, 
+   but usually it's just raw HTML. We want to ensure it doesn't break layout. */
+.formattedContent p {
+    margin-bottom: 1em;
+}
+
+.formattedContent p:last-child {
+    margin-bottom: 0;
+}

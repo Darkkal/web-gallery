@@ -14,6 +14,7 @@ export type TimelinePost = {
         avatar?: string;
         url?: string;
     };
+    title?: string;
     content?: string;
     mediaItems: {
         id: number;
@@ -258,6 +259,7 @@ export async function getTimelinePosts(filters?: {
             internalDbId: row.post.id,
             date: new Date(row.post.date || row.post.createdAt || Date.now()),
             author,
+            title: row.post.title || undefined,
             content: row.post.content || row.post.title || undefined,
             mediaItems: postMedia.map(m => ({
                 id: m.id,
