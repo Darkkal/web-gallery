@@ -350,7 +350,10 @@ async function prepareTask(task: ProcessTask): Promise<PrepareResult> {
     if (task.jsonPath) {
         try {
             const raw = await fsPromises.readFile(task.jsonPath, 'utf-8');
-            meta = JSON.parse(raw);
+            // Fix for large integers (e.g. Twitter Snowflakes) that exceed Number.MAX_SAFE_INTEGER
+            // We wrap numbers with 16 or more digits in quotes so JSON.parse treats them as strings.
+            const fixedRaw = raw.replace(/([:\[,]\s*)([0-9]{16,})/g, '$1"$2"');
+            meta = JSON.parse(fixedRaw);
         } catch { }
     }
 

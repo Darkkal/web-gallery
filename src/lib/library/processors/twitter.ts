@@ -16,15 +16,15 @@ export class TwitterProcessor implements IMetadataProcessor {
             const avatarPath = userAvatars.get(uidStr);
             if (!existingTwitterUsers.has(uidStr)) {
                 const updateSet: any = {
-                    name: userObj.name,
+                    name: userObj.nick || userObj.name,
                     followersCount: userObj.followers_count
                 };
                 if (avatarPath) updateSet.profileImage = avatarPath;
 
                 tx.insert(twitterUsers).values({
                     id: uidStr,
-                    name: userObj.name || meta.uploader,
-                    nick: userObj.nick,
+                    name: userObj.nick || userObj.name || meta.uploader,
+                    nick: userObj.name || userObj.nick,
                     description: userObj.description,
                     location: userObj.location,
                     date: userObj.date,
@@ -56,9 +56,9 @@ export class TwitterProcessor implements IMetadataProcessor {
                     internalSourceId: internalSourceId,
                     userId: uidStr,
                     date: meta.date,
-                    title: userObj.name,
+                    title: userObj.nick || userObj.name,
                     content: meta.content,
-                    url: `https://twitter.com/${userObj.nick || 'i'}/status/${tid}`,
+                    url: `https://x.com/${userObj.name || userObj.nick || 'i'}/status/${tid}`,
                     metadataPath: task.jsonPath ? path.relative(path.join(process.cwd(), 'public'), task.jsonPath).split(path.sep).join('/') : null,
                     createdAt: new Date()
                 }).returning({ id: posts.id }).get();
