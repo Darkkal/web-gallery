@@ -15,6 +15,12 @@ export class TwitterProcessor implements IMetadataProcessor {
         if (uidStr) {
             const avatarPath = userAvatars.get(uidStr);
             if (!existingTwitterUsers.has(uidStr)) {
+                const updateSet: any = {
+                    name: userObj.name,
+                    followersCount: userObj.followers_count
+                };
+                if (avatarPath) updateSet.profileImage = avatarPath;
+
                 tx.insert(twitterUsers).values({
                     id: uidStr,
                     name: userObj.name || meta.uploader,
@@ -33,11 +39,8 @@ export class TwitterProcessor implements IMetadataProcessor {
                     mediaCount: userObj.media_count,
                     statusesCount: userObj.statuses_count
                 }).onConflictDoUpdate({
-                    target: twitterUsers.id, set: {
-                        name: userObj.name,
-                        profileImage: avatarPath,
-                        followersCount: userObj.followers_count
-                    }
+                    target: twitterUsers.id,
+                    set: updateSet
                 }).run();
                 existingTwitterUsers.add(uidStr);
             }

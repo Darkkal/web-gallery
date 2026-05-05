@@ -17,6 +17,11 @@ export class PixivProcessor implements IMetadataProcessor {
         if (uidStr) {
             const avatarPath = userAvatars.get(uidStr);
             if (!existingPixivUsers.has(uidStr)) {
+                const updateSet: any = {
+                    name: meta.user.name,
+                };
+                if (avatarPath) updateSet.profileImage = avatarPath;
+
                 tx.insert(pixivUsers).values({
                     id: uidStr,
                     name: meta.user.name,
@@ -25,10 +30,8 @@ export class PixivProcessor implements IMetadataProcessor {
                     isFollowed: meta.user.is_followed,
                     isAcceptRequest: meta.user.is_accept_request
                 }).onConflictDoUpdate({
-                    target: pixivUsers.id, set: {
-                        name: meta.user.name,
-                        profileImage: avatarPath
-                    }
+                    target: pixivUsers.id,
+                    set: updateSet
                 }).run();
                 existingPixivUsers.add(uidStr);
             }
