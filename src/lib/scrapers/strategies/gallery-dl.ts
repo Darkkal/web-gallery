@@ -27,7 +27,7 @@ export class GalleryDlStrategy extends BaseScraperStrategy {
         }
 
         if (this.limits?.stopAfterSkipped) {
-            args.push('-T', this.limits.stopAfterSkipped.toString());
+            args.push('-A', this.limits.stopAfterSkipped.toString());
         }
 
         // Native post limiting

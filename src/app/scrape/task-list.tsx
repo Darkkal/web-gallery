@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { runTaskNow, stopTask, deleteScrapeTask, updateScrapeTask } from './actions';
-import { Play, Square, Trash2, Pencil, Check, X } from 'lucide-react';
+import { Play, Square, Trash2, Pencil, Check, X, Zap } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import styles from './page.module.css';
 
@@ -34,10 +34,10 @@ export default function ScrapeTaskList({ initialTasks, sources }: { initialTasks
         enabled: true,
     });
 
-    const handleRun = async (id: number) => {
+    const handleRun = async (id: number, mode: 'full' | 'quick') => {
         setRunningTasks(prev => new Set(prev).add(id));
         try {
-            await runTaskNow(id);
+            await runTaskNow(id, mode);
         } catch (error) {
             console.error('Failed to run task:', error);
             alert('Failed to run task');
@@ -246,10 +246,19 @@ export default function ScrapeTaskList({ initialTasks, sources }: { initialTasks
                                 <td>
                                     <div className={styles.actionGroup}>
                                         <button
-                                            onClick={() => handleRun(task.id)}
+                                            onClick={() => handleRun(task.id, 'quick')}
                                             disabled={runningTasks.has(task.id)}
                                             className={styles.iconButton}
-                                            title="Run Task"
+                                            style={{ color: 'hsl(35 100% 50%)' }} // Orange color for quick
+                                            title="Quick Run (Stops after 15 skipped)"
+                                        >
+                                            <Zap size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleRun(task.id, 'full')}
+                                            disabled={runningTasks.has(task.id)}
+                                            className={styles.iconButton}
+                                            title="Full Run"
                                         >
                                             <Play size={16} />
                                         </button>

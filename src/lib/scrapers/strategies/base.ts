@@ -63,17 +63,28 @@ export abstract class BaseScraperStrategy {
         }
     }
 
+    private stopInitiated = false;
+
     protected checkLimits(child: ChildProcess) {
+        if (this.stopInitiated) return;
+
         if (this.limits?.stopAfterCompleted && this.downloadedCount >= this.limits.stopAfterCompleted) {
             console.log(`[ScraperStrategy] Reached download limit of ${this.limits.stopAfterCompleted}. Stopping.`);
             this.intentionalStop = true;
+            this.stopInitiated = true;
             this.killChild(child);
         }
 
         if (this.limits?.stopAfterPosts && this.postsProcessed >= this.limits.stopAfterPosts) {
-            console.log(`[ScraperStrategy] Reached post limit of ${this.limits.stopAfterPosts}. Stopping.`);
+            console.log(`[ScraperStrategy] Reached post limit of ${this.limits.stopAfterPosts}. Waiting for finalization...`);
             this.intentionalStop = true;
-            this.killChild(child);
+            this.stopInitiated = true;
+            
+            // Give the scraper a moment to finish the current post's download/file operations
+            // before we kill it. This prevents the 0-byte .part file issue.
+            setTimeout(() => {
+                this.killChild(child);
+            }, 2000);
         }
     }
 

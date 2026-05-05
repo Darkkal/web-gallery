@@ -67,7 +67,7 @@ export async function toggleTaskSchedule(id: number, enabled: boolean) {
     revalidatePath('/scrape');
 }
 
-export async function runTaskNow(taskId: number) {
+export async function runTaskNow(taskId: number, mode: 'full' | 'quick' = 'full') {
     const task = await db.query.scrapingTasks.findFirst({
         where: eq(scrapingTasks.id, taskId),
     });
@@ -98,7 +98,7 @@ export async function runTaskNow(taskId: number) {
         source.url,
         'public/downloads', // Default path, should be configurable?
         {
-            mode: 'full', // Default mode
+            mode: mode, // Use the provided mode
             taskId: task.id,
             limits: task.downloadOptions || undefined
         }
