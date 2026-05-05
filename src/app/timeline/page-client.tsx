@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Image from 'next/image';
 import type { TimelinePost } from '@/lib/db/repositories/posts';
 import Lightbox from '../../components/Lightbox';
 import styles from './page.module.css';
 import { mergePixivMetadata, mergeTwitterMetadata, mergeGelbooruv02Metadata } from '@/lib/metadata';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useLightbox } from '@/hooks/useLightbox';
+import FilterBar from './components/FilterBar';
+import PostCard from './components/PostCard';
 
 export default function TimelinePageClient({ 
     initialPosts, 
@@ -19,12 +22,23 @@ export default function TimelinePageClient({
     initialSort: string
 }) {
     const [posts, setPosts] = useState<TimelinePost[]>(initialPosts);
-    const [selectedIndex, setSelectedIndex] = useState<{ postIndex: number, mediaIndex: number } | null>(null);
-
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [sortBy, setSortBy] = useState(initialSort);
     const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Shared Hooks
+    const debouncedSearch = useDebouncedValue(searchQuery, 1000);
+    const debouncedSort = useDebouncedValue(sortBy, 1000);
+
+    const {
+        selectedIndex,
+        mediaIndex,
+        open: openLightbox,
+        close: closeLightbox,
+        next: nextLightbox,
+        prev: prevLightbox,
+    } = useLightbox(posts.length, (idx) => posts[idx].mediaItems.length);
 
     const loadPosts = useCallback(async (isAppending = false) => {
         setIsLoading(true);
@@ -45,28 +59,18 @@ export default function TimelinePageClient({
         }
     }, [searchQuery, sortBy, nextCursor]);
 
+    // Handle search/sort changes via debounced values
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setNextCursor(null);
-            loadPosts(false);
-        }, 1000);
-        return () => clearTimeout(timer);
-    }, [searchQuery, sortBy]);
-
-    const openLightbox = (postIndex: number, mediaIndex: number, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setSelectedIndex({ postIndex, mediaIndex });
-    };
-
-    const closeLightbox = () => setSelectedIndex(null);
+        setNextCursor(null);
+        loadPosts(false);
+    }, [debouncedSearch, debouncedSort]);
 
     // Prepare Lightbox Data from current selection
     const getLightboxProps = () => {
-        if (!selectedIndex) return null;
-        const post = posts[selectedIndex.postIndex];
-        const media = post.mediaItems[selectedIndex.mediaIndex];
+        if (selectedIndex === null) return null;
+        const post = posts[selectedIndex];
+        const media = post.mediaItems[mediaIndex];
 
-        // Helper call adaptation
         const pixivInput = post.type === 'pixiv' ? {
             id: post.pixivMetadata?.dbId || 0,
             jsonSourceId: post.pixivMetadata?.illustId?.toString() || null,
@@ -128,108 +132,21 @@ export default function TimelinePageClient({
 
     return (
         <div className={styles.container}>
-
-            <div className={styles.filterBar}>
-                <input
-                    type="text"
-                    placeholder="Search timeline (e.g. source:twitter)..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className={styles.input}
-                    style={{ flex: 1 }}
-                />
-                <div className={styles.separator} />
-                <select
-                    value={sortBy}
-                    onChange={e => setSortBy(e.target.value)}
-                    className={styles.input}
-                >
-                    <option value="created-desc">Imported: Newest First</option>
-                    <option value="created-asc">Oldest First</option>
-                    <option value="captured-desc">Content Date: Newest First</option>
-                    <option value="captured-asc">Content Date: Oldest First</option>
-                </select>
-            </div>
+            <FilterBar 
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+            />
 
             <div className={styles.feed}>
                 {posts.map((post, postIdx) => (
-                    <article key={post.id} className={styles.postCard}>
-                        {/* Header: Avatar, Name, Date */}
-                        <div className={styles.postHeader}>
-                            {post.author?.avatar ? (
-                                <Image src={post.author.avatar} alt={post.author.name || 'User'} width={40} height={40} className={styles.avatar} unoptimized />
-                            ) : (
-                                <div className={styles.avatarPlaceholder} />
-                            )}
-                            <div className={styles.postMeta}>
-                                <div className={styles.authorRow}>
-                                    <span className={styles.authorName}>{post.author?.name || 'Unknown'}</span>
-                                    {post.author?.handle && <span className={styles.authorHandle}>@{post.author.handle}</span>}
-                                </div>
-                                <div className={styles.dateRow}>
-                                    <span className={styles.date}>
-                                        {new Date(post.date).toLocaleString()}
-                                    </span>
-                                    {post.type !== 'other' && (
-                                        <span className={`${styles.badge} ${styles[post.type]}`}>
-                                            {post.type}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            {post.sourceUrl && (
-                                <a href={post.sourceUrl} target="_blank" rel="noopener noreferrer" className={styles.sourceLink}>
-                                    ↗
-                                </a>
-                            )}
-                        </div>
-
-                        {/* Content: Text */}
-                        {post.content && (
-                            <div
-                                className={styles.postContent}
-                                onClick={(e) => {
-                                    const textMediaIndex = post.mediaItems.findIndex(m => m.type === 'text');
-                                    if (textMediaIndex !== -1) {
-                                        openLightbox(postIdx, textMediaIndex, e);
-                                    }
-                                }}
-                                style={{ cursor: post.mediaItems.some(m => m.type === 'text') ? 'pointer' : 'default' }}
-                            >
-                                {post.content}
-                            </div>
-                        )}
-
-                        {/* Media Grid */}
-                        {post.mediaItems.filter(m => m.type !== 'text').length > 0 && (
-                            <div className={`${styles.mediaGrid} ${styles[`grid-${Math.min(post.mediaItems.filter(m => m.type !== 'text').length, 4)}`]}`}>
-                                {post.mediaItems.map((media, originalIndex) => {
-                                    if (media.type === 'text') return null;
-                                    return (
-                                        <div
-                                            key={media.id}
-                                            className={styles.mediaItem}
-                                            onClick={(e) => openLightbox(postIdx, originalIndex, e)}
-                                        >
-                                            {media.type === 'video' ? (
-                                                <video src={media.url} controls className={styles.media} />
-                                            ) : (
-                                                <img src={media.url} alt="" className={styles.media} loading="lazy" />
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-
-                        {/* Stats Footer (Optional) */}
-                        {post.stats && (
-                            <div className={styles.postFooter}>
-                                {post.stats.likes !== undefined && <span>♥ {post.stats.likes}</span>}
-                                {post.stats.retweets !== undefined && <span>RP {post.stats.retweets}</span>}
-                            </div>
-                        )}
-                    </article>
+                    <PostCard 
+                        key={post.id}
+                        post={post}
+                        postIndex={postIdx}
+                        onMediaClick={openLightbox}
+                    />
                 ))}
 
                 {posts.length === 0 && <p className={styles.empty}>No posts found.</p>}
@@ -247,26 +164,12 @@ export default function TimelinePageClient({
                 </div>
             )}
 
-            {selectedIndex && lightboxProps && (
+            {selectedIndex !== null && lightboxProps && (
                 <Lightbox
                     {...lightboxProps}
                     onClose={closeLightbox}
-                    onNext={() => {
-                        const post = posts[selectedIndex.postIndex];
-                        if (selectedIndex.mediaIndex < post.mediaItems.length - 1) {
-                            setSelectedIndex({ ...selectedIndex, mediaIndex: selectedIndex.mediaIndex + 1 });
-                        } else if (selectedIndex.postIndex < posts.length - 1) {
-                            setSelectedIndex({ postIndex: selectedIndex.postIndex + 1, mediaIndex: 0 });
-                        }
-                    }}
-                    onPrev={() => {
-                        if (selectedIndex.mediaIndex > 0) {
-                            setSelectedIndex({ ...selectedIndex, mediaIndex: selectedIndex.mediaIndex - 1 });
-                        } else if (selectedIndex.postIndex > 0) {
-                            const prevPost = posts[selectedIndex.postIndex - 1];
-                            setSelectedIndex({ postIndex: selectedIndex.postIndex - 1, mediaIndex: prevPost.mediaItems.length - 1 });
-                        }
-                    }}
+                    onNext={nextLightbox}
+                    onPrev={prevLightbox}
                     onDelete={undefined}
                 />
             )}
