@@ -56,10 +56,14 @@ export class GalleryDlStrategy extends BaseScraperStrategy {
 
         if (line.startsWith('[progress]')) {
             const parts = line.replace('[progress]', '').split('|').map(p => p.trim());
-            if (parts.length >= 3) {
+            if (parts.length >= 2) {
                 this.currentFileBytes = this.parseSizeStringToBytes(parts[0]);
                 this.currentSpeed = parts[1];
-                this.currentTotalSize = parts[2];
+                if (parts.length >= 4) {
+                    this.currentTotalSize = parts[2];
+                } else {
+                    this.currentTotalSize = '0B';
+                }
             }
         } else if (line.startsWith('[start]')) {
             return;
