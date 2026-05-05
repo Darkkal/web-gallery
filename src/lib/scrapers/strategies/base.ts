@@ -18,6 +18,7 @@ export abstract class BaseScraperStrategy {
     public skippedCount = 0;
     public isRateLimited = false;
     public postsProcessed = 0;
+    public intentionalStop = false;
 
     public processedFilesSet = new Set<string>();
     public processedFiles: string[] = [];
@@ -65,11 +66,13 @@ export abstract class BaseScraperStrategy {
     protected checkLimits(child: ChildProcess) {
         if (this.limits?.stopAfterCompleted && this.downloadedCount >= this.limits.stopAfterCompleted) {
             console.log(`[ScraperStrategy] Reached download limit of ${this.limits.stopAfterCompleted}. Stopping.`);
+            this.intentionalStop = true;
             this.killChild(child);
         }
 
         if (this.limits?.stopAfterPosts && this.postsProcessed >= this.limits.stopAfterPosts) {
             console.log(`[ScraperStrategy] Reached post limit of ${this.limits.stopAfterPosts}. Stopping.`);
+            this.intentionalStop = true;
             this.killChild(child);
         }
     }

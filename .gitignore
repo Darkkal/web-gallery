@@ -49,6 +49,7 @@ gallery-dl.log
 sqlite.db
 sqlite.db-journal
 gallery-dl-*archive*
+data/
 
 # Playwright
 node_modules/

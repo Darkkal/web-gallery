@@ -30,6 +30,7 @@ export interface ScrapedMediaItem {
 export interface ScraperOptions {
     url: string;
     downloadPath?: string;
+    logPath?: string;
     mode?: 'full' | 'quick';
     onProgress?: (progress: ScrapeProgress) => void;
 }

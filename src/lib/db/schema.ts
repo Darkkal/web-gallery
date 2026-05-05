@@ -46,6 +46,7 @@ export const scrapeHistory = sqliteTable('scrape_history', {
     postsProcessed: integer('posts_processed').default(0),
     averageSpeed: integer('average_speed').default(0), // bytes per second
     lastError: text('last_error'),
+    logPath: text('log_path'),
     taskId: integer('task_id').references(() => scrapingTasks.id, { onDelete: 'set null' }),
 });
 

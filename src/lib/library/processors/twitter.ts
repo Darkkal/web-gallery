@@ -1,6 +1,7 @@
 import { IMetadataProcessor } from './base';
 import { ProcessTask, ProcessorContext } from '../types';
 import { posts, postDetailsTwitter, twitterUsers } from '@/lib/db/schema';
+import { eq, and, isNull } from 'drizzle-orm';
 import path from 'path';
 
 export class TwitterProcessor implements IMetadataProcessor {
@@ -87,7 +88,15 @@ export class TwitterProcessor implements IMetadataProcessor {
                 }).run();
                 return postId;
             } else {
-                return existingPosts.get(key) || null;
+                const postId = existingPosts.get(key) || null;
+                if (postId && internalSourceId) {
+                    // Update internalSourceId if it's currently null
+                    tx.update(posts)
+                        .set({ internalSourceId })
+                        .where(and(eq(posts.id, postId), isNull(posts.internalSourceId)))
+                        .run();
+                }
+                return postId;
             }
         }
         return null;

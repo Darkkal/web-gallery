@@ -1,18 +1,21 @@
 import { ChildProcess, spawn } from 'child_process';
+import path from 'path';
 import { ScraperRunner, ScrapeLimits } from './runner';
 import { ScrapeProgress } from './types';
 import { db } from '@/lib/db';
 import { scrapeHistory, scraperDownloadLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { syncLibrary } from '@/lib/library/scanner';
+import { BaseScraperStrategy } from './strategies/base';
 
 export interface ScrapingStatus extends ScrapeProgress {
+    historyId: number;
     sourceId: number;
     url: string;
     type: 'gallery-dl' | 'yt-dlp';
     startTime: Date;
-    historyId?: number;
     taskId?: number;
+    logPath?: string;
 }
 
 class ScraperManager {
@@ -20,6 +23,7 @@ class ScraperManager {
     private activeScrapes: Map<number, {
         process: ChildProcess;
         status: ScrapingStatus;
+        strategy: BaseScraperStrategy;
     }> = new Map();
 
     private constructor() { }
@@ -42,7 +46,7 @@ class ScraperManager {
         const startTime = new Date();
 
         // Create history record at the start
-        const historyResult = db.insert(scrapeHistory).values({
+        const historyRecord = db.insert(scrapeHistory).values({
             sourceId,
             startTime,
             status: 'running',
@@ -55,15 +59,28 @@ class ScraperManager {
             taskId: options.taskId,
         }).returning({ id: scrapeHistory.id }).get();
 
-        const historyId = historyResult.id;
+        if (!historyRecord) {
+            console.error(`[ScraperManager] Failed to create history record for source ${sourceId}`);
+            return;
+        }
+
+        const historyId = historyRecord.id;
+        const logPath = path.join('data', 'scrapers', 'gallery-dl', 'logs', `scrape_${historyId}.log`);
+        
+        // Update history with log path
+        db.update(scrapeHistory)
+            .set({ logPath })
+            .where(eq(scrapeHistory.id, historyId))
+            .run();
+
         console.log(`[ScraperManager] Created history record ${historyId} for source ${sourceId}`);
 
         const status: ScrapingStatus = {
+            historyId,
             sourceId,
             url,
             type,
             startTime,
-            historyId,
             taskId: options.taskId,
             downloadedCount: 0,
             speed: '0B/s',
@@ -72,11 +89,13 @@ class ScraperManager {
             skippedCount: 0,
             postsProcessed: 0,
             isRateLimited: false,
-            isFinished: false
+            isFinished: false,
+            logPath
         };
 
-        const { promise, child } = runner.run(type, {
+        const { promise, child, strategy } = runner.run(type, {
             url,
+            logPath: path.join(process.cwd(), logPath),
             mode: options.mode,
             onProgress: (p) => {
                 const current = this.activeScrapes.get(sourceId);
@@ -86,7 +105,7 @@ class ScraperManager {
             }
         }, options.limits);
 
-        this.activeScrapes.set(sourceId, { process: child, status });
+        this.activeScrapes.set(sourceId, { process: child, status, strategy });
 
         promise.then((result) => {
             let logMsg = result.error || result.output || '';
@@ -187,6 +206,9 @@ class ScraperManager {
         if (active) {
             const pid = active.process.pid;
             console.log(`[ScraperManager] STOPPING scrape for source ID: ${sourceId} (PID: ${pid})`);
+
+            // Mark as intentional stop so runner reports it correctly
+            active.strategy.intentionalStop = true;
 
             // Update history record before stopping
             if (active.status.historyId) {

@@ -24,7 +24,18 @@ export class ScraperRunner {
     }
 
     private ensureConfig() {
-        const configPath = path.join(process.cwd(), 'gallery-dl.conf');
+        const scraperDataDir = path.join(process.cwd(), 'data', 'scrapers', 'gallery-dl');
+        const configPath = path.join(scraperDataDir, 'gallery-dl.conf');
+        const logsDir = path.join(scraperDataDir, 'logs');
+        const archivesDir = path.join(scraperDataDir, 'archives');
+
+        // Ensure directories exist
+        [scraperDataDir, logsDir, archivesDir].forEach(dir => {
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+        });
+
         const defaultConfigPath = path.join(process.cwd(), 'gallery-dl-default.conf');
 
         if (!fs.existsSync(configPath)) {
@@ -38,7 +49,8 @@ export class ScraperRunner {
 
     run(tool: 'gallery-dl' | 'yt-dlp', options: ScraperOptions, limits?: ScrapeLimits): {
         promise: Promise<ScrapeResult>,
-        child: import('child_process').ChildProcess
+        child: import('child_process').ChildProcess,
+        strategy: BaseScraperStrategy
     } {
         let childProcess: import('child_process').ChildProcess;
         let strategy: BaseScraperStrategy;
@@ -88,7 +100,7 @@ export class ScraperRunner {
             });
 
             child.on('close', (code) => {
-                if (code === 0) {
+                if (code === 0 || strategy.intentionalStop) {
                     resolve(strategy.getFinalResult(true));
                 } else if (code === null) {
                     resolve(strategy.getFinalResult(false, 'Process was terminated'));
@@ -98,6 +110,6 @@ export class ScraperRunner {
             });
         });
 
-        return { promise, child: childProcess! };
+        return { promise, child: childProcess!, strategy };
     }
 }
