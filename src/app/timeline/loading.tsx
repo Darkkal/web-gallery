@@ -2,7 +2,7 @@ import styles from '@/app/loading.module.css';
 
 export default function TimelineLoading() {
   return (
-    <div className={styles.container}>
+    <div data-testid="loading-skeleton" className={styles.container}>
       <div className={styles.feed}>
         <div className={styles.header} style={{ padding: '1rem', borderBottom: '1px solid hsl(var(--border))', marginBottom: 0 }}>
           <div className={`${styles.skeleton} ${styles.title}`} style={{ width: '120px', height: '2rem' }}></div>

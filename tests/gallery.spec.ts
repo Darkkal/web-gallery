@@ -2,14 +2,16 @@ import { test, expect } from '@playwright/test';
 
 test('gallery page loads', async ({ page }) => {
     await page.goto('/gallery');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
     await expect(page).toHaveURL(/.*\/gallery/);
 
     // Check for search bar
-    await expect(page.getByPlaceholder(/Search \(e\.g\..*\)/)).toBeVisible();
+    await expect(page.getByPlaceholder(/Search \(e\.g\..*\)/).first()).toBeVisible();
 });
 
 test('gallery filtering', async ({ page }) => {
     await page.goto('/gallery');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
 
     // Check filter select exists
     await expect(page.locator('select').first()).toBeVisible();
@@ -25,10 +27,11 @@ test('gallery filtering', async ({ page }) => {
 
 test('gallery grid and lightbox', async ({ page }) => {
     await page.goto('/gallery');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
 
     // Check for grid
     console.log('Checking for masonry grid...');
-    await expect(page.getByTestId('masonry-grid')).toBeVisible();
+    await expect(page.getByTestId('masonry-grid').first()).toBeVisible();
     console.log('Masonry grid found.');
     // Or just wait for any img
 
@@ -64,6 +67,7 @@ test('gallery grid and lightbox', async ({ page }) => {
 
 test('gallery load more button', async ({ page }) => {
     await page.goto('/gallery');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
 
     // We can't guarantee 50+ items exist in the test env, but we can check if the button exists or not
     const loadMoreButton = page.getByRole('button', { name: 'Load More' });

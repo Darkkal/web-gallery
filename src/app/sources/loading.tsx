@@ -2,7 +2,7 @@ import styles from '@/app/loading.module.css';
 
 export default function SourcesLoading() {
   return (
-    <div className={styles.container}>
+    <div data-testid="loading-skeleton" className={styles.container}>
       <div className={styles.header}>
         <div className={`${styles.skeleton} ${styles.title}`}></div>
       </div>

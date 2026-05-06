@@ -2,7 +2,7 @@ import styles from '@/app/loading.module.css';
 
 export default function ScrapeLoading() {
   return (
-    <div className={styles.container} style={{ height: '100vh', overflow: 'hidden' }}>
+    <div data-testid="loading-skeleton" className={styles.container} style={{ height: '100vh', overflow: 'hidden' }}>
       <div className={`${styles.skeleton} ${styles.section}`} style={{ height: '200px', flexShrink: 0 }}></div>
       
       <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1rem' }}>
