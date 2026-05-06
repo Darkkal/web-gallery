@@ -3,11 +3,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { scanLibrary, stopLibraryScan } from '@/app/actions/scanning';
 import { purgeDatabases, purgeAvatars, purgeDownloads } from '@/app/actions/debug';
+import type { InferSelectModel } from 'drizzle-orm';
+import type { scanHistory } from '@/lib/db/schema';
 import styles from '@/app/library/page.module.css';
 
-export default function LibraryPageClient({ initialScanStatus }: { initialScanStatus: any }) {
+type ScanStatus = InferSelectModel<typeof scanHistory>;
+
+export default function LibraryPageClient({ initialScanStatus }: { initialScanStatus: ScanStatus | null }) {
     const [scanning, setScanning] = useState(initialScanStatus?.status === 'running');
-    const [scanStatus, setScanStatus] = useState<any>(initialScanStatus);
+    const [scanStatus, setScanStatus] = useState<ScanStatus | null>(initialScanStatus);
 
     const scanPollingRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -147,7 +151,7 @@ export default function LibraryPageClient({ initialScanStatus }: { initialScanSt
                                     </div>
                                 </>
                             )}
-                            {scanStatus.errors > 0 && (
+                            {(scanStatus.errors ?? 0) > 0 && (
                                 <div>
                                     <span className={styles.resultDeleted}>{scanStatus.errors} errors</span>
                                 </div>

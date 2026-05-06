@@ -4,9 +4,41 @@ import { posts, postDetailsPixiv, pixivUsers, tags, postTags } from '@/lib/db/sc
 import { eq, and, isNull } from 'drizzle-orm';
 import path from 'path';
 
-export class PixivProcessor implements IMetadataProcessor {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    process(meta: any, task: ProcessTask, context: ProcessorContext): number | null {
+interface PixivUser {
+    id?: string | number;
+    name?: string;
+    account?: string;
+    is_followed?: boolean;
+    is_accept_request?: boolean;
+}
+
+interface PixivMeta {
+    user?: PixivUser;
+    id?: string | number;
+    date?: string;
+    create_date?: string;
+    title?: string;
+    caption?: string;
+    width?: number;
+    height?: number;
+    page_count?: number;
+    restrict?: number;
+    x_restrict?: number;
+    sanity_level?: number;
+    total_view?: number;
+    total_bookmarks?: number;
+    is_bookmarked?: boolean;
+    visible?: boolean;
+    is_muted?: boolean;
+    illust_ai_type?: number;
+    illust_book_style?: number;
+    tags?: string[] | { name: string }[];
+    subcategory?: string;
+    type?: string;
+}
+
+export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
+    process(meta: PixivMeta, task: ProcessTask, context: ProcessorContext): number | null {
         const { tx, existingPixivUsers, existingPosts, existingTags, userAvatars, internalSourceId } = context;
 
         let postId: number | null = null;
@@ -17,18 +49,19 @@ export class PixivProcessor implements IMetadataProcessor {
         if (uidStr) {
             const avatarPath = userAvatars.get(uidStr);
             if (!existingPixivUsers.has(uidStr)) {
-                const updateSet: any = {
-                    name: meta.user.name,
+                const user = meta.user!;
+                const updateSet: Record<string, unknown> = {
+                    name: user.name,
                 };
                 if (avatarPath) updateSet.profileImage = avatarPath;
 
                 tx.insert(pixivUsers).values({
                     id: uidStr,
-                    name: meta.user.name,
-                    account: meta.user.account,
+                    name: user.name,
+                    account: user.account,
                     profileImage: avatarPath,
-                    isFollowed: meta.user.is_followed,
-                    isAcceptRequest: meta.user.is_accept_request
+                    isFollowed: user.is_followed,
+                    isAcceptRequest: user.is_accept_request
                 }).onConflictDoUpdate({
                     target: pixivUsers.id,
                     set: updateSet

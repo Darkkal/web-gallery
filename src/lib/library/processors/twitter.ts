@@ -4,9 +4,51 @@ import { posts, postDetailsTwitter, twitterUsers } from '@/lib/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import path from 'path';
 
-export class TwitterProcessor implements IMetadataProcessor {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    process(meta: any, task: ProcessTask, context: ProcessorContext): number | null {
+interface TwitterUser {
+    id?: string | number;
+    nick?: string;
+    name?: string;
+    description?: string;
+    location?: string;
+    date?: string;
+    verified?: boolean;
+    protected?: boolean;
+    profile_banner?: string;
+    profileImage?: string;
+    favourites_count?: number;
+    followers_count?: number;
+    friends_count?: number;
+    listed_count?: number;
+    media_count?: number;
+    statuses_count?: number;
+}
+
+interface TwitterMeta {
+    user?: TwitterUser;
+    author?: TwitterUser;
+    user_id?: string | number;
+    uploader?: string;
+    tweet_id?: string | number;
+    date?: string;
+    content?: string;
+    retweet_id?: string | number;
+    quote_id?: string | number;
+    reply_id?: string | number;
+    conversation_id?: string | number;
+    lang?: string;
+    source?: string;
+    sensitive?: boolean;
+    sensitive_flags?: string[];
+    favorite_count?: number;
+    quote_count?: number;
+    reply_count?: number;
+    retweet_count?: number;
+    bookmark_count?: number;
+    view_count?: number;
+}
+
+export class TwitterProcessor implements IMetadataProcessor<TwitterMeta> {
+    process(meta: TwitterMeta, task: ProcessTask, context: ProcessorContext): number | null {
         const { tx, existingTwitterUsers, existingPosts, userAvatars, internalSourceId } = context;
 
         const userObj = meta.user || meta.author || {};
@@ -16,7 +58,7 @@ export class TwitterProcessor implements IMetadataProcessor {
         if (uidStr) {
             const avatarPath = userAvatars.get(uidStr);
             if (!existingTwitterUsers.has(uidStr)) {
-                const updateSet: any = {
+                const updateSet: Record<string, unknown> = {
                     name: userObj.nick || userObj.name,
                     followersCount: userObj.followers_count
                 };

@@ -4,9 +4,24 @@ import { posts, postDetailsGelbooruV02, tags, postTags } from '@/lib/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import path from 'path';
 
-export class GelbooruProcessor implements IMetadataProcessor {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    process(meta: any, task: ProcessTask, context: ProcessorContext): number | null {
+interface GelbooruMeta {
+    id?: string | number;
+    created_at?: string;
+    date?: string;
+    title?: string;
+    tags?: string | string[];
+    source?: string;
+    width?: number;
+    height?: number;
+    score?: number;
+    rating?: string;
+    md5?: string;
+    subcategory?: string;
+    type?: string;
+}
+
+export class GelbooruProcessor implements IMetadataProcessor<GelbooruMeta> {
+    process(meta: GelbooruMeta, task: ProcessTask, context: ProcessorContext): number | null {
         const { tx, existingPosts, existingTags, internalSourceId } = context;
 
         let postId: number | null = null;
@@ -42,7 +57,7 @@ export class GelbooruProcessor implements IMetadataProcessor {
                 postId = inserted.id;
                 existingPosts.set(key, postId!);
 
-                const parsedTags = typeof meta.tags === 'string' ? meta.tags.split(' ') : meta.tags;
+                const parsedTags: string[] | null = typeof meta.tags === 'string' ? meta.tags.split(' ') : Array.isArray(meta.tags) ? meta.tags : null;
 
                 tx.insert(postDetailsGelbooruV02).values({
                     postId: postId,
@@ -53,9 +68,6 @@ export class GelbooruProcessor implements IMetadataProcessor {
                     source: meta.source,
                     md5: meta.md5,
                     tags: parsedTags ? JSON.stringify(parsedTags) : null,
-                    category: 'gelbooru',
-                    subcategory: meta.subcategory,
-                    type: meta.type
                 }).run();
             } else {
                 postId = existingPosts.get(key) || null;
@@ -70,10 +82,10 @@ export class GelbooruProcessor implements IMetadataProcessor {
 
         // Tags
         if (idStr && postId && meta.tags) {
-            const rawTags = typeof meta.tags === 'string' ? meta.tags.split(' ') : meta.tags;
+            const rawTags: string[] = typeof meta.tags === 'string' ? meta.tags.split(' ') : meta.tags;
             if (Array.isArray(rawTags)) {
                 for (const rawTag of rawTags) {
-                    const baseTagName = typeof rawTag === 'string' ? rawTag : rawTag.name;
+                    const baseTagName = typeof rawTag === 'string' ? rawTag : String(rawTag);
                     if (!baseTagName) continue;
 
                     const tagName = baseTagName.trim();

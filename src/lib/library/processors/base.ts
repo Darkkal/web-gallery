@@ -1,7 +1,6 @@
 import { ProcessTask, ProcessorContext } from '@/lib/library/types';
 
-export interface IMetadataProcessor {
+export interface IMetadataProcessor<TMeta = Record<string, unknown>> {
     // Returns the created or found postId
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    process(meta: any, task: ProcessTask, context: ProcessorContext): number | null;
+    process(meta: TMeta, task: ProcessTask, context: ProcessorContext): number | null;
 }

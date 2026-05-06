@@ -1,3 +1,5 @@
+import type { DbTransaction } from '@/lib/db';
+
 export interface ProcessTask {
     fsPath: string;
     dbFilePath: string;
@@ -10,8 +12,7 @@ export type TagCache = Map<string, number>;
 export type UserCache = Set<string>;
 
 export interface ProcessorContext {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tx: any;
+    tx: DbTransaction;
     existingTwitterUsers: UserCache;
     existingPixivUsers: UserCache;
     existingTags: TagCache;
