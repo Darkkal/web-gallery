@@ -142,7 +142,7 @@ export default function SourcesPageClient({ initialSources }: { initialSources: 
           <table className={styles.table}>
             <thead>
               <tr>
-                <th style={{ width: '40px' }}>
+                <th className={styles.thCheck}>
                   <input
                     type="checkbox"
                     className={styles.checkbox}
@@ -150,8 +150,8 @@ export default function SourcesPageClient({ initialSources }: { initialSources: 
                     onChange={() => selectAll(filteredAndSortedSources.map(s => s.id))}
                   />
                 </th>
-                <th style={{ width: '60px' }}>Preview</th>
-                <th style={{ width: '60px' }}></th>
+                <th className={styles.thThumb}>Preview</th>
+                <th className={styles.thActions}></th>
                 <th>Name / URL</th>
                 <th>Type</th>
                 <th>Created</th>
@@ -178,7 +178,7 @@ export default function SourcesPageClient({ initialSources }: { initialSources: 
       )}
 
       {filteredAndSortedSources.length === 0 && (
-        <div style={{ padding: '4rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))' }}>
+        <div className={styles.emptyState}>
           No sources found.
         </div>
       )}

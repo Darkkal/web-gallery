@@ -114,42 +114,42 @@ export default function LibraryPageClient({ initialScanStatus }: { initialScanSt
                     <div className={styles.scanStats}>
                         <div className={styles.statsRow}>
                             <div>
-                                <span style={{ color: '#94a3b8' }}>Status: </span>
+                                <span className={styles.mutedLabel}>Status: </span>
                                 <span className={`${styles.badge} ${styles[`status-${scanStatus.status}`] || ''}`}>
                                     {scanStatus.status}
                                 </span>
                             </div>
                             {scanStatus.status === 'running' && (
                                 <div>
-                                    <span style={{ color: '#94a3b8' }}>Processed: </span>
+                                    <span className={styles.mutedLabel}>Processed: </span>
                                     {scanStatus.filesProcessed} items
                                 </div>
                             )}
                             {scanStatus.status !== 'running' && (
                                 <>
                                     <div>
-                                        <span style={{ color: '#94a3b8' }}>Last Run: </span>
+                                        <span className={styles.mutedLabel}>Last Run: </span>
                                         {new Date(scanStatus.startTime).toLocaleString()}
                                     </div>
                                     {scanStatus.endTime && (
                                         <div>
-                                            <span style={{ color: '#94a3b8' }}>Duration: </span>
+                                            <span className={styles.mutedLabel}>Duration: </span>
                                             {formatDuration(scanStatus.startTime, scanStatus.endTime)}
                                         </div>
                                     )}
                                     <div>
-                                        <span style={{ color: '#94a3b8' }}>Results: </span>
-                                        <span style={{ color: '#4ade80' }}>+{scanStatus.filesAdded}</span>
+                                        <span className={styles.mutedLabel}>Results: </span>
+                                        <span className={styles.resultAdded}>+{scanStatus.filesAdded}</span>
                                         {' / '}
-                                        <span style={{ color: '#60a5fa' }}>~{scanStatus.filesUpdated}</span>
+                                        <span className={styles.resultUpdated}>~{scanStatus.filesUpdated}</span>
                                         {' / '}
-                                        <span style={{ color: '#f87171' }}>-{scanStatus.filesDeleted}</span>
+                                        <span className={styles.resultDeleted}>-{scanStatus.filesDeleted}</span>
                                     </div>
                                 </>
                             )}
                             {scanStatus.errors > 0 && (
                                 <div>
-                                    <span style={{ color: '#f87171' }}>{scanStatus.errors} errors</span>
+                                    <span className={styles.resultDeleted}>{scanStatus.errors} errors</span>
                                 </div>
                             )}
                         </div>
@@ -220,7 +220,7 @@ export default function LibraryPageClient({ initialScanStatus }: { initialScanSt
                         Purge Downloads
                     </button>
                 </div>
-                <p className={styles.dangerNote} style={{ marginTop: '1rem' }}>
+                <p className={styles.dangerNote}>
                     Database Purge stops all activities and wipes the DB. <br />
                     Purge Avatars deletes 'public/avatars'. <br />
                     Purge Downloads deletes 'public/downloads'.

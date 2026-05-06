@@ -99,6 +99,43 @@
     cursor: not-allowed;
 }
 
+.thRight, .tdRight {
+    text-align: right;
+}
+
+.runningPulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    opacity: 0.7;
+}
+
+.badge[data-status="completed"] {
+    background: hsl(var(--color-success) / 0.1);
+    color: hsl(var(--color-success));
+    border: 1px solid currentColor;
+}
+
+.badge[data-status="failed"] {
+    background: hsl(var(--color-danger) / 0.1);
+    color: hsl(var(--color-danger));
+    border: 1px solid currentColor;
+}
+
+.badge[data-status="running"] {
+    background: hsl(var(--color-info) / 0.1);
+    color: hsl(var(--color-info));
+    border: 1px solid currentColor;
+}
+
+.errorText {
+    color: hsl(var(--destructive));
+}
+
+.emptyCell {
+    text-align: center;
+    padding: 3rem;
+    color: hsl(var(--muted-foreground));
+}
+
 /* Tabs Area */
 .tabsContainer {
     flex: 1;

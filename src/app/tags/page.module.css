@@ -78,3 +78,9 @@
     display: flex;
     justify-content: space-between;
 }
+
+.emptyState {
+    text-align: center;
+    padding: 40px;
+    color: hsl(var(--muted-foreground));
+}

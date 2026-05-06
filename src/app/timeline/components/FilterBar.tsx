@@ -23,8 +23,7 @@ export default function FilterBar({
                 placeholder="Search timeline (e.g. source:twitter)..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className={styles.input}
-                style={{ flex: 1 }}
+                className={`${styles.input} ${styles.searchInput}`}
             />
             <div className={styles.separator} />
             <select

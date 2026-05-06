@@ -38,6 +38,13 @@
   --glass-background: rgba(9, 9, 11, 0.6);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-blur: 12px;
+
+  /* Semantic Status Colors */
+  --color-success: 142 71% 45%;
+  --color-info: 217 91% 60%;
+  --color-danger: 0 84% 60%;
+  --color-warning: 38 92% 50%;
+  --color-muted-label: 215 16% 62%;
 }
 
 [data-theme='light'] {
@@ -71,6 +78,13 @@
 
   --glass-background: rgba(255, 255, 255, 0.6);
   --glass-border: rgba(0, 0, 0, 0.08);
+
+  /* Semantic Status Colors Override */
+  --color-success: 142 71% 45%;
+  --color-info: 217 91% 60%;
+  --color-danger: 0 72% 51%;
+  --color-warning: 38 92% 50%;
+  --color-muted-label: 215 20% 45%;
 }
 
 * {

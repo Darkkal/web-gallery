@@ -35,7 +35,6 @@ export default function FilterBar({
                 className={selectionMode ? styles.activeButton : styles.secondaryButton}
                 onClick={() => setSelectionMode(!selectionMode)}
                 title={selectionMode ? 'Cancel Selection' : 'Select Items'}
-                style={{ padding: '0.4rem', lineHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
                 {selectionMode ? <CheckSquare size={20} /> : <Square size={20} />}
             </button>

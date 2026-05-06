@@ -63,7 +63,7 @@ export default async function TagsPage({ searchParams }: TagsPageProps) {
             </div>
 
             {tags.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>
+                <div className={styles.emptyState}>
                     No tags found.
                 </div>
             )}

@@ -60,7 +60,7 @@ export default function ControlsBar({
           </button>
         )}
 
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className={styles.viewToggle}>
           <button
             className={`${styles.actionButton} ${viewMode === 'card' ? styles.active : ''}`}
             onClick={() => setViewMode('card')}

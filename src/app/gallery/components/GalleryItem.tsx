@@ -69,7 +69,7 @@ export default function GalleryItem({
                 />
             )}
             {row.twitter && (
-                <div style={{ position: 'absolute', bottom: 0, background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '11px', width: '100%', padding: '4px', display: 'flex', justifyContent: 'space-between' }}>
+                <div className={styles.twitterOverlay}>
                     <span>❤️ {row.twitter.favoriteCount}</span>
                     {row.user && <span>@{row.user.username}</span>}
                 </div>
