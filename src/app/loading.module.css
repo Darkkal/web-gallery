@@ -1,0 +1,139 @@
+.skeleton {
+  background: hsl(var(--muted));
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.05) 20%,
+    rgba(255, 255, 255, 0.1) 60%,
+    rgba(255, 255, 255, 0)
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
+  border-radius: var(--radius);
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.container {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.title {
+  height: 2.5rem;
+  width: 200px;
+}
+
+.controls {
+  display: flex;
+  gap: 1rem;
+}
+
+.controlItem {
+  height: 2.5rem;
+  width: 100px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.card {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+}
+
+/* Timeline specific */
+.feed {
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-left: 1px solid hsl(var(--border));
+  border-right: 1px solid hsl(var(--border));
+}
+
+.post {
+  padding: 1rem;
+  border-bottom: 1px solid hsl(var(--border));
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.postHeader {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.postMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.line {
+  height: 1rem;
+  width: 100%;
+}
+
+.lineShort {
+  height: 1rem;
+  width: 40%;
+}
+
+.media {
+  margin-left: 3.25rem;
+  aspect-ratio: 16 / 9;
+  width: calc(100% - 3.25rem);
+}
+
+/* Scrape/Library specific */
+.section {
+  padding: 1.5rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  margin-bottom: 2rem;
+}
+
+.tableRow {
+  height: 3rem;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+/* Tag specific */
+.tagGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.tagCard {
+  height: 4rem;
+}

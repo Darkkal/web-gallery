@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Search, Trash2, LayoutGrid, List as ListIcon } from 'lucide-react';
-import styles from '../page.module.css';
+import styles from '@/app/sources/page.module.css';
 
 interface ControlsBarProps {
   search: string;

@@ -3,7 +3,7 @@
 import React from 'react';
 import { Image as ImageIcon, Edit2, Check, X } from 'lucide-react';
 import type { Source } from '@/types/source';
-import styles from '../page.module.css';
+import styles from '@/app/sources/page.module.css';
 
 interface SourceTableRowProps {
   source: Source;

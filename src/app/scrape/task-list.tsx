@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { runTaskNow, stopTask, deleteScrapeTask, updateScrapeTask } from '@/app/scrape/actions';
 import { Play, Square, Trash2, Pencil, Check, X, Zap } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import styles from './page.module.css';
+import styles from '@/app/scrape/page.module.css';
 
 interface Task {
     id: number;

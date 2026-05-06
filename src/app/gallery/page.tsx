@@ -1,5 +1,8 @@
+import type { Metadata } from 'next';
 import { getMediaItems } from '@/app/actions';
 import GalleryPageClient from '@/app/gallery/page-client';
+
+export const metadata: Metadata = { title: "Gallery" };
 
 export default async function GalleryPage({
     searchParams,
