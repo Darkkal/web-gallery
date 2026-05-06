@@ -83,11 +83,11 @@ export default function ScrapeHistoryTable({ initialHistory }: { initialHistory:
                         <th>Time</th>
                         <th>Duration</th>
                         <th>Status</th>
-                        <th style={{ textAlign: 'right' }}>Downloaded</th>
-                        <th style={{ textAlign: 'right' }}>Posts</th>
-                        <th style={{ textAlign: 'right' }}>Skipped</th>
-                        <th style={{ textAlign: 'right' }}>Size</th>
-                        <th style={{ textAlign: 'right' }}>Errors</th>
+                        <th className={styles.thRight}>Downloaded</th>
+                        <th className={styles.thRight}>Posts</th>
+                        <th className={styles.thRight}>Skipped</th>
+                        <th className={styles.thRight}>Size</th>
+                        <th className={styles.thRight}>Errors</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -100,36 +100,24 @@ export default function ScrapeHistoryTable({ initialHistory }: { initialHistory:
                                 {item.endTime ? (
                                     <span>{Math.round((new Date(item.endTime).getTime() - new Date(item.startTime).getTime()) / 1000)}s</span>
                                 ) : (
-                                    <span style={{ animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite', opacity: 0.7 }}>Running...</span>
+                                    <span className={styles.runningPulse}>Running...</span>
                                 )}
                             </td>
                             <td>
-                                <span className={styles.badge} style={{
-                                    backgroundColor:
-                                        item.status === 'completed' ? 'rgba(34, 197, 94, 0.1)' :
-                                            item.status === 'failed' ? 'rgba(239, 68, 68, 0.1)' :
-                                                item.status === 'running' ? 'rgba(59, 130, 246, 0.1)' : 'hsl(var(--muted))',
-                                    color:
-                                        item.status === 'completed' ? 'rgb(34, 197, 94)' :
-                                            item.status === 'failed' ? 'rgb(239, 68, 68)' :
-                                                item.status === 'running' ? 'rgb(59, 130, 246)' : 'hsl(var(--muted-foreground))',
-                                    border: '1px solid currentColor',
-                                    borderColor: 'currentColor',
-                                    opacity: 0.9
-                                }}>
+                                <span className={styles.badge} data-status={item.status}>
                                     {item.status}
                                 </span>
                             </td>
-                            <td style={{ textAlign: 'right' }}>{item.filesDownloaded}</td>
-                            <td style={{ textAlign: 'right' }}>{item.postsProcessed ?? 0}</td>
-                            <td style={{ textAlign: 'right' }}>{item.skippedCount ?? 0}</td>
-                            <td style={{ textAlign: 'right' }}>{formatBytes(item.bytesDownloaded || 0)}</td>
-                            <td style={{ textAlign: 'right', color: item.errorCount ? 'hsl(var(--destructive))' : 'inherit' }}>{item.errorCount}</td>
+                            <td className={styles.tdRight}>{item.filesDownloaded}</td>
+                            <td className={styles.tdRight}>{item.postsProcessed ?? 0}</td>
+                            <td className={styles.tdRight}>{item.skippedCount ?? 0}</td>
+                            <td className={styles.tdRight}>{formatBytes(item.bytesDownloaded || 0)}</td>
+                            <td className={`${styles.tdRight} ${item.errorCount ? styles.errorText : ''}`}>{item.errorCount}</td>
                         </tr>
                     ))}
                     {historyItems.length === 0 && (
                         <tr>
-                            <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'hsl(var(--muted-foreground))' }}>
+                            <td colSpan={8} className={styles.emptyCell}>
                                 No history available.
                             </td>
                         </tr>

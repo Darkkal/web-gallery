@@ -284,7 +284,7 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, gelbooru
                         <h3 className={styles.sectionTitle}>Gelbooru Info</h3>
                         <div className={styles.statsGrid}>
                             {gelbooru.source && (
-                                <div className={styles.statItem} style={{ gridColumn: '1 / -1' }}>
+                                <div className={`${styles.statItem} ${styles.statItemFull}`}>
                                     {/* Assuming Link component is available or replace with <a> */}
                                     {/* <Link size={16} /> */}
                                     <a href={gelbooru.source || undefined} target="_blank" rel="noopener noreferrer" className={styles.link}>
@@ -300,7 +300,7 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, gelbooru
                             </div>
                             {gelbooru.rating && (
                                 <div className={styles.statItem}>
-                                    <span className={styles.badge} style={{ textTransform: 'uppercase' }}>
+                                    <span className={styles.badge}>
                                         {gelbooru.rating}
                                     </span>
                                     <span className={styles.statLabel}>Rating</span>
@@ -313,15 +313,9 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, gelbooru
                 {tags.length > 0 && (
                     <div className={styles.section}>
                         <h3 className={styles.sectionTitle}>Tags</h3>
-                        <div className={styles.tagsContainer} style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        <div className={styles.tagsContainer}>
                             {tags.map((tag, i) => (
-                                <span key={i} className={styles.tagChip} style={{
-                                    background: 'rgba(255,255,255,0.1)',
-                                    padding: '2px 8px',
-                                    borderRadius: '12px',
-                                    fontSize: '12px',
-                                    color: '#ccc'
-                                }}>
+                                <span key={i} className={styles.tagChip}>
                                     #{tag.name}
                                 </span>
                             ))}
@@ -333,7 +327,7 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, gelbooru
                     <div className={styles.section}>
                         <h3 className={styles.sectionTitle}>Source</h3>
                         {item.originalUrl && (
-                            <a href={item.originalUrl} target="_blank" rel="noopener noreferrer" className={styles.linkButton} style={{ marginBottom: '10px' }}>
+                            <a href={item.originalUrl} target="_blank" rel="noopener noreferrer" className={styles.linkButton}>
                                 Open Original File
                             </a>
                         )}

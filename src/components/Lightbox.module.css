@@ -162,6 +162,10 @@
     text-align: center;
 }
 
+.statItemFull {
+    grid-column: 1 / -1;
+}
+
 .statValue {
     display: block;
     font-size: 1.1rem;
@@ -191,6 +195,10 @@
 .linkButton:hover {
     opacity: 0.9;
     transform: translateY(-1px);
+}
+
+.linkButton + .linkButton {
+    margin-top: 10px;
 }
 
 .controls {
@@ -224,12 +232,12 @@
 }
 
 .deleteDBButton:hover {
-    background: #f59e0b !important;
+    background: hsl(var(--color-warning)) !important;
     color: white !important;
 }
 
 .deleteDiskButton:hover {
-    background: #ef4444 !important;
+    background: hsl(var(--color-danger)) !important;
     color: white !important;
 }
 
@@ -311,4 +319,18 @@
     border-radius: var(--radius);
     overflow-y: auto;
     max-height: 80vh;
+}
+
+.tagsContainer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.tagChip {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    color: hsl(var(--muted-foreground));
 }

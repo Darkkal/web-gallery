@@ -171,8 +171,7 @@ export default function GalleryPageClient({
                     <button 
                         onClick={() => loadItems(true)} 
                         disabled={isLoading}
-                        className={styles.secondaryButton}
-                        style={{ margin: '2rem auto', display: 'block', padding: '0.8rem 2rem' }}
+                        className={`${styles.secondaryButton} ${styles.loadMoreButton}`}
                     >
                         {isLoading ? 'Loading...' : 'Load More'}
                     </button>

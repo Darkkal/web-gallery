@@ -24,23 +24,21 @@ export default function AddSourceForm({
   return (
     <form onSubmit={onSubmit} className={styles.addForm}>
       <h3>Add Source</h3>
-      <div style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
+      <div className={styles.formInputRow}>
         <input
           type="url"
-          className={styles.input}
           placeholder=" https://..."
           value={newUrl}
           onChange={(e) => setNewUrl(e.target.value)}
           required
-          style={{ flex: 2 }}
+          className={`${styles.input} ${styles.inputWide}`}
         />
         <input
           type="text"
-          className={styles.input}
           placeholder="Name (Optional)"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          style={{ flex: 1 }}
+          className={styles.input}
         />
       </div>
       <button type="submit" className={styles.button} disabled={loading}>

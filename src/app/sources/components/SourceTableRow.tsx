@@ -63,12 +63,12 @@ export default function SourceTableRow({
       </td>
       <td>
         {isEditing ? (
-          <div style={{ display: 'flex', gap: '4px' }}>
+          <div className={styles.editActions}>
             <button className={styles.iconButton} onClick={(e) => { e.stopPropagation(); onSaveEdit(); }} title="Save">
-              <Check size={16} className="text-green-500" />
+              <Check size={16} className={styles.iconSuccess} />
             </button>
             <button className={styles.iconButton} onClick={(e) => { e.stopPropagation(); onCancelEditing(); }} title="Cancel">
-              <X size={16} className="text-red-500" />
+              <X size={16} className={styles.iconDanger} />
             </button>
           </div>
         ) : (
@@ -86,17 +86,15 @@ export default function SourceTableRow({
       </td>
       <td>
         {isEditing ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div className={styles.editFields}>
             <input
-              className={styles.input}
-              style={{ padding: '4px 8px', fontSize: '0.9rem' }}
+              className={`${styles.input} ${styles.editInput}`}
               value={editForm.name}
               onChange={e => onEditFormChange({ name: e.target.value })}
               placeholder="Name"
             />
             <input
-              className={styles.input}
-              style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+              className={`${styles.input} ${styles.editInputSmall}`}
               value={editForm.url}
               onChange={e => onEditFormChange({ url: e.target.value })}
               placeholder="URL"
@@ -104,13 +102,13 @@ export default function SourceTableRow({
           </div>
         ) : (
           <>
-            <div style={{ fontWeight: 500 }}>{displayTitle}</div>
-            <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>{source.url}</div>
+            <div className={styles.sourceTitle}>{displayTitle}</div>
+            <div className={styles.sourceUrl}>{source.url}</div>
           </>
         )}
       </td>
       <td>
-        <span className={styles.badge} style={{ color: 'hsl(var(--foreground))', border: '1px solid hsl(var(--border))' }}>
+        <span className={`${styles.badge} ${styles.tableBadge}`}>
           {source.extractorType}
         </span>
       </td>

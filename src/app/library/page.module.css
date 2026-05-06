@@ -7,7 +7,7 @@
 .title {
   font-size: 2.5rem;
   font-weight: 700;
-  background: linear-gradient(to right, #ffffff, #94a3b8);
+  background: linear-gradient(to right, hsl(var(--foreground)), hsl(var(--color-muted-label)));
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -104,8 +104,8 @@
 }
 
 .badge.status-completed {
-  background: #064e3b;
-  color: #6ee7b7;
+  background: hsl(var(--color-success) / 0.2);
+  color: hsl(var(--color-success));
 }
 
 .badge.status-stopped {
@@ -114,13 +114,13 @@
 }
 
 .badge.status-failed {
-  background: hsl(0 62.8% 30.6%);
-  color: #fca5a5;
+  background: hsl(var(--color-danger) / 0.2);
+  color: hsl(var(--color-danger) / 0.8);
 }
 
 .badge.status-running {
-  background: hsl(217 91% 20%);
-  color: #93c5fd;
+  background: hsl(var(--color-info) / 0.2);
+  color: hsl(var(--color-info) / 0.8);
 }
 
 /* Danger Zone */
@@ -130,7 +130,7 @@
 }
 
 .dangerTitle {
-  color: #ef4444 !important;
+  color: hsl(var(--color-danger)) !important;
 }
 
 .dangerActions {
@@ -141,7 +141,7 @@
 }
 
 .dangerButton {
-  background: #ef4444;
+  background: hsl(var(--color-danger));
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -152,7 +152,7 @@
 }
 
 .dangerButton:hover {
-  background: #dc2626;
+  background: hsl(var(--color-danger) / 0.85);
 }
 
 .dangerButton:disabled {
@@ -163,5 +163,21 @@
 .dangerNote {
   font-size: 0.875rem;
   color: hsl(var(--muted-foreground));
-  margin: 0;
+  margin: 1rem 0 0;
+}
+
+.mutedLabel {
+  color: hsl(var(--color-muted-label));
+}
+
+.resultAdded {
+  color: hsl(var(--color-success));
+}
+
+.resultUpdated {
+  color: hsl(var(--color-info));
+}
+
+.resultDeleted {
+  color: hsl(var(--color-danger));
 }

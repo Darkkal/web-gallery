@@ -32,7 +32,7 @@
 }
 
 .activeButton {
-    background: #3b82f6;
+    background: hsl(var(--color-info));
     color: hsl(var(--primary-foreground));
     border: none;
     padding: 0.5rem 1rem;
@@ -70,7 +70,7 @@
 }
 
 .selectedItem {
-    outline: 4px solid #3b82f6;
+    outline: 4px solid hsl(var(--color-info));
     outline-offset: -4px;
 }
 
@@ -81,7 +81,7 @@
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: rgba(59, 130, 246, 0.9);
+    background: hsl(var(--color-info) / 0.9);
     color: white;
     display: flex;
     align-items: center;
@@ -163,7 +163,7 @@
 }
 
 .deleteButton {
-    background: #ef4444;
+    background: hsl(var(--color-danger));
     color: white;
     border: none;
     padding: 0.5rem 1rem;
@@ -174,7 +174,7 @@
 }
 
 .deleteButton:hover {
-    background: #dc2626;
+    background: hsl(var(--color-danger) / 0.85);
 }
 
 .deleteButton:disabled {
@@ -188,7 +188,7 @@
 }
 
 .secondaryDeleteButton {
-    background: #f59e0b;
+    background: hsl(var(--color-warning));
     color: white;
     border: none;
     padding: 0.5rem 1rem;
@@ -199,7 +199,7 @@
 }
 
 .secondaryDeleteButton:hover {
-    background: #d97706;
+    background: hsl(var(--color-warning) / 0.85);
 }
 
 .secondaryDeleteButton:disabled {
@@ -226,6 +226,10 @@
     color: hsl(var(--foreground));
 }
 
+.searchInput {
+    flex: 2;
+}
+
 .separator {
     width: 1px;
     height: 24px;
@@ -247,4 +251,22 @@
 
 .slider {
     cursor: pointer;
+}
+
+.loadMoreButton {
+    margin: 2rem auto;
+    display: block;
+    padding: 0.8rem 2rem !important;
+}
+
+.twitterOverlay {
+    position: absolute;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    font-size: 11px;
+    width: 100%;
+    padding: 4px;
+    display: flex;
+    justify-content: space-between;
 }

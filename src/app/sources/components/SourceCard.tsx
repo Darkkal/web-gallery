@@ -27,11 +27,10 @@ export default function SourceCard({
         className={styles.cardBg}
         style={{
           backgroundImage: source.previewImage ? `url(${source.previewImage})` : 'none',
-          backgroundColor: source.previewImage ? 'transparent' : 'hsl(var(--muted))'
         }}
       />
       {!source.previewImage && (
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--muted-foreground))' }}>
+        <div className={styles.placeholderIcon}>
           <ImageIcon size={48} opacity={0.2} />
         </div>
       )}
