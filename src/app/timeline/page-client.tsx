@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { TimelinePost } from '@/lib/db/repositories/posts';
-import Lightbox from '../../components/Lightbox';
-import styles from './page.module.css';
+import Lightbox from '@/components/Lightbox';
+import styles from '@/app/timeline/page.module.css';
 import { mergePixivMetadata, mergeTwitterMetadata, mergeGelbooruv02Metadata } from '@/lib/metadata';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useLightbox } from '@/hooks/useLightbox';
-import FilterBar from './components/FilterBar';
-import PostCard from './components/PostCard';
+import FilterBar from '@/app/timeline/components/FilterBar';
+import PostCard from '@/app/timeline/components/PostCard';
 
 export default function TimelinePageClient({ 
     initialPosts, 

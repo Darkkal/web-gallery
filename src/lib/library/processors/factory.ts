@@ -1,7 +1,7 @@
-import { IMetadataProcessor } from './base';
-import { TwitterProcessor } from './twitter';
-import { PixivProcessor } from './pixiv';
-import { GelbooruProcessor } from './gelbooru';
+import { IMetadataProcessor } from '@/lib/library/processors/base';
+import { TwitterProcessor } from '@/lib/library/processors/twitter';
+import { PixivProcessor } from '@/lib/library/processors/pixiv';
+import { GelbooruProcessor } from '@/lib/library/processors/gelbooru';
 
 export class MetadataProcessorFactory {
     static getProcessor(extractorType: string): IMetadataProcessor | null {

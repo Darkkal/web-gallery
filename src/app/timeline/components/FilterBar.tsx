@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import styles from '../page.module.css';
+import styles from '@/app/timeline/page.module.css';
 
 interface FilterBarProps {
     searchQuery: string;

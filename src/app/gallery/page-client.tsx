@@ -1,18 +1,18 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { deleteMediaItems } from '../actions';
-import Lightbox from '../../components/Lightbox';
-import MasonryGrid from '../../components/MasonryGrid';
-import styles from './page.module.css';
+import { deleteMediaItems } from '@/app/actions';
+import Lightbox from '@/components/Lightbox';
+import MasonryGrid from '@/components/MasonryGrid';
+import styles from '@/app/gallery/page.module.css';
 import { mergePixivMetadata, mergeTwitterMetadata, mergeGelbooruv02Metadata } from '@/lib/metadata';
 import { GalleryGroup } from '@/types/gallery';
 import { useSelection } from '@/hooks/useSelection';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useLightbox } from '@/hooks/useLightbox';
-import FilterBar from './components/FilterBar';
-import BulkActionBar from './components/BulkActionBar';
-import GalleryItem from './components/GalleryItem';
+import FilterBar from '@/app/gallery/components/FilterBar';
+import BulkActionBar from '@/app/gallery/components/BulkActionBar';
+import GalleryItem from '@/app/gallery/components/GalleryItem';
 
 export default function GalleryPageClient({ 
     initialItems, 

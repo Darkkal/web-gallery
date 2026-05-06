@@ -1,5 +1,5 @@
-import { getMediaItems } from '../actions';
-import GalleryPageClient from './page-client';
+import { getMediaItems } from '@/app/actions';
+import GalleryPageClient from '@/app/gallery/page-client';
 
 export default async function GalleryPage({
     searchParams,

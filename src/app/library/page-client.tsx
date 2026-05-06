@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { scanLibrary, stopLibraryScan } from '../actions';
-import { purgeDatabases, purgeAvatars, purgeDownloads } from '../actions/debug';
+import { scanLibrary, stopLibraryScan } from '@/app/actions';
+import { purgeDatabases, purgeAvatars, purgeDownloads } from '@/app/actions/debug';
 import styles from './page.module.css';
 
 export default function LibraryPageClient({ initialScanStatus }: { initialScanStatus: any }) {

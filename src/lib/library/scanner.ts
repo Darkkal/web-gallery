@@ -18,8 +18,8 @@ import {
     postDetailsGelbooruV02
 } from '@/lib/db/schema';
 import { eq, and, inArray, isNull } from 'drizzle-orm';
-import { ProcessTask, ProcessorContext, UserCache, TagCache } from './types';
-import { MetadataProcessorFactory } from './processors/factory';
+import { ProcessTask, ProcessorContext, UserCache, TagCache } from '@/lib/library/types';
+import { MetadataProcessorFactory } from '@/lib/library/processors/factory';
 
 const DOWNLOAD_DIR = path.join(process.cwd(), 'public', 'downloads');
 // Global control flags for this module process

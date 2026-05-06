@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { getPostTags } from '@/app/actions';
-import styles from './Lightbox.module.css';
+import styles from '@/components/Lightbox.module.css';
 import { UnifiedPixivData, UnifiedTwitterData, UnifiedUserData, UnifiedGelbooruv02Data } from '@/lib/metadata';
-import FormattedContent from './FormattedContent';
+import FormattedContent from '@/components/FormattedContent';
 
 interface LightboxProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

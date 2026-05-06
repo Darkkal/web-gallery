@@ -1,4 +1,4 @@
-import { ProcessTask, ProcessorContext } from '../types';
+import { ProcessTask, ProcessorContext } from '@/lib/library/types';
 
 export interface IMetadataProcessor {
     // Returns the created or found postId

@@ -1,5 +1,5 @@
-import { getScrapeTasks, getSources, getScrapeHistory } from './actions';
-import ScrapePageClient from './page-client';
+import { getScrapeTasks, getSources, getScrapeHistory } from '@/app/scrape/actions';
+import ScrapePageClient from '@/app/scrape/page-client';
 
 export default async function ScrapePage() {
     const tasks = await getScrapeTasks();
