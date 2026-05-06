@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { scanLibrary, stopLibraryScan } from '@/app/actions';
+import { scanLibrary, stopLibraryScan } from '@/app/actions/scanning';
 import { purgeDatabases, purgeAvatars, purgeDownloads } from '@/app/actions/debug';
 import styles from '@/app/library/page.module.css';
 

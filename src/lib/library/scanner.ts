@@ -10,14 +10,13 @@ import {
     scanHistory,
     gallerydlExtractorTypes,
     scraperDownloadLogs,
-    sources,
     // New Tables
     posts,
     postDetailsTwitter,
     postDetailsPixiv,
     postDetailsGelbooruV02
 } from '@/lib/db/schema';
-import { eq, and, inArray, isNull } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { ProcessTask, ProcessorContext, UserCache, TagCache } from '@/lib/library/types';
 import { MetadataProcessorFactory } from '@/lib/library/processors/factory';
 
@@ -84,10 +83,7 @@ export async function syncLibrary() {
     try {
         const legacyFiles = getAllFiles(DOWNLOAD_DIR);
 
-        // Fetch Local Sources
-        const localSources = await db.select().from(sources).where(and(isNull(sources.deletedAt), eq(sources.extractorType, 'local')));
-
-        console.log(`Found ${legacyFiles.length} files in downloads. Found ${localSources.length} local sources.`);
+        console.log(`Found ${legacyFiles.length} files in downloads.`);
 
         // Map<DirPath, Group>
         const dirGroups = new Map<string, {
@@ -97,7 +93,7 @@ export async function syncLibrary() {
             sourceRoot: string // To calculate relative path 
         }>();
 
-        // 1. Process Legacy Files
+        // Process Download Files
         const publicRoot = path.join(process.cwd(), 'public');
         legacyFiles.forEach(absPath => {
             const ext = path.extname(absPath).toLowerCase();
@@ -107,25 +103,6 @@ export async function syncLibrary() {
             if (ext === '.json') group.jsonFiles.push(absPath);
             else if (['.mp4', '.webm', '.mkv', '.mp3', '.wav', '.m4a', '.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) group.mediaFiles.push(absPath);
         });
-
-        // 2. Process Local Sources
-        for (const source of localSources) {
-            const sourceFiles = getAllFiles(source.url);
-            console.log(`Source [${source.name}] has ${sourceFiles.length} files.`);
-
-            sourceFiles.forEach(absPath => {
-                const ext = path.extname(absPath).toLowerCase();
-                const dir = path.dirname(absPath);
-
-                // If this dir was already claimed by another source (nested?), we might have a conflict or just mix them.
-                // Assuming distinct folders for now.
-                if (!dirGroups.has(dir)) dirGroups.set(dir, { jsonFiles: [], mediaFiles: [], sourceId: source.id, sourceRoot: source.url });
-
-                const group = dirGroups.get(dir)!;
-                if (ext === '.json') group.jsonFiles.push(absPath);
-                else if (['.mp4', '.webm', '.mkv', '.mp3', '.wav', '.m4a', '.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) group.mediaFiles.push(absPath);
-            });
-        }
 
         console.log("Loading existing DB records...");
         // const existingMedia = new Map<string, { id: number, capturedAt: Date | null }>();
@@ -158,7 +135,6 @@ export async function syncLibrary() {
             { id: 'pixiv', description: 'Pixiv' },
             { id: 'gelbooruv02', description: 'Gelbooru/Safebooru' },
             { id: 'gallery-dl', description: 'Generic gallery-dl' },
-            { id: 'local', description: 'Local Directory' }
         ]).onConflictDoNothing().run();
 
 

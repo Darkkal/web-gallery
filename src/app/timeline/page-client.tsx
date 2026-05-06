@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { TimelinePost } from '@/lib/db/repositories/posts';
+import type { TimelinePost } from '@/types/posts';
 import Lightbox from '@/components/Lightbox';
 import styles from '@/app/timeline/page.module.css';
 import { mergePixivMetadata, mergeTwitterMetadata, mergeGelbooruv02Metadata } from '@/lib/metadata';

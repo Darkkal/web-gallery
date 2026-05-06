@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { addSource, deleteSource, updateSource } from '@/app/actions';
+import { addSource, deleteSource, updateSource } from '@/app/actions/sources';
 import styles from '@/app/sources/page.module.css';
 import { useSelection } from '@/hooks/useSelection';
 import type { Source } from '@/types/source';

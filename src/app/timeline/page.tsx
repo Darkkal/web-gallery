@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getTimelinePosts } from '@/app/actions';
+import { getTimelinePosts } from '@/app/actions/timeline';
 import TimelinePageClient from '@/app/timeline/page-client';
 
 export const metadata: Metadata = { title: "Timeline" };

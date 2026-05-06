@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getSourcesWithHistory } from '@/app/actions';
+import { getSourcesWithHistory } from '@/app/actions/sources';
 import SourcesPageClient from '@/app/sources/page-client';
 
 export const metadata: Metadata = { title: "Sources" };

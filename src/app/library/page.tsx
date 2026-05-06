@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getLatestScan } from '@/app/actions';
+import { getLatestScan } from '@/app/actions/scanning';
 import LibraryPageClient from '@/app/library/page-client';
 
 export const metadata: Metadata = { title: "Library" };

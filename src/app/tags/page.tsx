@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getTopTags } from '@/app/actions';
+import { getTopTags } from '@/app/actions/tags';
 import Link from 'next/link';
 import styles from '@/app/tags/page.module.css';
 

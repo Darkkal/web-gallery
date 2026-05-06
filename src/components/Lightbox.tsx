@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
-import { getPostTags } from '@/app/actions';
+import { getPostTags } from '@/app/actions/tags';
 import styles from '@/components/Lightbox.module.css';
 import { UnifiedPixivData, UnifiedTwitterData, UnifiedUserData, UnifiedGelbooruv02Data } from '@/lib/metadata';
 import FormattedContent from '@/components/FormattedContent';

@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { deleteMediaItems } from '@/app/actions';
+import { deleteMediaItems } from '@/app/actions/gallery';
 import Lightbox from '@/components/Lightbox';
 import MasonryGrid from '@/components/MasonryGrid';
 import styles from '@/app/gallery/page.module.css';
 import { mergePixivMetadata, mergeTwitterMetadata, mergeGelbooruv02Metadata } from '@/lib/metadata';
-import { GalleryGroup } from '@/types/gallery';
+import { GalleryGroup } from '@/types/media';
 import { useSelection } from '@/hooks/useSelection';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useLightbox } from '@/hooks/useLightbox';

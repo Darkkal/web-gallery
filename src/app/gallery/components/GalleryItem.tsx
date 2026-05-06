@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import styles from '@/app/gallery/page.module.css';
-import { GalleryGroup } from '@/types/gallery';
+import { GalleryGroup } from '@/types/media';
 
 interface GalleryItemProps {
     row: GalleryGroup;
