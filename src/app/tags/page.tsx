@@ -56,8 +56,8 @@ export default async function TagsPage({ searchParams }: TagsPageProps) {
                     >
                         <span className={styles.tagName}>{tag.name}</span>
                         <div className={styles.tagMeta}>
-                            {(tag as any).count !== undefined && (
-                                <span>{(tag as any).count} posts</span>
+                            {tag.count !== undefined && (
+                                <span>{tag.count} posts</span>
                             )}
                             {/* "New" sort might not return count, handle gracefully */}
                         </div>

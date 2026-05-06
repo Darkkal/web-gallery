@@ -9,7 +9,12 @@ export async function getPostTags(postId: number) {
     return postsRepo.getPostTags(postId);
 }
 
-export async function getTopTags(sort: 'count' | 'new' | 'recent' = 'count') {
+interface TagResult {
+    name: string;
+    count: number;
+}
+
+export async function getTopTags(sort: 'count' | 'new' | 'recent' = 'count'): Promise<TagResult[]> {
     if (sort === 'new') {
         const results = await db.select({
             name: tags.name,
@@ -18,7 +23,7 @@ export async function getTopTags(sort: 'count' | 'new' | 'recent' = 'count') {
             .from(tags)
             .orderBy(desc(tags.id))
             .limit(100);
-        return results.map(r => ({ name: r.name, count: 0 }));
+        return results.map(r => ({ name: r.name, count: 0 as number }));
     }
 
     if (sort === 'recent') {

@@ -17,10 +17,12 @@ if (!fs.existsSync(dbPath)) {
         console.log('[DB] Schema initialized successfully.');
     } catch (error) {
         console.error('[DB] Failed to initialize database schema:', error);
-        // We might want to throw here, but let's allow it to proceed 
+        // We might want to throw here, but let's allow it to proceed
         // in case better-sqlite3 can at least open the file, though tables will be missing.
     }
 }
 
 const sqlite = new Database(dbPath);
 export const db = drizzle(sqlite, { schema });
+
+export type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];

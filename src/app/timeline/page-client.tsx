@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { TimelinePost } from '@/types/posts';
 import Lightbox from '@/components/Lightbox';
 import styles from '@/app/timeline/page.module.css';
@@ -10,13 +10,13 @@ import { useLightbox } from '@/hooks/useLightbox';
 import FilterBar from '@/app/timeline/components/FilterBar';
 import PostCard from '@/app/timeline/components/PostCard';
 
-export default function TimelinePageClient({ 
-    initialPosts, 
+export default function TimelinePageClient({
+    initialPosts,
     initialNextCursor,
     initialSearch,
     initialSort
-}: { 
-    initialPosts: TimelinePost[], 
+}: {
+    initialPosts: TimelinePost[],
     initialNextCursor: string | null,
     initialSearch: string,
     initialSort: string
@@ -66,7 +66,7 @@ export default function TimelinePageClient({
     }, [debouncedSearch, debouncedSort]);
 
     // Prepare Lightbox Data from current selection
-    const getLightboxProps = () => {
+    const lightboxProps = useMemo(() => {
         if (selectedIndex === null) return null;
         const post = posts[selectedIndex];
         const media = post.mediaItems[mediaIndex];
@@ -75,7 +75,7 @@ export default function TimelinePageClient({
             id: post.pixivMetadata?.dbId || 0,
             jsonSourceId: post.pixivMetadata?.illustId?.toString() || null,
             title: post.title || null,
-            content: post.content || null 
+            content: post.content || null
         } : null;
 
         const pixivDetails = post.type === 'pixiv' ? {
@@ -85,7 +85,7 @@ export default function TimelinePageClient({
         } : null;
 
         const twitterInput = post.type === 'twitter' ? {
-            jsonSourceId: null, 
+            jsonSourceId: null,
             content: post.content || null
         } : null;
 
@@ -126,13 +126,11 @@ export default function TimelinePageClient({
                 profileImage: post.author?.avatar,
             } : undefined,
         };
-    };
-
-    const lightboxProps = getLightboxProps();
+    }, [selectedIndex, mediaIndex, posts]);
 
     return (
         <div className={styles.container}>
-            <FilterBar 
+            <FilterBar
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 sortBy={sortBy}
@@ -141,7 +139,7 @@ export default function TimelinePageClient({
 
             <div className={styles.feed}>
                 {posts.map((post, postIdx) => (
-                    <PostCard 
+                    <PostCard
                         key={post.id}
                         post={post}
                         postIndex={postIdx}
@@ -154,8 +152,8 @@ export default function TimelinePageClient({
 
             {nextCursor && (
                 <div className={styles.loadMoreContainer}>
-                    <button 
-                        onClick={() => loadPosts(true)} 
+                    <button
+                        onClick={() => loadPosts(true)}
                         disabled={isLoading}
                         className={styles.secondaryButton}
                     >
