@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
-import type { TimelinePost } from '@/lib/db/repositories/posts';
+import type { TimelinePost } from '@/types/posts';
 import styles from '@/app/timeline/page.module.css';
 
 import FormattedContent from '@/components/FormattedContent';

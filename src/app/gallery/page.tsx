@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getMediaItems } from '@/app/actions';
+import { getMediaItems } from '@/app/actions/gallery';
 import GalleryPageClient from '@/app/gallery/page-client';
 
 export const metadata: Metadata = { title: "Gallery" };
