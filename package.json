@@ -1,33 +1,33 @@
 {
-  "name": "web-gallery",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "db:push": "drizzle-kit push",
-    "test:e2e": "playwright test"
-  },
-  "dependencies": {
-    "better-sqlite3": "^12.6.0",
-    "date-fns": "^4.1.0",
-    "drizzle-orm": "^0.45.1",
-    "lucide-react": "^0.562.0",
-    "next": "16.1.1",
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.58.1",
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "drizzle-kit": "^0.31.8",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.1",
-    "typescript": "5.9.3"
-  }
+    "name": "web-gallery",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint",
+        "db:generate": "drizzle-kit generate",
+        "db:migrate": "drizzle-kit migrate",
+        "test:e2e": "playwright test"
+    },
+    "dependencies": {
+        "@libsql/client": "^0.15.0",
+        "date-fns": "^4.1.0",
+        "drizzle-orm": "^0.45.1",
+        "lucide-react": "^0.562.0",
+        "next": "16.1.1",
+        "react": "19.2.3",
+        "react-dom": "19.2.3"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.58.1",
+        "@types/node": "^20",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "drizzle-kit": "^0.31.8",
+        "eslint": "^9",
+        "eslint-config-next": "16.1.1",
+        "typescript": "5.9.3"
+    }
 }
