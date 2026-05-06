@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Plus } from 'lucide-react';
-import styles from '../page.module.css';
+import styles from '@/app/sources/page.module.css';
 
 interface AddSourceFormProps {
   newUrl: string;

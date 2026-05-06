@@ -1,6 +1,9 @@
+import type { Metadata } from 'next';
 import { getTopTags } from '@/app/actions';
 import Link from 'next/link';
-import styles from './page.module.css';
+import styles from '@/app/tags/page.module.css';
+
+export const metadata: Metadata = { title: "Tag Statistics" };
 
 interface TagsPageProps {
     searchParams: Promise<{

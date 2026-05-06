@@ -3,21 +3,23 @@ import { test, expect } from '@playwright/test';
 test('timeline page loads', async ({ page }) => {
     // Start from the index page (which redirects to timeline)
     await page.goto('/');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
 
     // Expect to be redirected to /timeline
     await expect(page).toHaveURL(/.*\/timeline/);
 
     // Check for the search input
-    await expect(page.getByPlaceholder(/Search timeline/)).toBeVisible();
+    await expect(page.getByPlaceholder(/Search timeline/).first()).toBeVisible();
 
     // Check for the feed container
-    const feed = page.locator('div[class*="feed"]');
+    const feed = page.locator('div[class*="feed"]').first();
     await expect(feed).toBeVisible();
 });
 
 test('timeline search interaction', async ({ page }) => {
     await page.goto('/timeline');
-    const searchInput = page.getByPlaceholder(/Search timeline/);
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
+    const searchInput = page.getByPlaceholder(/Search timeline/).first();
     await expect(searchInput).toBeVisible();
 
     await searchInput.fill('source:twitter');
@@ -29,6 +31,7 @@ test('timeline search interaction', async ({ page }) => {
 
 test('timeline lightbox opens', async ({ page }) => {
     await page.goto('/timeline');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
 
     // Wait for posts to load (async hydration + fetch)
     // We try to wait for either an article or the no posts message
@@ -59,9 +62,10 @@ test('timeline lightbox opens', async ({ page }) => {
 
 test('timeline sorting interaction', async ({ page }) => {
     await page.goto('/timeline');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
     
     // Check for the sort select
-    const sortSelect = page.locator('select');
+    const sortSelect = page.locator('select').first();
     await expect(sortSelect).toBeVisible();
     
     // Change sort to "Oldest First"
@@ -71,6 +75,7 @@ test('timeline sorting interaction', async ({ page }) => {
 
 test('timeline load more button', async ({ page }) => {
     await page.goto('/timeline');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
     
     const loadMoreButton = page.getByRole('button', { name: 'Load More' });
     const articles = page.locator('article');

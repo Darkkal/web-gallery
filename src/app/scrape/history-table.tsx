@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import styles from './page.module.css';
+import styles from '@/app/scrape/page.module.css';
 import { getActiveScrapeStatuses } from '@/app/scrape/actions';
 
 interface HistoryItem {

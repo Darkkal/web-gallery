@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('navigation sidebar works', async ({ page }) => {
     await page.goto('/timeline');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
 
     // Check main nav items exist using href to be robust against text hiding/icons
     await expect(page.locator('a[href="/gallery"]')).toBeVisible();
@@ -17,6 +18,7 @@ test('navigation sidebar works', async ({ page }) => {
 
 test('theme toggle works', async ({ page }) => {
     await page.goto('/timeline');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
 
     // Find theme toggle button
     const themeButton = page.getByLabel('Toggle theme', { exact: false });

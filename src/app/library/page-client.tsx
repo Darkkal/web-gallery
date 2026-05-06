@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { scanLibrary, stopLibraryScan } from '@/app/actions';
 import { purgeDatabases, purgeAvatars, purgeDownloads } from '@/app/actions/debug';
-import styles from './page.module.css';
+import styles from '@/app/library/page.module.css';
 
 export default function LibraryPageClient({ initialScanStatus }: { initialScanStatus: any }) {
     const [scanning, setScanning] = useState(initialScanStatus?.status === 'running');

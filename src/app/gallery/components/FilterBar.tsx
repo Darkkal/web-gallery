@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { CheckSquare, Square } from 'lucide-react';
-import styles from '../page.module.css';
+import styles from '@/app/gallery/page.module.css';
 
 interface FilterBarProps {
     selectionMode: boolean;

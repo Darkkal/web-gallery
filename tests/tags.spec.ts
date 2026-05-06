@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('tags page loads', async ({ page }) => {
     await page.goto('/tags');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
     await expect(page).toHaveURL(/.*\/tags/);
 
     // Check main header
@@ -10,10 +11,11 @@ test('tags page loads', async ({ page }) => {
 
 test('tags list visibility', async ({ page }) => {
     await page.goto('/tags');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
 
     // Check if tags container (grid) exists OR "No tags found" logic
     try {
-        await expect(page.locator('div[class*="grid"]')).toBeVisible({ timeout: 2000 });
+        await expect(page.locator('div[class*="grid"]').first()).toBeVisible({ timeout: 2000 });
     } catch {
         // If grid not found, check for empty state message
         await expect(page.getByText('No tags found')).toBeVisible();

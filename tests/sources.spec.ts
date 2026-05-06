@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('sources page loads', async ({ page }) => {
     await page.goto('/sources');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
     await expect(page).toHaveURL(/.*\/sources/);
 
     // Check for "Add Source" form
@@ -13,6 +14,7 @@ test('sources page loads', async ({ page }) => {
 
 test('view toggle switches layout', async ({ page }) => {
     await page.goto('/sources');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
 
     // Default should be Card View (Grid)
     // We can check for a container or the buttons state
@@ -40,6 +42,7 @@ test('view toggle switches layout', async ({ page }) => {
 
 test('controls presence', async ({ page }) => {
     await page.goto('/sources');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
 
     // Search input
     await expect(page.getByPlaceholder('Search sources...')).toBeVisible();
@@ -50,6 +53,7 @@ test('controls presence', async ({ page }) => {
 
 test('add source interaction (mocked)', async ({ page }) => {
     await page.goto('/sources');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
 
     const input = page.locator('input[type="url"]');
     await expect(input).toBeVisible();

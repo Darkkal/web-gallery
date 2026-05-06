@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('library page loads', async ({ page }) => {
     await page.goto('/library');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
     await expect(page).toHaveURL(/.*\/library/);
 
     // Check main headers
@@ -10,6 +11,7 @@ test('library page loads', async ({ page }) => {
 
 test('scan library interaction', async ({ page }) => {
     await page.goto('/library');
+    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
 
     // Check for "Scan Library" button
     const scanButton = page.getByRole('button', { name: 'Scan Library' });

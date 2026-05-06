@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { createScrapeTask } from '@/app/scrape/actions';
-import styles from './page.module.css';
+import styles from '@/app/scrape/page.module.css';
 import { Plus } from 'lucide-react';
 
 interface Source {

@@ -1,5 +1,8 @@
+import type { Metadata } from 'next';
 import { getLatestScan } from '@/app/actions';
 import LibraryPageClient from '@/app/library/page-client';
+
+export const metadata: Metadata = { title: "Library" };
 
 export default async function LibraryPage() {
     const latestScan = await getLatestScan();
