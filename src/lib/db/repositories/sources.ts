@@ -1,56 +1,26 @@
 import { db } from '@/lib/db';
 import { sources, scrapeHistory, posts, mediaItems, gallerydlExtractorTypes } from '@/lib/db/schema';
 import { eq, desc, isNull, and } from 'drizzle-orm';
-import path from 'path';
-import fs from 'fs/promises';
 
 export async function addSource(url: string, name?: string) {
-    let isLocal = false;
-    let type: 'twitter' | 'pixiv' | 'gallery-dl' | 'local' | 'gelbooruv02' = 'gallery-dl';
+    let type: 'twitter' | 'pixiv' | 'gallery-dl' | 'gelbooruv02' = 'gallery-dl';
 
-    const isWebUrl = url.startsWith('http://') || url.startsWith('https://');
+    try {
+        const parsed = new URL(url);
+        const hostname = parsed.hostname.toLowerCase();
 
-    if (!isWebUrl) {
-        try {
-            if (url.includes('\0')) throw new Error("Invalid path characters");
-
-            const stat = await fs.stat(url);
-            if (stat.isDirectory()) {
-                isLocal = true;
-                type = 'local';
-
-                const resolved = path.resolve(url);
-                const { root } = path.parse(resolved);
-                if (resolved === root || resolved === path.resolve('/')) {
-                    throw new Error("Cannot add root directory as source.");
-                }
-                const blocked = ['/etc', '/var', '/bin', '/usr', 'C:\\Windows', 'C:\\Program Files'];
-                for (const b of blocked) {
-                    if (resolved.startsWith(path.resolve(b))) {
-                        throw new Error("Cannot add system directory as source.");
-                    }
-                }
-            }
-        } catch {
-            // Not a local path or doesn't exist
+        if (hostname === 'twitter.com' || hostname === 'www.twitter.com' || hostname === 'x.com' || hostname === 'www.x.com') {
+            type = 'twitter';
+        } else if (hostname === 'pixiv.net' || hostname === 'www.pixiv.net') {
+            type = 'pixiv';
+        } else if (
+            hostname === 'gelbooru.com' || hostname.endsWith('.gelbooru.com') ||
+            hostname === 'safebooru.org' || hostname.endsWith('.safebooru.org')
+        ) {
+            type = 'gelbooruv02';
         }
-    }
-
-    if (!isLocal) {
-        try {
-            const parsed = new URL(url);
-            const hostname = parsed.hostname.toLowerCase();
-
-            if (hostname === 'twitter.com' || hostname === 'www.twitter.com' || hostname === 'x.com' || hostname === 'www.x.com') {
-                type = 'twitter';
-            } else if (hostname === 'pixiv.net' || hostname === 'www.pixiv.net') {
-                type = 'pixiv';
-            } else if (hostname.endsWith('gelbooru.com') || hostname.endsWith('safebooru.org')) {
-                type = 'gelbooruv02';
-            }
-        } catch {
-            // Treat as generic gallery-dl
-        }
+    } catch {
+        // Treat as generic gallery-dl
     }
 
     await db.insert(gallerydlExtractorTypes).values({ id: type }).onConflictDoNothing().run();
@@ -58,7 +28,7 @@ export async function addSource(url: string, name?: string) {
     await db.insert(sources).values({
         url,
         extractorType: type,
-        name: name || (isLocal ? path.basename(url) : url),
+        name: name || url,
     });
 }
 
