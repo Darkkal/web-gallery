@@ -1,5 +1,5 @@
-import { IMetadataProcessor } from './base';
-import { ProcessTask, ProcessorContext } from '../types';
+import { IMetadataProcessor } from '@/lib/library/processors/base';
+import { ProcessTask, ProcessorContext } from '@/lib/library/types';
 import { posts, postDetailsGelbooruV02, tags, postTags } from '@/lib/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import path from 'path';

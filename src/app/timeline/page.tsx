@@ -1,5 +1,5 @@
-import { getTimelinePosts } from '../actions';
-import TimelinePageClient from './page-client';
+import { getTimelinePosts } from '@/app/actions';
+import TimelinePageClient from '@/app/timeline/page-client';
 
 export default async function TimelinePage({
     searchParams,

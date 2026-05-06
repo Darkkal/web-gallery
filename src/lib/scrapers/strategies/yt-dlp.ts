@@ -1,4 +1,4 @@
-import { BaseScraperStrategy } from './base';
+import { BaseScraperStrategy } from '@/lib/scrapers/strategies/base';
 import { ChildProcess } from 'child_process';
 export class YtDlpStrategy extends BaseScraperStrategy {
     get toolName() { return 'yt-dlp' as const; }

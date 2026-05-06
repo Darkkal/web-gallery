@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createScrapeTask } from './actions';
+import { createScrapeTask } from '@/app/scrape/actions';
 import styles from './page.module.css';
 import { Plus } from 'lucide-react';
 

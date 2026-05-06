@@ -1,8 +1,8 @@
-import { BaseScraperStrategy } from './base';
+import { BaseScraperStrategy } from '@/lib/scrapers/strategies/base';
 import { ChildProcess } from 'child_process';
 import path from 'path';
-import { ScraperOptions } from '../types';
-import { ScrapeLimits } from '../runner';
+import { ScraperOptions } from '@/lib/scrapers/types';
+import { ScrapeLimits } from '@/lib/scrapers/runner';
 
 export class GalleryDlStrategy extends BaseScraperStrategy {
     get toolName() { return 'gallery-dl' as const; }

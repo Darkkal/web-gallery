@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Image, Clock, ListMusic, Database, ChevronLeft, ChevronRight, Sun, Moon, Library, Tag, Download } from "lucide-react";
-import styles from "./Navbar.module.css";
-import { useTheme } from "./ThemeProvider";
+import styles from "@/components/Navbar.module.css";
+import { useTheme } from "@/components/ThemeProvider";
 
 const NAV_ITEMS = [
     {

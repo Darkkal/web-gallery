@@ -1,6 +1,6 @@
 import { ChildProcess, spawn } from 'child_process';
-import { ScraperOptions, ScrapeResult } from '../types';
-import { ScrapeLimits } from '../runner';
+import { ScraperOptions, ScrapeResult } from '@/lib/scrapers/types';
+import { ScrapeLimits } from '@/lib/scrapers/runner';
 
 export abstract class BaseScraperStrategy {
     protected basePath: string;

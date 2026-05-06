@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { addSource, deleteSource, updateSource } from '../actions';
-import styles from './page.module.css';
+import { addSource, deleteSource, updateSource } from '@/app/actions';
+import styles from '@/app/sources/page.module.css';
 import { useSelection } from '@/hooks/useSelection';
 import type { Source } from '@/types/source';
-import AddSourceForm from './components/AddSourceForm';
-import ControlsBar from './components/ControlsBar';
-import SourceCard from './components/SourceCard';
-import SourceTableRow from './components/SourceTableRow';
+import AddSourceForm from '@/app/sources/components/AddSourceForm';
+import ControlsBar from '@/app/sources/components/ControlsBar';
+import SourceCard from '@/app/sources/components/SourceCard';
+import SourceTableRow from '@/app/sources/components/SourceTableRow';
 
 export default function SourcesPageClient({ initialSources }: { initialSources: Source[] }) {
   const [sources, setSources] = useState<Source[]>(initialSources);

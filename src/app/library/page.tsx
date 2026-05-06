@@ -1,5 +1,5 @@
-import { getLatestScan } from '../actions';
-import LibraryPageClient from './page-client';
+import { getLatestScan } from '@/app/actions';
+import LibraryPageClient from '@/app/library/page-client';
 
 export default async function LibraryPage() {
     const latestScan = await getLatestScan();

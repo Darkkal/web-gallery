@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { runTaskNow, stopTask, deleteScrapeTask, updateScrapeTask } from './actions';
+import { runTaskNow, stopTask, deleteScrapeTask, updateScrapeTask } from '@/app/scrape/actions';
 import { Play, Square, Trash2, Pencil, Check, X, Zap } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import styles from './page.module.css';

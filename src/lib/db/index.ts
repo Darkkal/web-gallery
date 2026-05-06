@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
-import * as schema from './schema';
+import * as schema from '@/lib/db/schema';
 import path from 'path';
 import fs from 'fs';
 import { execSync } from 'child_process';

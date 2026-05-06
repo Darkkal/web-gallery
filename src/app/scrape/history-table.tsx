@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import styles from './page.module.css';
-import { getActiveScrapeStatuses } from './actions';
+import { getActiveScrapeStatuses } from '@/app/scrape/actions';
 
 interface HistoryItem {
     id: number;

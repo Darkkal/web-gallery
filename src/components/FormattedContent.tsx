@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import styles from './FormattedContent.module.css';
+import styles from '@/components/FormattedContent.module.css';
 
 interface FormattedContentProps {
     content: string | null | undefined;

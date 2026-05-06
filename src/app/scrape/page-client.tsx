@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import ScrapeTaskForm from './task-form';
-import ScrapeTaskList from './task-list';
-import ScrapeHistoryTable from './history-table';
-import styles from './page.module.css';
+import ScrapeTaskForm from '@/app/scrape/task-form';
+import ScrapeTaskList from '@/app/scrape/task-list';
+import ScrapeHistoryTable from '@/app/scrape/history-table';
+import styles from '@/app/scrape/page.module.css';
 
 export default function ScrapePageClient({ tasks, sources, history }: {
     tasks: { id: number; name: string | null; sourceId: number; enabled: boolean | null; lastRunAt: Date | null; nextRunAt: Date | null; downloadOptions: { stopAfterCompleted?: number; stopAfterSkipped?: number; stopAfterPosts?: number } | null }[],

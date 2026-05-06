@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import styles from './MasonryGrid.module.css';
+import styles from '@/components/MasonryGrid.module.css';
 
 interface MasonryGridProps<T> {
     items: T[];

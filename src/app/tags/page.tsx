@@ -1,4 +1,4 @@
-import { getTopTags } from '../actions';
+import { getTopTags } from '@/app/actions';
 import Link from 'next/link';
 import styles from './page.module.css';
 
