@@ -1,33 +1,15 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { scanHistory, tags, posts, postTags } from '@/lib/db/schema';
+import { tags, posts, postTags } from '@/lib/db/schema';
 import { revalidatePath } from 'next/cache';
 import { desc, count, sql, eq } from 'drizzle-orm';
-
-import { syncLibrary, stopScanning } from '@/lib/library/scanner';
 
 import * as mediaRepo from '@/lib/db/repositories/media';
 import * as postsRepo from '@/lib/db/repositories/posts';
 
 export async function getPostTags(postId: number) {
     return postsRepo.getPostTags(postId);
-}
-
-export async function scanLibrary() {
-    syncLibrary().catch(console.error);
-    return { started: true };
-}
-
-export async function stopLibraryScan() {
-    stopScanning();
-    return { requested: true };
-}
-
-
-export async function getLatestScan() {
-    const scans = await db.select().from(scanHistory).orderBy(desc(scanHistory.startTime)).limit(1);
-    return scans[0] || null;
 }
 
 export async function getMediaItems(filters?: { search?: string; sortBy?: string; limit?: number; cursor?: string; }) {
