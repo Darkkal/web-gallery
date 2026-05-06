@@ -2,62 +2,16 @@
 
 import { db } from '@/lib/db';
 import { scanHistory, tags, posts, postTags } from '@/lib/db/schema';
-import { scraperManager, ScrapingStatus } from '@/lib/scrapers/manager';
 import { revalidatePath } from 'next/cache';
-import path from 'path';
 import { desc, count, sql, eq } from 'drizzle-orm';
 
 import { syncLibrary, stopScanning } from '@/lib/library/scanner';
 
 import * as mediaRepo from '@/lib/db/repositories/media';
 import * as postsRepo from '@/lib/db/repositories/posts';
-import * as sourcesRepo from '@/lib/db/repositories/sources';
-
-const DOWNLOAD_DIR = path.join(process.cwd(), 'public', 'downloads');
 
 export async function getPostTags(postId: number) {
     return postsRepo.getPostTags(postId);
-}
-
-export async function addSource(url: string, name?: string) {
-    await sourcesRepo.addSource(url, name);
-    revalidatePath('/sources');
-}
-
-export async function updateSource(id: number, updates: { url?: string; name?: string }) {
-    await sourcesRepo.updateSource(id, updates);
-    revalidatePath('/sources');
-}
-
-
-export async function getSourcesWithHistory() {
-    return sourcesRepo.getSourcesWithHistory();
-}
-
-export async function scrapeSource(sourceId: number, mode: 'full' | 'quick' = 'full') {
-    const source = await sourcesRepo.getSourceById(sourceId);
-
-    if (!source) {
-        throw new Error('Source not found');
-    }
-
-    await scraperManager.startScrape(sourceId, 'gallery-dl', source.url, DOWNLOAD_DIR, { mode });
-
-    revalidatePath('/sources');
-    return { success: true, message: 'Scrape started in background' };
-}
-
-
-export async function stopScrapingSource(sourceId: number) {
-    const success = scraperManager.stopScrape(sourceId);
-    revalidatePath('/sources');
-    return { success };
-}
-
-export async function deleteSource(id: number) {
-    await sourcesRepo.deleteSource(id);
-    revalidatePath('/sources');
-    return { success: true };
 }
 
 export async function scanLibrary() {
