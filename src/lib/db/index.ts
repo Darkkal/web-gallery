@@ -15,17 +15,52 @@ export const db = drizzle(client, { schema });
 const MIGRATIONS_TABLE = '__drizzle_migrations';
 const migrationsFolder = path.join(process.cwd(), 'drizzle');
 
+interface MigrationEntry {
+    tag: string;
+    when: number;
+    breakpoints: boolean;
+}
+
+interface Journal {
+    version: string;
+    dialect: string;
+    entries: MigrationEntry[];
+}
+
 /**
- * Seeds the migration journal for databases previously managed with
- * `drizzle-kit push`. Marks all existing migrations as applied without
- * re-running their SQL, so `migrate()` skips them on the next call.
+ * Reads migration metadata from the journal and SQL files,
+ * matching what drizzle-orm's `readMigrationFiles()` produces.
  */
-async function seedMigrationJournal(): Promise<void> {
+function readMigrationMeta(): { sql: string; hash: string; folderMillis: number }[] {
     const journalPath = path.join(migrationsFolder, 'meta', '_journal.json');
-    if (!fs.existsSync(journalPath)) return;
+    if (!fs.existsSync(journalPath)) return [];
 
-    const journal = JSON.parse(fs.readFileSync(journalPath, 'utf-8'));
+    const journal: Journal = JSON.parse(fs.readFileSync(journalPath, 'utf-8'));
+    const migrations: { sql: string; hash: string; folderMillis: number }[] = [];
 
+    for (const entry of journal.entries) {
+        const sqlPath = path.join(migrationsFolder, `${entry.tag}.sql`);
+        if (!fs.existsSync(sqlPath)) continue;
+
+        const sql = fs.readFileSync(sqlPath, 'utf-8');
+        migrations.push({
+            sql,
+            hash: createHash('sha256').update(sql).digest('hex'),
+            folderMillis: entry.when,
+        });
+    }
+
+    return migrations;
+}
+
+/**
+ * Applies pending migrations one at a time, tolerating statements
+ * that have already been applied (e.g. from a previous `drizzle-kit push`
+ * database). This is safer than drizzle's built-in `migrate()` for
+ * databases that may have been managed with `push` in the past.
+ */
+async function applyMigrations(): Promise<void> {
+    // Ensure the migrations tracking table exists
     await client.execute(`
         CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,49 +69,60 @@ async function seedMigrationJournal(): Promise<void> {
         )
     `);
 
-    for (const entry of journal.entries) {
-        const sqlPath = path.join(migrationsFolder, `${entry.tag}.sql`);
-        if (!fs.existsSync(sqlPath)) continue;
+    const migrations = readMigrationMeta();
 
-        const sql = fs.readFileSync(sqlPath, 'utf-8');
-        const hash = createHash('sha256').update(`${entry.tag}:${sql}`).digest('hex');
-
-        await client.execute({
-            sql: `INSERT OR IGNORE INTO ${MIGRATIONS_TABLE} (hash, created_at) VALUES (?, ?)`,
-            args: [hash, String(entry.when)],
+    for (const migration of migrations) {
+        // Check if this migration was already applied (by hash)
+        const existing = await client.execute({
+            sql: `SELECT id FROM ${MIGRATIONS_TABLE} WHERE hash = ?`,
+            args: [migration.hash],
         });
-    }
 
-    console.log(`[DB] Seeded migration journal with ${journal.entries.length} existing entries`);
+        if (existing.rows.length > 0) continue;
+
+        // Split on drizzle's statement breakpoint marker
+        const statements = migration.sql
+            .split('--> statement-breakpoint')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+
+        for (const stmt of statements) {
+            try {
+                await client.execute(stmt);
+            } catch (error: unknown) {
+                const msg = error instanceof Error ? error.message : String(error);
+                // Tolerate "already exists" errors from prior push usage
+                if (msg.includes('already exists') || msg.includes('duplicate column name')) {
+                    console.log(`[DB] Skipping already-applied statement: ${stmt.substring(0, 80)}…`);
+                } else {
+                    throw error;
+                }
+            }
+        }
+
+        // Record the migration as applied
+        await client.execute({
+            sql: `INSERT INTO ${MIGRATIONS_TABLE} (hash, created_at) VALUES (?, ?)`,
+            args: [migration.hash, String(migration.folderMillis)],
+        });
+
+        console.log(`[DB] Applied migration (timestamp: ${migration.folderMillis})`);
+    }
 }
 
 /**
  * Initializes the database connection and applies any pending migrations.
  *
  * - Fresh database: all migrations run normally.
- * - Existing database (from `drizzle-kit push`): the migration journal is
- *   seeded first so the already-applied SQL is skipped.
+ * - Existing database (from `drizzle-kit push`): individual statements
+ *   that fail with "already exists" / "duplicate column" are skipped,
+ *   and the migration is marked as applied.
  *
  * Called once at boot via `src/instrumentation.ts`.
  */
 export async function initDb(): Promise<void> {
     try {
-        const metaResult = await client.execute(
-            `SELECT name FROM sqlite_master WHERE type='table' AND name='${MIGRATIONS_TABLE}'`,
-        );
-
-        if (metaResult.rows.length === 0) {
-            const tablesResult = await client.execute(
-                `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`,
-            );
-
-            if (tablesResult.rows.length > 0) {
-                console.log('[DB] Existing database detected — seeding migration journal…');
-                await seedMigrationJournal();
-            }
-        }
-
-        await migrate(db, { migrationsFolder });
+        await applyMigrations();
         console.log('[DB] Database initialized successfully.');
     } catch (error) {
         console.error('[DB] Failed to initialize database:', error);
