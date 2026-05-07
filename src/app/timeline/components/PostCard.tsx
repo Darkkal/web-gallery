@@ -23,7 +23,7 @@ export default function PostCard({
             {/* Header: Avatar, Name, Date */}
             <div className={styles.postHeader}>
                 {post.author?.avatar ? (
-                    <Image src={post.author.avatar} alt={post.author.name || 'User'} width={40} height={40} className={styles.avatar} unoptimized />
+                    <Image src={post.author.avatar} alt={post.author.name || 'User'} width={40} height={40} className={styles.avatar} />
                 ) : (
                     <div className={styles.avatarPlaceholder} />
                 )}
