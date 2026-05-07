@@ -291,11 +291,9 @@ export async function getTimelinePosts(filters?: {
 }
 
 export async function getPostTags(postId: number) {
-    return await db.select({
-        name: tags.name,
-        id: tags.id
-    })
-        .from(postTags)
-        .innerJoin(tags, eq(postTags.tagId, tags.id))
-        .where(eq(postTags.postId, postId));
+    const rows = await db.query.postTags.findMany({
+        where: eq(postTags.postId, postId),
+        with: { tag: true },
+    });
+    return rows.map(r => ({ name: r.tag.name, id: r.tag.id }));
 }

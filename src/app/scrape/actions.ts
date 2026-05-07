@@ -70,15 +70,16 @@ export async function toggleTaskSchedule(id: number, enabled: boolean) {
 export async function runTaskNow(taskId: number, mode: 'full' | 'quick' = 'full') {
     const task = await db.query.scrapingTasks.findFirst({
         where: eq(scrapingTasks.id, taskId),
+        with: {
+            source: true,
+        },
     });
 
     if (!task) {
         throw new Error('Task not found');
     }
 
-    const source = await db.query.sources.findFirst({
-        where: eq(sources.id, task.sourceId),
-    });
+    const source = task.source;
 
     if (!source) {
         throw new Error('Source not found');
@@ -128,7 +129,8 @@ export async function getScrapeHistory(limit = 50) {
         orderBy: desc(scrapeHistory.startTime),
         limit: limit,
         with: {
-            // potentially join task or source
+            source: true,
+            task: true,
         }
     });
 }
