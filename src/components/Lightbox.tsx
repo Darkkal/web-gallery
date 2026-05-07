@@ -121,21 +121,24 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, gelbooru
                     ) : item.mediaType === 'text' ? (
                         <div
                             className={styles.textContent}
-                            onClick={(e) => { 
+                            onClick={(e) => {
                                 // Don't toggle info if clicking a link
                                 if ((e.target as HTMLElement).tagName === 'A') return;
-                                e.stopPropagation(); 
-                                setShowInfo(!showInfo); 
+                                e.stopPropagation();
+                                setShowInfo(!showInfo);
                             }}
                         >
                             <FormattedContent content={item.title} />
                         </div>
                     ) : (
-                        <img
+                        <Image
                             src={item.filePath}
                             alt={item.title || 'Gallery Image'}
                             className={styles.image}
                             onClick={(e) => { e.stopPropagation(); setShowInfo(!showInfo); }}
+                            width={1200}
+                            height={800}
+                            unoptimized
                         />
                     )}
                 </div>

@@ -1,52 +1,47 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styles from '@/components/MasonryGrid.module.css';
 
 interface MasonryGridProps<T> {
     items: T[];
     renderItem: (item: T, index: number) => React.ReactNode;
-    columnCount?: number; // Optional prop to force column count, default is responsive
+    columnCount?: number;
+}
+
+function getColumnCount(width: number): number {
+    if (width < 640) return 1;
+    if (width < 1024) return 2;
+    if (width < 1500) return 3;
+    return 4;
 }
 
 export default function MasonryGrid<T>({ items, renderItem, columnCount: userColumnCount }: MasonryGridProps<T>) {
-    const [columns, setColumns] = useState<T[][]>([]);
-    const [currentColumnCount, setCurrentColumnCount] = useState(3);
+    const [windowWidth, setWindowWidth] = useState<number | null>(() => {
+        if (typeof window === 'undefined') return null;
+        return window.innerWidth;
+    });
 
     useEffect(() => {
-        if (userColumnCount) {
-            setCurrentColumnCount(userColumnCount);
-            return;
-        }
+        if (userColumnCount) return;
 
         const handleResize = () => {
-            const width = window.innerWidth;
-            if (width < 640) {
-                setCurrentColumnCount(1);
-            } else if (width < 1024) {
-                setCurrentColumnCount(2);
-            } else if (width < 1500) {
-                setCurrentColumnCount(3);
-            } else {
-                setCurrentColumnCount(4);
-            }
+            setWindowWidth(window.innerWidth);
         };
 
-        handleResize(); // Initial check
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, [userColumnCount]);
 
-    useEffect(() => {
-        // Distribute items into columns
-        const newColumns: T[][] = Array.from({ length: currentColumnCount }, () => []);
+    const currentColumnCount = userColumnCount ?? (windowWidth !== null ? getColumnCount(windowWidth) : 3);
 
+    const columns = useMemo(() => {
+        const newColumns: T[][] = Array.from({ length: currentColumnCount }, () => []);
         items.forEach((item, index) => {
             const columnIndex = index % currentColumnCount;
             newColumns[columnIndex].push(item);
         });
-
-        setColumns(newColumns);
+        return newColumns;
     }, [items, currentColumnCount]);
 
     return (
@@ -54,21 +49,7 @@ export default function MasonryGrid<T>({ items, renderItem, columnCount: userCol
             {columns.map((col, colIndex) => (
                 <div key={colIndex} className={styles.column}>
                     {col.map((item, itemIndex) => {
-                        // Calculate original index to pass to renderItem if needed, 
-                        // though typically clients might rely on item ID or passed index
-                        // Finding the original index in the flat array:
-                        // Since we distribute round-robin: 
-                        // item is at columns[colIndex][itemIndex]
-                        // originalIndex = itemIndex * currentColumnCount + colIndex
-                        // Validation:
-                        // item 0: col 0, row 0 => 0*3 + 0 = 0
-                        // item 1: col 1, row 0 => 0*3 + 1 = 1
-                        // item 3: col 0, row 1 => 1*3 + 0 = 3
-
                         const originalIndex = itemIndex * currentColumnCount + colIndex;
-                        // Guard against potential out of bounds if items changed rapidly?
-                        // Actually, mapping over 'col' ensures existence.
-
                         return (
                             <React.Fragment key={colIndex + '-' + itemIndex}>
                                 {renderItem(item, originalIndex)}

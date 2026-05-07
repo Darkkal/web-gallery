@@ -13,19 +13,21 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const [theme, setTheme] = useState<Theme>("dark");
-    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
         const savedTheme = localStorage.getItem("theme") as Theme | null;
         const systemPreference = window.matchMedia("(prefers-color-scheme: dark)").matches
             ? "dark"
             : "light";
-
         const initialTheme = savedTheme || systemPreference;
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- reading client-only state after hydration
         setTheme(initialTheme);
         document.documentElement.setAttribute("data-theme", initialTheme);
     }, []);
+
+    useEffect(() => {
+        document.documentElement.setAttribute("data-theme", theme);
+    }, [theme]);
 
     const toggleTheme = () => {
         const newTheme = theme === "dark" ? "light" : "dark";

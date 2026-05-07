@@ -57,7 +57,7 @@ export default function PostCard({
                     onClick={(e) => {
                         // Don't trigger media click if we're clicking a link in the HTML
                         if ((e.target as HTMLElement).tagName === 'A') return;
-                        
+
                         const textMediaIndex = post.mediaItems.findIndex(m => m.type === 'text');
                         if (textMediaIndex !== -1) {
                             onMediaClick(postIndex, textMediaIndex, e);
@@ -83,7 +83,7 @@ export default function PostCard({
                                 {media.type === 'video' ? (
                                     <video src={media.url} controls className={styles.media} />
                                 ) : (
-                                    <img src={media.url} alt="" className={styles.media} loading="lazy" />
+                                    <Image src={media.url} alt="" className={styles.media} width={300} height={300} unoptimized />
                                 )}
                             </div>
                         );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Image, Clock, ListMusic, Database, ChevronLeft, ChevronRight, Sun, Moon, Library, Tag, Download } from "lucide-react";
@@ -52,6 +52,7 @@ export function Navbar() {
 
     useEffect(() => {
         const saved = localStorage.getItem("navbar-collapsed");
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- reading client-only state after hydration
         if (saved) setIsCollapsed(saved === "true");
     }, []);
 

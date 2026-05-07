@@ -20,7 +20,7 @@ export default function FormattedContent({ content, className }: FormattedConten
         // Process links to open in new tab and handle some basic Pixiv-specific HTML cleanup if needed
         // Pixiv often uses <br /> or <br>
         // We also want to ensure links open in new tabs
-        let processedHtml = content.replace(
+        const processedHtml = content.replace(
             /<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1/gi,
             (match) => {
                 if (!match.includes('target=')) {
@@ -35,7 +35,7 @@ export default function FormattedContent({ content, className }: FormattedConten
                 className={combinedClassName}
                 dangerouslySetInnerHTML={{ __html: processedHtml }}
                 onClick={(e) => {
-                    // Prevent clicks on links from bubbling up if needed, 
+                    // Prevent clicks on links from bubbling up if needed,
                     // but usually we want them to bubble to the parent if the parent handles background clicks.
                     // However, if the parent has an onClick that toggles UI, we might want to stop propagation for links.
                     if ((e.target as HTMLElement).tagName === 'A') {

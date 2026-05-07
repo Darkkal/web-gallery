@@ -7,7 +7,7 @@ interface QueueItem {
     task: Task;
     signal?: AbortSignal;
     resolve: () => void;
-    reject: (err: any) => void;
+    reject: (err: unknown) => void;
 }
 
 class RequestQueue {
