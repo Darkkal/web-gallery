@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
+import { relations } from 'drizzle-orm';
 
 export const gallerydlExtractorTypes = sqliteTable('gallerydl_extractor_types', {
     id: text('id').primaryKey(), // 'twitter', 'pixiv', etc.
@@ -63,7 +64,7 @@ export const scanHistory = sqliteTable('scan_history', {
     lastError: text('last_error'),
 });
 
-// Forward declaration for circular references if needed in standard SQL, 
+// Forward declaration for circular references if needed in standard SQL,
 // but Drizzle handles them via callbacks usually or order doesn't matter for definition objects until usage.
 // However, we need to define tables before referencing them if we pass them as objects.
 
@@ -204,3 +205,127 @@ export const postTags = sqliteTable('post_tags', {
     pk: primaryKey({ columns: [t.tagId, t.postId] }),
 }));
 
+// ──────────────────────────────────────────────
+// Relations
+// ──────────────────────────────────────────────
+
+export const gallerydlExtractorTypesRelations = relations(gallerydlExtractorTypes, ({ many }) => ({
+    sources: many(sources),
+}));
+
+export const sourcesRelations = relations(sources, ({ one, many }) => ({
+    extractorType: one(gallerydlExtractorTypes, {
+        fields: [sources.extractorType],
+        references: [gallerydlExtractorTypes.id],
+    }),
+    scrapingTasks: many(scrapingTasks),
+    scraperDownloadLogs: many(scraperDownloadLogs),
+    scrapeHistory: many(scrapeHistory),
+    posts: many(posts),
+}));
+
+export const scraperDownloadLogsRelations = relations(scraperDownloadLogs, ({ one }) => ({
+    source: one(sources, {
+        fields: [scraperDownloadLogs.sourceId],
+        references: [sources.id],
+    }),
+}));
+
+export const scrapingTasksRelations = relations(scrapingTasks, ({ one, many }) => ({
+    source: one(sources, {
+        fields: [scrapingTasks.sourceId],
+        references: [sources.id],
+    }),
+    scrapeHistory: many(scrapeHistory),
+}));
+
+export const scrapeHistoryRelations = relations(scrapeHistory, ({ one }) => ({
+    source: one(sources, {
+        fields: [scrapeHistory.sourceId],
+        references: [sources.id],
+    }),
+    task: one(scrapingTasks, {
+        fields: [scrapeHistory.taskId],
+        references: [scrapingTasks.id],
+    }),
+}));
+
+export const postsRelations = relations(posts, ({ one, many }) => ({
+    source: one(sources, {
+        fields: [posts.internalSourceId],
+        references: [sources.id],
+    }),
+    twitterDetails: one(postDetailsTwitter, {
+        fields: [posts.id],
+        references: [postDetailsTwitter.postId],
+    }),
+    pixivDetails: one(postDetailsPixiv, {
+        fields: [posts.id],
+        references: [postDetailsPixiv.postId],
+    }),
+    gelbooruDetails: one(postDetailsGelbooruV02, {
+        fields: [posts.id],
+        references: [postDetailsGelbooruV02.postId],
+    }),
+    mediaItems: many(mediaItems),
+    tags: many(postTags),
+}));
+
+export const postDetailsTwitterRelations = relations(postDetailsTwitter, ({ one }) => ({
+    post: one(posts, {
+        fields: [postDetailsTwitter.postId],
+        references: [posts.id],
+    }),
+}));
+
+export const postDetailsPixivRelations = relations(postDetailsPixiv, ({ one }) => ({
+    post: one(posts, {
+        fields: [postDetailsPixiv.postId],
+        references: [posts.id],
+    }),
+}));
+
+export const postDetailsGelbooruV02Relations = relations(postDetailsGelbooruV02, ({ one }) => ({
+    post: one(posts, {
+        fields: [postDetailsGelbooruV02.postId],
+        references: [posts.id],
+    }),
+}));
+
+export const mediaItemsRelations = relations(mediaItems, ({ one, many }) => ({
+    post: one(posts, {
+        fields: [mediaItems.postId],
+        references: [posts.id],
+    }),
+    collectionItems: many(collectionItems),
+}));
+
+export const collectionsRelations = relations(collections, ({ many }) => ({
+    items: many(collectionItems),
+}));
+
+export const collectionItemsRelations = relations(collectionItems, ({ one }) => ({
+    collection: one(collections, {
+        fields: [collectionItems.collectionId],
+        references: [collections.id],
+    }),
+    mediaItem: one(mediaItems, {
+        fields: [collectionItems.mediaItemId],
+        references: [mediaItems.id],
+    }),
+}));
+
+export const tagsRelations = relations(tags, ({ many }) => ({
+    postTags: many(postTags),
+}));
+
+export const postTagsRelations = relations(postTags, ({ one }) => ({
+    tag: one(tags, {
+        fields: [postTags.tagId],
+        references: [tags.id],
+    }),
+    post: one(posts, {
+        fields: [postTags.postId],
+        references: [posts.id],
+    }),
+}));
