@@ -35,7 +35,7 @@ export class GalleryDlStrategy extends BaseScraperStrategy {
             args.push('--post-range', `1-${this.limits.stopAfterPosts}`);
         }
 
-        // Note: [post-complete] signaling is now handled by the 'post-counter' 
+        // Note: [post-complete] signaling is now handled by the 'post-counter'
         // postprocessor in gallery-dl.conf for better reliability.
 
         // Log file overrides
@@ -57,7 +57,7 @@ export class GalleryDlStrategy extends BaseScraperStrategy {
         if (line.startsWith('[progress]')) {
             const parts = line.replace('[progress]', '').split('|').map(p => p.trim());
             if (parts.length >= 2) {
-                this.currentFileBytes = this.parseSizeStringToBytes(parts[0]);
+                this.currentFileBytes = this.parseSizeToBytes(parts[0]);
                 this.currentSpeed = parts[1];
                 if (parts.length >= 4) {
                     this.currentTotalSize = parts[2];
@@ -69,7 +69,7 @@ export class GalleryDlStrategy extends BaseScraperStrategy {
             return;
         } else if (line.startsWith('[success]')) {
             this.downloadedCount++;
-            this.cumulativeBytes += this.parseSizeStringToBytes(this.currentTotalSize);
+            this.cumulativeBytes += this.parseSizeToBytes(this.currentTotalSize);
             this.currentFileBytes = 0;
 
             const parts = line.split('[success] ');

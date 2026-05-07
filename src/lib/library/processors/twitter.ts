@@ -48,7 +48,7 @@ interface TwitterMeta {
 }
 
 export class TwitterProcessor implements IMetadataProcessor<TwitterMeta> {
-    process(meta: TwitterMeta, task: ProcessTask, context: ProcessorContext): number | null {
+    async process(meta: TwitterMeta, task: ProcessTask, context: ProcessorContext): Promise<number | null> {
         const { tx, existingTwitterUsers, existingPosts, userAvatars, internalSourceId } = context;
 
         const userObj = meta.user || meta.author || {};
@@ -64,7 +64,7 @@ export class TwitterProcessor implements IMetadataProcessor<TwitterMeta> {
                 };
                 if (avatarPath) updateSet.profileImage = avatarPath;
 
-                tx.insert(twitterUsers).values({
+                await tx.insert(twitterUsers).values({
                     id: uidStr,
                     name: userObj.nick || userObj.name || meta.uploader,
                     nick: userObj.name || userObj.nick,
@@ -84,7 +84,7 @@ export class TwitterProcessor implements IMetadataProcessor<TwitterMeta> {
                 }).onConflictDoUpdate({
                     target: twitterUsers.id,
                     set: updateSet
-                }).run();
+                });
                 existingTwitterUsers.add(uidStr);
             }
         }
@@ -93,7 +93,7 @@ export class TwitterProcessor implements IMetadataProcessor<TwitterMeta> {
         if (tid) {
             const key = `twitter:${tid}`;
             if (!existingPosts.has(key)) {
-                const inserted = tx.insert(posts).values({
+                const inserted = await tx.insert(posts).values({
                     extractorType: 'twitter',
                     jsonSourceId: tid,
                     internalSourceId: internalSourceId,
@@ -104,13 +104,13 @@ export class TwitterProcessor implements IMetadataProcessor<TwitterMeta> {
                     url: `https://x.com/${userObj.name || userObj.nick || 'i'}/status/${tid}`,
                     metadataPath: task.jsonPath ? path.relative(path.join(process.cwd(), 'public'), task.jsonPath).split(path.sep).join('/') : null,
                     createdAt: new Date()
-                }).returning({ id: posts.id }).get();
+                }).returning({ id: posts.id });
 
-                const postId = inserted.id;
+                const postId = inserted[0]?.id;
                 existingPosts.set(key, postId);
 
-                tx.insert(postDetailsTwitter).values({
-                    postId: postId,
+                await tx.insert(postDetailsTwitter).values({
+                    postId: postId!,
                     retweetId: meta.retweet_id ? String(meta.retweet_id) : null,
                     quoteId: meta.quote_id ? String(meta.quote_id) : null,
                     replyId: meta.reply_id ? String(meta.reply_id) : null,
@@ -127,16 +127,15 @@ export class TwitterProcessor implements IMetadataProcessor<TwitterMeta> {
                     viewCount: meta.view_count,
                     category: 'twitter',
                     subcategory: 'tweet'
-                }).run();
-                return postId;
+                });
+                return postId!;
             } else {
                 const postId = existingPosts.get(key) || null;
                 if (postId && internalSourceId) {
                     // Update internalSourceId if it's currently null
-                    tx.update(posts)
+                    await tx.update(posts)
                         .set({ internalSourceId })
-                        .where(and(eq(posts.id, postId), isNull(posts.internalSourceId)))
-                        .run();
+                        .where(and(eq(posts.id, postId), isNull(posts.internalSourceId)));
                 }
                 return postId;
             }

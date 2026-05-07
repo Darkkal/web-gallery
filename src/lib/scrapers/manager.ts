@@ -7,6 +7,7 @@ import { scrapeHistory, scraperDownloadLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { syncLibrary } from '@/lib/library/scanner';
 import { BaseScraperStrategy } from '@/lib/scrapers/strategies/base';
+import { parseSizeToBytes } from '@/lib/utils/format';
 
 export interface ScrapingStatus extends ScrapeProgress {
     historyId: number;
@@ -46,7 +47,7 @@ class ScraperManager {
         const startTime = new Date();
 
         // Create history record at the start
-        const historyRecord = db.insert(scrapeHistory).values({
+        const historyRows = await db.insert(scrapeHistory).values({
             sourceId,
             startTime,
             status: 'running',
@@ -57,21 +58,20 @@ class ScraperManager {
             postsProcessed: 0,
             averageSpeed: 0,
             taskId: options.taskId,
-        }).returning({ id: scrapeHistory.id }).get();
+        }).returning({ id: scrapeHistory.id });
 
-        if (!historyRecord) {
+        if (!historyRows || historyRows.length === 0) {
             console.error(`[ScraperManager] Failed to create history record for source ${sourceId}`);
             return;
         }
 
-        const historyId = historyRecord.id;
+        const historyId = historyRows[0].id;
         const logPath = path.join('data', 'scrapers', 'gallery-dl', 'logs', `scrape_${historyId}.log`);
-        
+
         // Update history with log path
-        db.update(scrapeHistory)
+        await db.update(scrapeHistory)
             .set({ logPath })
-            .where(eq(scrapeHistory.id, historyId))
-            .run();
+            .where(eq(scrapeHistory.id, historyId));
 
         console.log(`[ScraperManager] Created history record ${historyId} for source ${sourceId}`);
 
@@ -107,7 +107,7 @@ class ScraperManager {
 
         this.activeScrapes.set(sourceId, { process: child, status, strategy });
 
-        promise.then((result) => {
+        promise.then(async (result) => {
             let logMsg = result.error || result.output || '';
             if (logMsg.length > 200) {
                 logMsg = logMsg.substring(0, 200) + '...';
@@ -128,7 +128,7 @@ class ScraperManager {
                     const chunkSize = 100;
                     for (let i = 0; i < values.length; i += chunkSize) {
                         const batch = values.slice(i, i + chunkSize);
-                        db.insert(scraperDownloadLogs).values(batch).onConflictDoNothing().run();
+                        await db.insert(scraperDownloadLogs).values(batch).onConflictDoNothing();
                     }
                 } catch (e: unknown) {
                     const err = e as Error;
@@ -146,7 +146,7 @@ class ScraperManager {
                 const bytesDownloaded = this.parseSizeToBytes(current.status.totalSize);
                 const averageSpeed = durationSeconds > 0 ? Math.floor(bytesDownloaded / durationSeconds) : 0;
 
-                db.update(scrapeHistory)
+                await db.update(scrapeHistory)
                     .set({
                         endTime,
                         status: result.success ? 'completed' : 'failed',
@@ -156,10 +156,9 @@ class ScraperManager {
                         skippedCount: current.status.skippedCount,
                         postsProcessed: current.status.postsProcessed,
                         averageSpeed,
-                        lastError: result.error || (result.success ? null : result.output), // Store error or output if failed
+                        lastError: result.error || (result.success ? null : result.output),
                     })
-                    .where(eq(scrapeHistory.id, historyId))
-                    .run();
+                    .where(eq(scrapeHistory.id, historyId));
 
                 console.log(`[ScraperManager] Updated history record ${historyId} with final metrics`);
 
@@ -172,18 +171,17 @@ class ScraperManager {
                     this.activeScrapes.delete(sourceId);
                 }, 30000); // 30 seconds
             }
-        }).catch(err => {
+        }).catch(async (err) => {
             console.error(`[ScraperManager] ERROR for source ID:`, sourceId, err);
 
             // Update history record as failed
-            db.update(scrapeHistory)
+            await db.update(scrapeHistory)
                 .set({
                     endTime: new Date(),
                     status: 'failed',
                     lastError: err instanceof Error ? err.message : String(err),
                 })
-                .where(eq(scrapeHistory.id, historyId))
-                .run();
+                .where(eq(scrapeHistory.id, historyId));
 
             this.activeScrapes.delete(sourceId);
 
@@ -201,7 +199,7 @@ class ScraperManager {
         return Array.from(this.activeScrapes.values()).map(s => s.status);
     }
 
-    stopScrape(sourceId: number) {
+    async stopScrape(sourceId: number) {
         const active = this.activeScrapes.get(sourceId);
         if (active) {
             const pid = active.process.pid;
@@ -217,7 +215,7 @@ class ScraperManager {
                 const bytesDownloaded = this.parseSizeToBytes(active.status.totalSize);
                 const averageSpeed = durationSeconds > 0 ? Math.floor(bytesDownloaded / durationSeconds) : 0;
 
-                db.update(scrapeHistory)
+                await db.update(scrapeHistory)
                     .set({
                         endTime,
                         status: 'stopped',
@@ -228,16 +226,13 @@ class ScraperManager {
                         postsProcessed: active.status.postsProcessed,
                         averageSpeed,
                     })
-                    .where(eq(scrapeHistory.id, active.status.historyId))
-                    .run();
+                    .where(eq(scrapeHistory.id, active.status.historyId));
 
                 console.log(`[ScraperManager] Updated history record ${active.status.historyId} with stopped status`);
             }
 
             if (pid) {
                 if (process.platform === 'win32') {
-                    // On Windows, spawn with shell: true creates a process tree.
-                    // We need taskkill to kill the entire tree (/t) and force it (/f).
                     spawn('taskkill', ['/pid', pid.toString(), '/f', '/t']);
                 } else {
                     active.process.kill();
@@ -255,35 +250,8 @@ class ScraperManager {
         return false;
     }
 
-    // Helper method to parse size strings like "120MiB" to bytes
-    private parseSizeToBytes(sizeStr: string): number {
-        if (!sizeStr) return 0;
-        const match = sizeStr.trim().match(/^([\d.]+)\s*([A-Za-z]*)$/);
-        if (!match) return 0;
-
-        const value = parseFloat(match[1]);
-        const unit = match[2].toLowerCase();
-
-        if (!unit) return Math.floor(value);
-
-        const multipliers: { [key: string]: number } = {
-            'b': 1,
-            'k': 1024,
-            'kb': 1024,
-            'kib': 1024,
-            'm': 1024 * 1024,
-            'mb': 1024 * 1024,
-            'mib': 1024 * 1024,
-            'g': 1024 * 1024 * 1024,
-            'gb': 1024 * 1024 * 1024,
-            'gib': 1024 * 1024 * 1024,
-            't': 1024 * 1024 * 1024 * 1024,
-            'tb': 1024 * 1024 * 1024 * 1024,
-            'tib': 1024 * 1024 * 1024 * 1024,
-        };
-
-        return Math.floor(value * (multipliers[unit] || 0));
-    }
+    // Size parsing delegated to shared utility
+    private parseSizeToBytes = parseSizeToBytes;
 }
 
 export const scraperManager = ScraperManager.getInstance();

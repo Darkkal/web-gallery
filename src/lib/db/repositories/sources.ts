@@ -23,7 +23,7 @@ export async function addSource(url: string, name?: string) {
         // Treat as generic gallery-dl
     }
 
-    await db.insert(gallerydlExtractorTypes).values({ id: type }).onConflictDoNothing().run();
+    await db.insert(gallerydlExtractorTypes).values({ id: type }).onConflictDoNothing();
 
     await db.insert(sources).values({
         url,
@@ -40,8 +40,7 @@ export async function updateSource(id: number, updates: { url?: string; name?: s
             ...(updates.url ? { url: updates.url } : {}),
             ...(updates.name ? { name: updates.name } : {}),
         })
-        .where(eq(sources.id, id))
-        .run();
+        .where(eq(sources.id, id));
 }
 
 export async function getSources() {
@@ -106,6 +105,5 @@ export async function deleteSource(id: number) {
 
     await db.update(sources)
         .set({ deletedAt: new Date() })
-        .where(eq(sources.id, numericId))
-        .run();
+        .where(eq(sources.id, numericId));
 }

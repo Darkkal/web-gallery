@@ -73,24 +73,24 @@ export async function purgeDatabases() {
         console.log('[purgeDatabases] Truncating main database tables...');
 
         // Disable Foreign Keys
-        db.run(sql`PRAGMA foreign_keys = OFF`);
+        await db.run(sql`PRAGMA foreign_keys = OFF`);
 
         // Delete from each table using the type-safe list
         for (const table of allTables) {
             console.log(`[purgeDatabases] Clearing table: ${getTableName(table)}`);
-            db.delete(table).run();
+            await db.delete(table);
         }
 
         // Reset Sequence
         try {
-            db.run(sql`DELETE FROM sqlite_sequence`);
+            await db.run(sql`DELETE FROM sqlite_sequence`);
         } catch { }
 
         // Re-enable Foreign Keys
-        db.run(sql`PRAGMA foreign_keys = ON`);
+        await db.run(sql`PRAGMA foreign_keys = ON`);
 
         // Vacuum to reclaim space
-        db.run(sql`VACUUM`);
+        await db.run(sql`VACUUM`);
 
         console.log('[purgeDatabases] Main database truncated successfully.');
 
