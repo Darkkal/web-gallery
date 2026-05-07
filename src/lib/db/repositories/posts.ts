@@ -96,7 +96,7 @@ export async function getTimelinePosts(filters?: {
                 cursorSortVal = decoded.substring(0, lastUnderscore);
                 cursorId = parseInt(decoded.substring(lastUnderscore + 1), 10);
             }
-        } catch (e) {
+        } catch {
             // Invalid cursor, ignore
         }
     }

@@ -14,12 +14,12 @@ import FilterBar from '@/app/gallery/components/FilterBar';
 import BulkActionBar from '@/app/gallery/components/BulkActionBar';
 import GalleryItem from '@/app/gallery/components/GalleryItem';
 
-export default function GalleryPageClient({ 
-    initialItems, 
-    initialSearch, 
+export default function GalleryPageClient({
+    initialItems,
+    initialSearch,
     initialSort,
     initialNextCursor
-}: { 
+}: {
     initialItems: GalleryGroup[],
     initialSearch: string,
     initialSort: string,
@@ -36,15 +36,15 @@ export default function GalleryPageClient({
     // Shared Hooks
     const debouncedSearch = useDebouncedValue(searchQuery, 1000);
     const debouncedSort = useDebouncedValue(sortBy, 1000);
-    
-    const { 
-        selectionMode, 
-        setSelectionMode, 
-        selectedIds, 
-        toggleGroupSelection, 
-        selectAll, 
+
+    const {
+        selectionMode,
+        setSelectionMode,
+        selectedIds,
+        toggleGroupSelection,
+        selectAll,
         clearSelection,
-        selectedCount 
+        selectedCount
     } = useSelection();
 
     const {
@@ -54,9 +54,7 @@ export default function GalleryPageClient({
         close: closeLightbox,
         next: nextLightbox,
         prev: prevLightbox,
-        setSelectedIndex,
-        setMediaIndex
-    } = useLightbox(items.length, (idx) => items[idx].groupItems.length);
+        setSelectedIndex } = useLightbox(items.length, (idx) => items[idx].groupItems.length);
 
     const loadItems = useCallback(async (isAppending = false) => {
         setIsLoading(true);
@@ -81,7 +79,7 @@ export default function GalleryPageClient({
     useEffect(() => {
         setNextCursor(null);
         loadItems(false);
-    }, [debouncedSearch, debouncedSort]);
+    }, [debouncedSearch, debouncedSort, loadItems]);
 
     async function handleBulkDelete(deleteFiles: boolean) {
         if (selectedCount === 0) return;
@@ -123,14 +121,14 @@ export default function GalleryPageClient({
     return (
         <div className={styles.container}>
             {selectionMode && (
-                <BulkActionBar 
-                    selectedCount={selectedCount} 
-                    onBulkDelete={handleBulkDelete} 
-                    deleting={deleting} 
+                <BulkActionBar
+                    selectedCount={selectedCount}
+                    onBulkDelete={handleBulkDelete}
+                    deleting={deleting}
                 />
             )}
 
-            <FilterBar 
+            <FilterBar
                 selectionMode={selectionMode}
                 setSelectionMode={(mode) => {
                     setSelectionMode(mode);
@@ -150,7 +148,7 @@ export default function GalleryPageClient({
                 items={items}
                 columnCount={columnCount}
                 renderItem={(row: GalleryGroup, index: number) => (
-                    <GalleryItem 
+                    <GalleryItem
                         key={row.item.id}
                         row={row}
                         isSelected={row.groupItems.some(i => selectedIds.has(i.item.id))}
@@ -168,8 +166,8 @@ export default function GalleryPageClient({
 
             {nextCursor && (
                 <div className={styles.loadMoreContainer}>
-                    <button 
-                        onClick={() => loadItems(true)} 
+                    <button
+                        onClick={() => loadItems(true)}
                         disabled={isLoading}
                         className={`${styles.secondaryButton} ${styles.loadMoreButton}`}
                     >

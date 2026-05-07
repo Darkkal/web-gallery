@@ -60,7 +60,7 @@ export async function getMediaItems(
             const [valStr, idStr] = decoded.split('_');
             cursorSortVal = parseInt(valStr, 10);
             cursorId = parseInt(idStr, 10);
-        } catch (e) {
+        } catch {
             // Invalid cursor
         }
     }
@@ -162,11 +162,11 @@ export async function getMediaItems(
 
     // Return the items minus the internal sortVal to match the previous structure as closely as possible
     const items = Array.from(groupedMap.values()).map(g => {
-        const { sortVal, ...rest } = g;
+        const { ...rest } = g;
         return {
             ...rest,
             groupItems: g.groupItems.map(gi => {
-                const { sortVal: _, ...giRest } = gi;
+                const { ...giRest } = gi;
                 return giRest;
             })
         };

@@ -63,7 +63,7 @@ export default function TimelinePageClient({
     useEffect(() => {
         setNextCursor(null);
         loadPosts(false);
-    }, [debouncedSearch, debouncedSort]);
+    }, [debouncedSearch, debouncedSort, loadPosts]);
 
     // Prepare Lightbox Data from current selection
     const lightboxProps = useMemo(() => {

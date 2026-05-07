@@ -226,8 +226,8 @@ export default function LibraryPageClient({ initialScanStatus }: { initialScanSt
                 </div>
                 <p className={styles.dangerNote}>
                     Database Purge stops all activities and wipes the DB. <br />
-                    Purge Avatars deletes 'public/avatars'. <br />
-                    Purge Downloads deletes 'public/downloads'.
+                    Purge Avatars deletes &apos;public/avatars&apos;. <br />
+                    Purge Downloads deletes &apos;public/downloads&apos;.
                 </p>
             </div>
         </div>

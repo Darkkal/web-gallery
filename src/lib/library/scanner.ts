@@ -6,15 +6,11 @@ import {
     twitterUsers,
     pixivUsers,
     tags,
-    postTags,
     scanHistory,
     gallerydlExtractorTypes,
     scraperDownloadLogs,
     // New Tables
     posts,
-    postDetailsTwitter,
-    postDetailsPixiv,
-    postDetailsGelbooruV02
 } from '@/lib/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { ProcessTask, ProcessorContext, UserCache, TagCache } from '@/lib/library/types';
