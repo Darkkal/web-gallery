@@ -7,6 +7,7 @@ import { scrapeHistory, scraperDownloadLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { syncLibrary } from '@/lib/library/scanner';
 import { BaseScraperStrategy } from '@/lib/scrapers/strategies/base';
+import { parseSizeToBytes } from '@/lib/utils/format';
 
 export interface ScrapingStatus extends ScrapeProgress {
     historyId: number;
@@ -249,35 +250,8 @@ class ScraperManager {
         return false;
     }
 
-    // Helper method to parse size strings like "120MiB" to bytes
-    private parseSizeToBytes(sizeStr: string): number {
-        if (!sizeStr) return 0;
-        const match = sizeStr.trim().match(/^([\d.]+)\s*([A-Za-z]*)$/);
-        if (!match) return 0;
-
-        const value = parseFloat(match[1]);
-        const unit = match[2].toLowerCase();
-
-        if (!unit) return Math.floor(value);
-
-        const multipliers: { [key: string]: number } = {
-            'b': 1,
-            'k': 1024,
-            'kb': 1024,
-            'kib': 1024,
-            'm': 1024 * 1024,
-            'mb': 1024 * 1024,
-            'mib': 1024 * 1024,
-            'g': 1024 * 1024 * 1024,
-            'gb': 1024 * 1024 * 1024,
-            'gib': 1024 * 1024 * 1024,
-            't': 1024 * 1024 * 1024 * 1024,
-            'tb': 1024 * 1024 * 1024 * 1024,
-            'tib': 1024 * 1024 * 1024 * 1024,
-        };
-
-        return Math.floor(value * (multipliers[unit] || 0));
-    }
+    // Size parsing delegated to shared utility
+    private parseSizeToBytes = parseSizeToBytes;
 }
 
 export const scraperManager = ScraperManager.getInstance();
