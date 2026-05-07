@@ -38,7 +38,7 @@ interface PixivMeta {
 }
 
 export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
-    process(meta: PixivMeta, task: ProcessTask, context: ProcessorContext): number | null {
+    async process(meta: PixivMeta, task: ProcessTask, context: ProcessorContext): Promise<number | null> {
         const { tx, existingPixivUsers, existingPosts, existingTags, userAvatars, internalSourceId } = context;
 
         let postId: number | null = null;
@@ -55,7 +55,7 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
                 };
                 if (avatarPath) updateSet.profileImage = avatarPath;
 
-                tx.insert(pixivUsers).values({
+                await tx.insert(pixivUsers).values({
                     id: uidStr,
                     name: user.name,
                     account: user.account,
@@ -65,7 +65,7 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
                 }).onConflictDoUpdate({
                     target: pixivUsers.id,
                     set: updateSet
-                }).run();
+                });
                 existingPixivUsers.add(uidStr);
             }
         }
@@ -74,7 +74,7 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
         if (pid) {
             const key = `pixiv:${pid}`;
             if (!existingPosts.has(key)) {
-                const inserted = tx.insert(posts).values({
+                const inserted = await tx.insert(posts).values({
                     extractorType: 'pixiv',
                     jsonSourceId: pid,
                     internalSourceId: internalSourceId,
@@ -85,13 +85,13 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
                     url: `https://www.pixiv.net/artworks/${pid}`,
                     metadataPath: task.jsonPath ? path.relative(path.join(process.cwd(), 'public'), task.jsonPath).split(path.sep).join('/') : null,
                     createdAt: new Date()
-                }).returning({ id: posts.id }).get();
+                }).returning({ id: posts.id });
 
-                postId = inserted.id;
+                postId = inserted[0]?.id ?? null;
                 existingPosts.set(key, postId!);
 
-                tx.insert(postDetailsPixiv).values({
-                    postId: postId,
+                await tx.insert(postDetailsPixiv).values({
+                    postId: postId!,
                     width: meta.width,
                     height: meta.height,
                     pageCount: meta.page_count,
@@ -109,14 +109,13 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
                     category: 'pixiv',
                     subcategory: meta.subcategory,
                     type: meta.type
-                }).run();
+                });
             } else {
                 postId = existingPosts.get(key) || null;
                 if (postId && internalSourceId) {
-                    tx.update(posts)
+                    await tx.update(posts)
                         .set({ internalSourceId })
-                        .where(and(eq(posts.id, postId), isNull(posts.internalSourceId)))
-                        .run();
+                        .where(and(eq(posts.id, postId), isNull(posts.internalSourceId)));
                 }
             }
         }
@@ -130,20 +129,20 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
                 let tagId = existingTags.get(tagName);
 
                 if (!tagId) {
-                    const newTag = tx.insert(tags).values({ name: tagName }).onConflictDoNothing().returning({ id: tags.id }).get();
-                    if (newTag) tagId = newTag.id;
+                    const newTag = await tx.insert(tags).values({ name: tagName }).onConflictDoNothing().returning({ id: tags.id });
+                    if (newTag.length > 0) tagId = newTag[0].id;
                     else {
-                        const e = tx.select({ id: tags.id }).from(tags).where(eq(tags.name, tagName)).get();
-                        if (e) tagId = e.id;
+                        const e = await tx.select({ id: tags.id }).from(tags).where(eq(tags.name, tagName));
+                        if (e.length > 0) tagId = e[0].id;
                     }
                     if (tagId) existingTags.set(tagName, tagId);
                 }
 
                 if (tagId && postId) {
-                    tx.insert(postTags).values({
+                    await tx.insert(postTags).values({
                         tagId,
                         postId
-                    }).onConflictDoNothing().run();
+                    }).onConflictDoNothing();
                 }
             }
         }

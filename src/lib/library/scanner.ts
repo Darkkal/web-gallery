@@ -90,7 +90,7 @@ export async function syncLibrary() {
             jsonFiles: string[],
             mediaFiles: string[],
             sourceId: number | null,
-            sourceRoot: string // To calculate relative path 
+            sourceRoot: string // To calculate relative path
         }>();
 
         // Process Download Files
@@ -135,7 +135,7 @@ export async function syncLibrary() {
             { id: 'pixiv', description: 'Pixiv' },
             { id: 'gelbooruv02', description: 'Gelbooru/Safebooru' },
             { id: 'gallery-dl', description: 'Generic gallery-dl' },
-        ]).onConflictDoNothing().run();
+        ]).onConflictDoNothing();
 
 
         const processedPaths = new Set<string>();
@@ -385,7 +385,7 @@ async function processBatch(
         }
     }
 
-    db.transaction((tx) => {
+    await db.transaction(async (tx) => {
         for (const res of results) {
             const { task, meta, stat, mediaType } = res;
             let postId: number | null = null;
@@ -399,13 +399,12 @@ async function processBatch(
                 const cleanRelPath = task.dbFilePath.replace(/^\//, '').split('/').join(path.sep);
                 const absLookupPath = path.join(process.cwd(), 'public', cleanRelPath);
 
-                const logEntry = tx.select({ sourceId: scraperDownloadLogs.sourceId })
+                const logEntry = await tx.select({ sourceId: scraperDownloadLogs.sourceId })
                     .from(scraperDownloadLogs)
-                    .where(eq(scraperDownloadLogs.filePath, absLookupPath))
-                    .get();
+                    .where(eq(scraperDownloadLogs.filePath, absLookupPath));
 
-                if (logEntry) {
-                    internalSourceId = logEntry.sourceId;
+                if (logEntry.length > 0) {
+                    internalSourceId = logEntry[0].sourceId;
                 }
             }
 
@@ -428,7 +427,7 @@ async function processBatch(
                             userAvatars,
                             internalSourceId
                         };
-                        postId = processor.process(meta, task, context);
+                        postId = await processor.process(meta, task, context);
                     }
                 }
             }
@@ -442,19 +441,19 @@ async function processBatch(
             }
 
             if (mediaType !== 'text' && !existingMediaPaths.has(task.dbFilePath)) {
-                tx.insert(mediaItems).values({
+                await tx.insert(mediaItems).values({
                     filePath: task.dbFilePath,
                     mediaType,
                     capturedAt,
                     postId: postId // New FK
-                }).run();
+                });
                 existingMediaPaths.add(task.dbFilePath);
                 added++;
             } else if (mediaType !== 'text') {
                 if (postId) {
-                    tx.update(mediaItems).set({
+                    await tx.update(mediaItems).set({
                         postId
-                    }).where(eq(mediaItems.filePath, task.dbFilePath)).run();
+                    }).where(eq(mediaItems.filePath, task.dbFilePath));
                     updated++;
                 }
             }

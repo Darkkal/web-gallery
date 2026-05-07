@@ -219,8 +219,8 @@ export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
         }
     }
 
-    db.delete(collectionItems).where(inArray(collectionItems.mediaItemId, ids)).run();
-    const result = db.delete(mediaItems).where(inArray(mediaItems.id, ids)).run();
+    await db.delete(collectionItems).where(inArray(collectionItems.mediaItemId, ids));
+    await db.delete(mediaItems).where(inArray(mediaItems.id, ids));
 
-    return { success: true, count: result.changes };
+    return { success: true, count: ids.length };
 }

@@ -21,7 +21,7 @@ interface GelbooruMeta {
 }
 
 export class GelbooruProcessor implements IMetadataProcessor<GelbooruMeta> {
-    process(meta: GelbooruMeta, task: ProcessTask, context: ProcessorContext): number | null {
+    async process(meta: GelbooruMeta, task: ProcessTask, context: ProcessorContext): Promise<number | null> {
         const { tx, existingPosts, existingTags, internalSourceId } = context;
 
         let postId: number | null = null;
@@ -41,7 +41,7 @@ export class GelbooruProcessor implements IMetadataProcessor<GelbooruMeta> {
                     else if (copyTags.length > 0) title = copyTags[0].replace('copyright:', '');
                 }
 
-                const inserted = tx.insert(posts).values({
+                const inserted = await tx.insert(posts).values({
                     extractorType: 'gelbooruv02',
                     jsonSourceId: idStr,
                     internalSourceId: internalSourceId,
@@ -52,15 +52,15 @@ export class GelbooruProcessor implements IMetadataProcessor<GelbooruMeta> {
                     url: `https://gelbooru.com/index.php?page=post&s=view&id=${idStr}`,
                     metadataPath: task.jsonPath ? path.relative(path.join(process.cwd(), 'public'), task.jsonPath).split(path.sep).join('/') : null,
                     createdAt: new Date()
-                }).returning({ id: posts.id }).get();
+                }).returning({ id: posts.id });
 
-                postId = inserted.id;
+                postId = inserted[0]?.id ?? null;
                 existingPosts.set(key, postId!);
 
                 const parsedTags: string[] | null = typeof meta.tags === 'string' ? meta.tags.split(' ') : Array.isArray(meta.tags) ? meta.tags : null;
 
-                tx.insert(postDetailsGelbooruV02).values({
-                    postId: postId,
+                await tx.insert(postDetailsGelbooruV02).values({
+                    postId: postId!,
                     width: meta.width,
                     height: meta.height,
                     score: meta.score,
@@ -68,14 +68,13 @@ export class GelbooruProcessor implements IMetadataProcessor<GelbooruMeta> {
                     source: meta.source,
                     md5: meta.md5,
                     tags: parsedTags ? JSON.stringify(parsedTags) : null,
-                }).run();
+                });
             } else {
                 postId = existingPosts.get(key) || null;
                 if (postId && internalSourceId) {
-                    tx.update(posts)
+                    await tx.update(posts)
                         .set({ internalSourceId })
-                        .where(and(eq(posts.id, postId), isNull(posts.internalSourceId)))
-                        .run();
+                        .where(and(eq(posts.id, postId), isNull(posts.internalSourceId)));
                 }
             }
         }
@@ -92,20 +91,20 @@ export class GelbooruProcessor implements IMetadataProcessor<GelbooruMeta> {
                     let tagId = existingTags.get(tagName);
 
                     if (!tagId) {
-                        const newTag = tx.insert(tags).values({ name: tagName }).onConflictDoNothing().returning({ id: tags.id }).get();
-                        if (newTag) tagId = newTag.id;
+                        const newTag = await tx.insert(tags).values({ name: tagName }).onConflictDoNothing().returning({ id: tags.id });
+                        if (newTag.length > 0) tagId = newTag[0].id;
                         else {
-                            const e = tx.select({ id: tags.id }).from(tags).where(eq(tags.name, tagName)).get();
-                            if (e) tagId = e.id;
+                            const e = await tx.select({ id: tags.id }).from(tags).where(eq(tags.name, tagName));
+                            if (e.length > 0) tagId = e[0].id;
                         }
                         if (tagId) existingTags.set(tagName, tagId);
                     }
 
                     if (tagId && postId) {
-                        tx.insert(postTags).values({
+                        await tx.insert(postTags).values({
                             tagId,
                             postId
-                        }).onConflictDoNothing().run();
+                        }).onConflictDoNothing();
                     }
                 }
             }
