@@ -57,7 +57,6 @@ export default function SourceTableRow({
                         className={styles.thumbnail}
                         width={50}
                         height={50}
-                        unoptimized
                     />
                 ) : (
                     <div className={styles.placeholderThumb}>

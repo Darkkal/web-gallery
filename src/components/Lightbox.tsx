@@ -196,7 +196,7 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, gelbooru
                 {user && (
                     <div className={`${styles.section} ${styles.userCard}`}>
                         {user.profileImage && (
-                            <Image src={user.profileImage || ''} alt={user.name || 'User'} width={48} height={48} className={styles.avatar} unoptimized />
+                            <Image src={user.profileImage || ''} alt={user.name || 'User'} width={48} height={48} className={styles.avatar} />
                         )}
                         <div className={styles.userInfo}>
                             <span className={styles.userName}>{user.name}</span>
@@ -208,7 +208,7 @@ export default function Lightbox({ item, tweet, user, pixiv, pixivUser, gelbooru
                 {pixivUser && (
                     <div className={`${styles.section} ${styles.userCard}`}>
                         {pixivUser.profileImage && (
-                            <Image src={pixivUser.profileImage || ''} alt={pixivUser.name || 'User'} width={48} height={48} className={styles.avatar} unoptimized />
+                            <Image src={pixivUser.profileImage || ''} alt={pixivUser.name || 'User'} width={48} height={48} className={styles.avatar} />
                         )}
                         <div className={styles.userInfo}>
                             <span className={styles.userName}>{pixivUser.name}</span>
