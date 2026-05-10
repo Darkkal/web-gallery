@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { TimelinePost } from '@/types/posts';
 import Lightbox from '@/components/Lightbox';
 import styles from '@/app/timeline/page.module.css';
@@ -40,14 +40,13 @@ export default function TimelinePageClient({
         prev: prevLightbox,
     } = useLightbox(posts.length, (idx) => posts[idx].mediaItems.length);
 
-    const loadPosts = useCallback(async (isAppending = false) => {
+    const loadPosts = useCallback(async (cursor: string | null = null) => {
         setIsLoading(true);
         try {
-            const currentCursor = isAppending ? nextCursor : '';
-            const res = await fetch(`/api/timeline?search=${encodeURIComponent(searchQuery)}&sortBy=${sortBy}&cursor=${currentCursor}&limit=50`);
+            const res = await fetch(`/api/timeline?search=${encodeURIComponent(debouncedSearch)}&sortBy=${debouncedSort}&cursor=${cursor || ''}&limit=50`);
             if (res.ok) {
                 const data = await res.json();
-                if (isAppending) {
+                if (cursor) {
                     setPosts(prev => [...prev, ...data.posts]);
                 } else {
                     setPosts(data.posts);
@@ -57,12 +56,18 @@ export default function TimelinePageClient({
         } finally {
             setIsLoading(false);
         }
-    }, [searchQuery, sortBy, nextCursor]);
+    }, [debouncedSearch, debouncedSort]);
+
+    const isFirstRender = useRef(true);
 
     // Handle search/sort changes via debounced values
     useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
         setNextCursor(null);
-        loadPosts(false);
+        loadPosts(null);
     }, [debouncedSearch, debouncedSort, loadPosts]);
 
     // Prepare Lightbox Data from current selection
@@ -153,7 +158,7 @@ export default function TimelinePageClient({
             {nextCursor && (
                 <div className={styles.loadMoreContainer}>
                     <button
-                        onClick={() => loadPosts(true)}
+                        onClick={() => loadPosts(nextCursor)}
                         disabled={isLoading}
                         className={styles.secondaryButton}
                     >

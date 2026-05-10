@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { deleteMediaItems } from '@/app/actions/gallery';
 import Lightbox from '@/components/Lightbox';
 import MasonryGrid from '@/components/MasonryGrid';
@@ -56,14 +56,13 @@ export default function GalleryPageClient({
         prev: prevLightbox,
         setSelectedIndex } = useLightbox(items.length, (idx) => items[idx].groupItems.length);
 
-    const loadItems = useCallback(async (isAppending = false) => {
+    const loadItems = useCallback(async (cursor: string | null = null) => {
         setIsLoading(true);
         try {
-            const currentCursor = isAppending ? nextCursor : '';
-            const res = await fetch(`/api/gallery?search=${encodeURIComponent(searchQuery)}&sortBy=${sortBy}&cursor=${currentCursor}&limit=50`);
+            const res = await fetch(`/api/gallery?search=${encodeURIComponent(debouncedSearch)}&sortBy=${debouncedSort}&cursor=${cursor || ''}&limit=50`);
             if (res.ok) {
                 const data = await res.json();
-                if (isAppending) {
+                if (cursor) {
                     setItems(prev => [...prev, ...data.items]);
                 } else {
                     setItems(data.items);
@@ -73,12 +72,18 @@ export default function GalleryPageClient({
         } finally {
             setIsLoading(false);
         }
-    }, [searchQuery, sortBy, nextCursor]);
+    }, [debouncedSearch, debouncedSort]);
+
+    const isFirstRender = useRef(true);
 
     // Handle search/sort changes via debounced values
     useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
         setNextCursor(null);
-        loadItems(false);
+        loadItems(null);
     }, [debouncedSearch, debouncedSort, loadItems]);
 
     async function handleBulkDelete(deleteFiles: boolean) {
@@ -141,7 +146,7 @@ export default function GalleryPageClient({
                 setSortBy={setSortBy}
                 columnCount={columnCount}
                 setColumnCount={setColumnCount}
-                onRefresh={() => loadItems(false)}
+                onRefresh={() => loadItems(null)}
             />
 
             <MasonryGrid
@@ -167,7 +172,7 @@ export default function GalleryPageClient({
             {nextCursor && (
                 <div className={styles.loadMoreContainer}>
                     <button
-                        onClick={() => loadItems(true)}
+                        onClick={() => loadItems(nextCursor)}
                         disabled={isLoading}
                         className={`${styles.secondaryButton} ${styles.loadMoreButton}`}
                     >
