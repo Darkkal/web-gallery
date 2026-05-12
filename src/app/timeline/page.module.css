@@ -189,7 +189,7 @@
     aspect-ratio: 16/9;
     /* Default aspect, but usually image should invoke intrinsic height up to max? */
     /* To mimic Twitter, single image usually preserves aspect ratio but capped height.
-       CSS Grid with aspect-ratio matches container. 
+       CSS Grid with aspect-ratio matches container.
        Let's use max-height 500px for single image.
     */
     aspect-ratio: auto;
@@ -268,11 +268,17 @@
     font-family: inherit;
 }
 
+.searchInput {
+    flex: 1;
+    min-width: 0;
+}
+
 .separator {
     width: 1px;
     height: 24px;
     background: hsl(var(--border));
     margin: 0 0.5rem;
+    flex-shrink: 0;
 }
 
 .loadMoreContainer {

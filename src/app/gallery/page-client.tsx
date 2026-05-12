@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState } from 'react';
 import { deleteMediaItems } from '@/app/actions/gallery';
 import Lightbox from '@/components/Lightbox';
 import MasonryGrid from '@/components/MasonryGrid';
+import InfiniteScrollSentinel from '@/components/InfiniteScrollSentinel';
 import styles from '@/app/gallery/page.module.css';
 import { mergePixivMetadata, mergeTwitterMetadata, mergeGelbooruv02Metadata } from '@/lib/metadata';
 import { GalleryGroup } from '@/types/media';
 import { useSelection } from '@/hooks/useSelection';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { usePaginatedData } from '@/hooks/usePaginatedData';
+import { useScrollMode, ScrollModeProvider } from '@/hooks/useScrollMode';
 import { useLightbox } from '@/hooks/useLightbox';
 import FilterBar from '@/app/gallery/components/FilterBar';
 import BulkActionBar from '@/app/gallery/components/BulkActionBar';
@@ -25,17 +27,53 @@ export default function GalleryPageClient({
     initialSort: string,
     initialNextCursor: string | null
 }) {
-    const [items, setItems] = useState<GalleryGroup[]>(initialItems);
-    const [searchQuery, setSearchQuery] = useState(initialSearch);
-    const [sortBy, setSortBy] = useState(initialSort);
+    return (
+        <ScrollModeProvider>
+            <GalleryPageContent
+                initialItems={initialItems}
+                initialSearch={initialSearch}
+                initialSort={initialSort}
+                initialNextCursor={initialNextCursor}
+            />
+        </ScrollModeProvider>
+    );
+}
+
+function GalleryPageContent({
+    initialItems,
+    initialSearch,
+    initialSort,
+    initialNextCursor
+}: {
+    initialItems: GalleryGroup[],
+    initialSearch: string,
+    initialSort: string,
+    initialNextCursor: string | null
+}) {
     const [columnCount, setColumnCount] = useState(4);
     const [deleting, setDeleting] = useState(false);
-    const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
-    const [isLoading, setIsLoading] = useState(false);
 
-    // Shared Hooks
-    const debouncedSearch = useDebouncedValue(searchQuery, 1000);
-    const debouncedSort = useDebouncedValue(sortBy, 1000);
+    const {
+        items,
+        searchQuery,
+        setSearchQuery,
+        sortBy,
+        setSortBy,
+        isLoading,
+        loadMore,
+        refresh,
+        hasMore,
+    } = usePaginatedData<GalleryGroup>({
+        initialItems,
+        initialNextCursor,
+        initialSearch,
+        initialSort,
+        fetchPath: '/api/gallery',
+        dataKey: 'items',
+        pageSize: 20,
+    });
+
+    const { scrollMode } = useScrollMode();
 
     const {
         selectionMode,
@@ -56,36 +94,6 @@ export default function GalleryPageClient({
         prev: prevLightbox,
         setSelectedIndex } = useLightbox(items.length, (idx) => items[idx].groupItems.length);
 
-    const loadItems = useCallback(async (cursor: string | null = null) => {
-        setIsLoading(true);
-        try {
-            const res = await fetch(`/api/gallery?search=${encodeURIComponent(debouncedSearch)}&sortBy=${debouncedSort}&cursor=${cursor || ''}&limit=50`);
-            if (res.ok) {
-                const data = await res.json();
-                if (cursor) {
-                    setItems(prev => [...prev, ...data.items]);
-                } else {
-                    setItems(data.items);
-                }
-                setNextCursor(data.nextCursor);
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    }, [debouncedSearch, debouncedSort]);
-
-    const isFirstRender = useRef(true);
-
-    // Handle search/sort changes via debounced values
-    useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            return;
-        }
-        setNextCursor(null);
-        loadItems(null);
-    }, [debouncedSearch, debouncedSort, loadItems]);
-
     async function handleBulkDelete(deleteFiles: boolean) {
         if (selectedCount === 0) return;
 
@@ -99,7 +107,7 @@ export default function GalleryPageClient({
         try {
             await deleteMediaItems(Array.from(selectedIds), deleteFiles);
             clearSelection();
-            await loadItems();
+            await refresh();
         } catch (err) {
             alert("Failed to delete items: " + err);
         } finally {
@@ -112,7 +120,7 @@ export default function GalleryPageClient({
         try {
             await deleteMediaItems([id], deleteFile);
             setSelectedIndex(null);
-            await loadItems();
+            await refresh();
         } catch (err) {
             alert("Failed to delete item: " + err);
         } finally {
@@ -146,7 +154,7 @@ export default function GalleryPageClient({
                 setSortBy={setSortBy}
                 columnCount={columnCount}
                 setColumnCount={setColumnCount}
-                onRefresh={() => loadItems(null)}
+                onRefresh={() => refresh()}
             />
 
             <MasonryGrid
@@ -169,10 +177,18 @@ export default function GalleryPageClient({
                 )}
             />
 
-            {nextCursor && (
+            {hasMore && scrollMode === 'infinite' && (
+                <InfiniteScrollSentinel
+                    loadMore={loadMore}
+                    hasMore={hasMore}
+                    isLoading={isLoading}
+                />
+            )}
+
+            {hasMore && scrollMode === 'button' && (
                 <div className={styles.loadMoreContainer}>
                     <button
-                        onClick={() => loadItems(nextCursor)}
+                        onClick={() => loadMore()}
                         disabled={isLoading}
                         className={`${styles.secondaryButton} ${styles.loadMoreButton}`}
                     >

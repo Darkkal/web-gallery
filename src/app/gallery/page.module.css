@@ -134,6 +134,18 @@
     grid-column: 1 / -1;
 }
 
+.loadMoreContainer {
+    display: flex;
+    justify-content: center;
+    padding: 2rem 0;
+}
+
+.loadMoreButton {
+    margin: 2rem auto;
+    display: block;
+    padding: 0.8rem 2rem !important;
+}
+
 .bulkActionBar {
     position: sticky;
     top: 0;

@@ -13,15 +13,15 @@ export default async function TimelinePage({
     const search = (params.search as string) || '';
     const sortBy = (params.sortBy as string) || 'created-desc';
 
-    // Initial data fetch
-    const { posts, nextCursor } = await getTimelinePosts({ search, sortBy, limit: 50 });
-    
+    // Initial data fetch — reduced from 50 for faster first paint
+    const { posts, nextCursor } = await getTimelinePosts({ search, sortBy, limit: 20 });
+
     // Ensure data is serializable
     const initialPosts = JSON.parse(JSON.stringify(posts));
 
     return (
-        <TimelinePageClient 
-            initialPosts={initialPosts} 
+        <TimelinePageClient
+            initialPosts={initialPosts}
             initialNextCursor={nextCursor}
             initialSearch={search}
             initialSort={sortBy}

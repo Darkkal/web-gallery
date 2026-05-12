@@ -1,0 +1,32 @@
+.toggle {
+    display: flex;
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.option {
+    background: hsl(var(--background));
+    color: hsl(var(--muted-foreground));
+    border: none;
+    padding: 0.45rem 0.55rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.option:not(:last-child) {
+    border-right: 1px solid hsl(var(--border));
+}
+
+.option:hover {
+    background: hsl(var(--muted));
+}
+
+.active {
+    background: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+}

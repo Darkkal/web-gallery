@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import ScrollModeToggle from '@/components/ScrollModeToggle';
 import styles from '@/app/timeline/page.module.css';
 
 interface FilterBarProps {
@@ -36,6 +37,8 @@ export default function FilterBar({
                 <option value="captured-desc">Content Date: Newest First</option>
                 <option value="captured-asc">Content Date: Oldest First</option>
             </select>
+            <div className={styles.separator} />
+            <ScrollModeToggle />
         </div>
     );
 }
