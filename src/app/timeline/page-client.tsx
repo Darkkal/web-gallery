@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import type { TimelinePost } from '@/types/posts';
 import Lightbox from '@/components/Lightbox';
+import InfiniteScrollSentinel from '@/components/InfiniteScrollSentinel';
 import styles from '@/app/timeline/page.module.css';
 import { mergePixivMetadata, mergeTwitterMetadata, mergeGelbooruv02Metadata } from '@/lib/metadata';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { usePaginatedData } from '@/hooks/usePaginatedData';
+import { useScrollMode } from '@/hooks/useScrollMode';
 import { useLightbox } from '@/hooks/useLightbox';
 import FilterBar from '@/app/timeline/components/FilterBar';
 import PostCard from '@/app/timeline/components/PostCard';
@@ -21,15 +23,26 @@ export default function TimelinePageClient({
     initialSearch: string,
     initialSort: string
 }) {
-    const [posts, setPosts] = useState<TimelinePost[]>(initialPosts);
-    const [searchQuery, setSearchQuery] = useState(initialSearch);
-    const [sortBy, setSortBy] = useState(initialSort);
-    const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
-    const [isLoading, setIsLoading] = useState(false);
+    const {
+        items: posts,
+        searchQuery,
+        setSearchQuery,
+        sortBy,
+        setSortBy,
+        isLoading,
+        loadMore,
+        hasMore,
+    } = usePaginatedData<TimelinePost>({
+        initialItems: initialPosts,
+        initialNextCursor,
+        initialSearch,
+        initialSort,
+        fetchPath: '/api/timeline',
+        dataKey: 'posts',
+        pageSize: 20,
+    });
 
-    // Shared Hooks
-    const debouncedSearch = useDebouncedValue(searchQuery, 1000);
-    const debouncedSort = useDebouncedValue(sortBy, 1000);
+    const { scrollMode } = useScrollMode();
 
     const {
         selectedIndex,
@@ -39,36 +52,6 @@ export default function TimelinePageClient({
         next: nextLightbox,
         prev: prevLightbox,
     } = useLightbox(posts.length, (idx) => posts[idx].mediaItems.length);
-
-    const loadPosts = useCallback(async (cursor: string | null = null) => {
-        setIsLoading(true);
-        try {
-            const res = await fetch(`/api/timeline?search=${encodeURIComponent(debouncedSearch)}&sortBy=${debouncedSort}&cursor=${cursor || ''}&limit=50`);
-            if (res.ok) {
-                const data = await res.json();
-                if (cursor) {
-                    setPosts(prev => [...prev, ...data.posts]);
-                } else {
-                    setPosts(data.posts);
-                }
-                setNextCursor(data.nextCursor);
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    }, [debouncedSearch, debouncedSort]);
-
-    const isFirstRender = useRef(true);
-
-    // Handle search/sort changes via debounced values
-    useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            return;
-        }
-        setNextCursor(null);
-        loadPosts(null);
-    }, [debouncedSearch, debouncedSort, loadPosts]);
 
     // Prepare Lightbox Data from current selection
     const lightboxProps = useMemo(() => {
@@ -155,10 +138,18 @@ export default function TimelinePageClient({
                 {posts.length === 0 && <p className={styles.empty}>No posts found.</p>}
             </div>
 
-            {nextCursor && (
+            {hasMore && scrollMode === 'infinite' && (
+                <InfiniteScrollSentinel
+                    loadMore={loadMore}
+                    hasMore={hasMore}
+                    isLoading={isLoading}
+                />
+            )}
+
+            {hasMore && scrollMode === 'button' && (
                 <div className={styles.loadMoreContainer}>
                     <button
-                        onClick={() => loadPosts(nextCursor)}
+                        onClick={() => loadMore()}
                         disabled={isLoading}
                         className={styles.secondaryButton}
                     >

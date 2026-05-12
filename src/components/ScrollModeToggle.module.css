@@ -1,0 +1,30 @@
+.toggle {
+    display: flex;
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.option {
+    background: hsl(var(--background));
+    color: hsl(var(--muted-foreground));
+    border: none;
+    padding: 0.4rem 0.6rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.15s, color 0.15s;
+    line-height: 1;
+}
+
+.option:not(:last-child) {
+    border-right: 1px solid hsl(var(--border));
+}
+
+.option:hover {
+    background: hsl(var(--muted));
+}
+
+.active {
+    background: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+}
