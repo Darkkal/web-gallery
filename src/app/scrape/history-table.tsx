@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import styles from '@/app/scrape/page.module.css';
-import { getActiveScrapeStatuses } from '@/app/scrape/actions';
+import { getActiveScrapeStatuses, getScrapeHistory } from '@/app/scrape/actions';
 
 interface HistoryItem {
     id: number;
@@ -24,6 +24,26 @@ export default function ScrapeHistoryTable({ initialHistory }: { initialHistory:
         setHistoryItems(initialHistory);
     }, [initialHistory]);
 
+    const refreshHistory = useCallback(async () => {
+        try {
+            const freshHistory = await getScrapeHistory();
+            const mapped: HistoryItem[] = freshHistory.map((h: Record<string, unknown>) => ({
+                id: h.id as number,
+                startTime: h.startTime as Date,
+                endTime: h.endTime as Date | null,
+                status: h.status as 'running' | 'completed' | 'stopped' | 'failed',
+                filesDownloaded: h.filesDownloaded as number | null,
+                skippedCount: h.skippedCount as number | null,
+                postsProcessed: h.postsProcessed as number | null,
+                bytesDownloaded: h.bytesDownloaded as number | null,
+                errorCount: h.errorCount as number | null,
+            }));
+            setHistoryItems(mapped);
+        } catch (err) {
+            console.error("Failed to refresh history:", err);
+        }
+    }, []);
+
     useEffect(() => {
         const hasRunning = historyItems.some(i => i.status === 'running');
         if (!hasRunning) return;
@@ -31,31 +51,38 @@ export default function ScrapeHistoryTable({ initialHistory }: { initialHistory:
         const interval = setInterval(async () => {
             try {
                 const active = await getActiveScrapeStatuses();
+                const runningItemIds = historyItems
+                    .filter(i => i.status === 'running')
+                    .map(i => i.id);
+
+                // Check if any running items are no longer in the active list
+                const missingIds = runningItemIds.filter(id =>
+                    !active.some(a => a.historyId === id)
+                );
+
+                if (missingIds.length > 0) {
+                    // At least one previously-running task is no longer active.
+                    // The DB has the final status, so re-fetch history from DB.
+                    await refreshHistory();
+                    return;
+                }
 
                 setHistoryItems(prev => prev.map(item => {
                     const activeStatus = active.find(a => a.historyId === item.id);
                     if (activeStatus) {
-                        return {
-                            ...item,
+                        // If the scraper reports finished, update the item's status and endTime
+                        const updates: Partial<HistoryItem> = {
                             filesDownloaded: activeStatus.downloadedCount,
                             skippedCount: activeStatus.skippedCount,
                             postsProcessed: activeStatus.postsProcessed,
                             errorCount: activeStatus.errorCount,
-                            // Convert string size to bytes approximation if needed, 
-                            // but ScrapeProgress has totalSize string. 
-                            // Wait, activeStatus has 'totalSize' string, item has 'bytesDownloaded' number.
-                            // We need access to parseSizeToBytes logic or similar if we want to update bytes.
-                            // For UI display, formatBytes expects number.
-                            // Let's assume we can't update bytes accurately from string easily without parser,
-                            // or we just skip updating bytes live for now, OR we parse it.
-                            // However, the actions.ts import of manage doesn't expose parseSizeToBytes.
-                            // Let's accept that live bytes might lag or simpler: ignore bytes updating or parse rough.
-                            // Let's just update counts which are most important.
                         };
+                        if (activeStatus.isFinished && item.status === 'running') {
+                            updates.status = 'completed';
+                            updates.endTime = new Date();
+                        }
+                        return { ...item, ...updates };
                     }
-                    // If item says running but not in active list, it might have finished just now.
-                    // The revalidatePath in actions should handle refreshing the page eventually,
-                    // or we rely on the next refresh.
                     return item;
                 }));
             } catch (err) {
@@ -64,7 +91,7 @@ export default function ScrapeHistoryTable({ initialHistory }: { initialHistory:
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [historyItems]);
+    }, [historyItems, refreshHistory]);
 
     // Helper for bytes formatting
     const formatBytes = (bytes: number) => {
