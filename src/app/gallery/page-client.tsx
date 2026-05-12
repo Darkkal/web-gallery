@@ -10,13 +10,36 @@ import { mergePixivMetadata, mergeTwitterMetadata, mergeGelbooruv02Metadata } fr
 import { GalleryGroup } from '@/types/media';
 import { useSelection } from '@/hooks/useSelection';
 import { usePaginatedData } from '@/hooks/usePaginatedData';
-import { useScrollMode } from '@/hooks/useScrollMode';
+import { useScrollMode, ScrollModeProvider } from '@/hooks/useScrollMode';
 import { useLightbox } from '@/hooks/useLightbox';
 import FilterBar from '@/app/gallery/components/FilterBar';
 import BulkActionBar from '@/app/gallery/components/BulkActionBar';
 import GalleryItem from '@/app/gallery/components/GalleryItem';
 
 export default function GalleryPageClient({
+    initialItems,
+    initialSearch,
+    initialSort,
+    initialNextCursor
+}: {
+    initialItems: GalleryGroup[],
+    initialSearch: string,
+    initialSort: string,
+    initialNextCursor: string | null
+}) {
+    return (
+        <ScrollModeProvider>
+            <GalleryPageContent
+                initialItems={initialItems}
+                initialSearch={initialSearch}
+                initialSort={initialSort}
+                initialNextCursor={initialNextCursor}
+            />
+        </ScrollModeProvider>
+    );
+}
+
+function GalleryPageContent({
     initialItems,
     initialSearch,
     initialSort,

@@ -7,12 +7,35 @@ import InfiniteScrollSentinel from '@/components/InfiniteScrollSentinel';
 import styles from '@/app/timeline/page.module.css';
 import { mergePixivMetadata, mergeTwitterMetadata, mergeGelbooruv02Metadata } from '@/lib/metadata';
 import { usePaginatedData } from '@/hooks/usePaginatedData';
-import { useScrollMode } from '@/hooks/useScrollMode';
+import { useScrollMode, ScrollModeProvider } from '@/hooks/useScrollMode';
 import { useLightbox } from '@/hooks/useLightbox';
 import FilterBar from '@/app/timeline/components/FilterBar';
 import PostCard from '@/app/timeline/components/PostCard';
 
 export default function TimelinePageClient({
+    initialPosts,
+    initialNextCursor,
+    initialSearch,
+    initialSort
+}: {
+    initialPosts: TimelinePost[],
+    initialNextCursor: string | null,
+    initialSearch: string,
+    initialSort: string
+}) {
+    return (
+        <ScrollModeProvider>
+            <TimelinePageContent
+                initialPosts={initialPosts}
+                initialNextCursor={initialNextCursor}
+                initialSearch={initialSearch}
+                initialSort={initialSort}
+            />
+        </ScrollModeProvider>
+    );
+}
+
+function TimelinePageContent({
     initialPosts,
     initialNextCursor,
     initialSearch,

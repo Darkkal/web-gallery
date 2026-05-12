@@ -3,17 +3,19 @@
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
     overflow: hidden;
+    flex-shrink: 0;
 }
 
 .option {
     background: hsl(var(--background));
     color: hsl(var(--muted-foreground));
     border: none;
-    padding: 0.4rem 0.6rem;
+    padding: 0.45rem 0.55rem;
     cursor: pointer;
-    font-size: 0.9rem;
     transition: background 0.15s, color 0.15s;
-    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .option:not(:last-child) {
