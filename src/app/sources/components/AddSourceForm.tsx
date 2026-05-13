@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Plus } from 'lucide-react';
-import styles from '@/app/sources/page.module.css';
+import React from "react";
+import { Plus } from "lucide-react";
+import styles from "@/app/sources/page.module.css";
 
 interface AddSourceFormProps {
   newUrl: string;
@@ -19,7 +19,7 @@ export default function AddSourceForm({
   newName,
   setNewName,
   loading,
-  onSubmit
+  onSubmit,
 }: AddSourceFormProps) {
   return (
     <form onSubmit={onSubmit} className={styles.addForm}>
@@ -43,7 +43,7 @@ export default function AddSourceForm({
       </div>
       <button type="submit" className={styles.button} disabled={loading}>
         <Plus size={18} />
-        {loading ? 'Adding...' : 'Add'}
+        {loading ? "Adding..." : "Add"}
       </button>
     </form>
   );

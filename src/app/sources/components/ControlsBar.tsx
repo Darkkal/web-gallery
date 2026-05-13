@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Search, Trash2, LayoutGrid, List as ListIcon } from 'lucide-react';
-import styles from '@/app/sources/page.module.css';
+import React from "react";
+import { Search, Trash2, LayoutGrid, List as ListIcon } from "lucide-react";
+import styles from "@/app/sources/page.module.css";
 
 interface ControlsBarProps {
   search: string;
   setSearch: (s: string) => void;
-  sortBy: 'created' | 'name';
-  setSortBy: (s: 'created' | 'name') => void;
+  sortBy: "created" | "name";
+  setSortBy: (s: "created" | "name") => void;
   selectedCount: number;
   onDeleteSelected: () => void;
-  viewMode: 'card' | 'table';
-  setViewMode: (m: 'card' | 'table') => void;
+  viewMode: "card" | "table";
+  setViewMode: (m: "card" | "table") => void;
 }
 
 export default function ControlsBar({
@@ -23,7 +23,7 @@ export default function ControlsBar({
   selectedCount,
   onDeleteSelected,
   viewMode,
-  setViewMode
+  setViewMode,
 }: ControlsBarProps) {
   return (
     <div className={styles.controlsBar}>
@@ -42,7 +42,7 @@ export default function ControlsBar({
         <select
           className={styles.select}
           value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as 'created' | 'name')}
+          onChange={(e) => setSortBy(e.target.value as "created" | "name")}
         >
           <option value="created">Recently Added</option>
           <option value="name">Name (A-Z)</option>
@@ -51,10 +51,7 @@ export default function ControlsBar({
 
       <div className={styles.rightControls}>
         {selectedCount > 0 && (
-          <button
-            className={styles.deleteButton}
-            onClick={onDeleteSelected}
-          >
+          <button className={styles.deleteButton} onClick={onDeleteSelected}>
             <Trash2 size={18} />
             Delete ({selectedCount})
           </button>
@@ -62,15 +59,15 @@ export default function ControlsBar({
 
         <div className={styles.viewToggle}>
           <button
-            className={`${styles.actionButton} ${viewMode === 'card' ? styles.active : ''}`}
-            onClick={() => setViewMode('card')}
+            className={`${styles.actionButton} ${viewMode === "card" ? styles.active : ""}`}
+            onClick={() => setViewMode("card")}
             title="Grid View"
           >
             <LayoutGrid size={20} />
           </button>
           <button
-            className={`${styles.actionButton} ${viewMode === 'table' ? styles.active : ''}`}
-            onClick={() => setViewMode('table')}
+            className={`${styles.actionButton} ${viewMode === "table" ? styles.active : ""}`}
+            onClick={() => setViewMode("table")}
             title="List View"
           >
             <ListIcon size={20} />

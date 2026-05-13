@@ -1,4 +1,4 @@
-import styles from '@/app/loading.module.css';
+import styles from "@/app/loading.module.css";
 
 export default function SourcesLoading() {
   return (
@@ -6,16 +6,28 @@ export default function SourcesLoading() {
       <div className={styles.header}>
         <div className={`${styles.skeleton} ${styles.title}`}></div>
       </div>
-      
-      <div className={`${styles.skeleton} ${styles.section}`} style={{ height: '5rem' }}></div>
-      
+
+      <div
+        className={`${styles.skeleton} ${styles.section}`}
+        style={{ height: "5rem" }}
+      ></div>
+
       <div className={styles.header}>
         <div className={styles.controls}>
-          <div className={`${styles.skeleton} ${styles.controlItem}`} style={{ width: '200px' }}></div>
+          <div
+            className={`${styles.skeleton} ${styles.controlItem}`}
+            style={{ width: "200px" }}
+          ></div>
         </div>
         <div className={styles.controls}>
-          <div className={`${styles.skeleton} ${styles.controlItem}`} style={{ width: '40px' }}></div>
-          <div className={`${styles.skeleton} ${styles.controlItem}`} style={{ width: '150px' }}></div>
+          <div
+            className={`${styles.skeleton} ${styles.controlItem}`}
+            style={{ width: "40px" }}
+          ></div>
+          <div
+            className={`${styles.skeleton} ${styles.controlItem}`}
+            style={{ width: "150px" }}
+          ></div>
         </div>
       </div>
 

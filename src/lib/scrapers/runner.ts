@@ -1,115 +1,138 @@
-import { spawn } from 'child_process';
-import path from 'path';
-import fs from 'fs';
-import { ScraperOptions, ScrapeResult } from '@/lib/scrapers/types';
-import { GalleryDlStrategy } from '@/lib/scrapers/strategies/gallery-dl';
-import { YtDlpStrategy } from '@/lib/scrapers/strategies/yt-dlp';
-import { BaseScraperStrategy } from '@/lib/scrapers/strategies/base';
+import { spawn } from "child_process";
+import path from "path";
+import fs from "fs";
+import { ScraperOptions, ScrapeResult } from "@/lib/scrapers/types";
+import { GalleryDlStrategy } from "@/lib/scrapers/strategies/gallery-dl";
+import { YtDlpStrategy } from "@/lib/scrapers/strategies/yt-dlp";
+import { BaseScraperStrategy } from "@/lib/scrapers/strategies/base";
 
 export interface ScrapeLimits {
-    stopAfterCompleted?: number;
-    stopAfterSkipped?: number;
-    stopAfterPosts?: number;
+  stopAfterCompleted?: number;
+  stopAfterSkipped?: number;
+  stopAfterPosts?: number;
 }
 
 export class ScraperRunner {
-    private basePath: string;
+  private basePath: string;
 
-    constructor(basePath: string) {
-        this.basePath = basePath;
-        if (!fs.existsSync(basePath)) {
-            fs.mkdirSync(basePath, { recursive: true });
-        }
-        this.ensureConfig();
+  constructor(basePath: string) {
+    this.basePath = basePath;
+    if (!fs.existsSync(basePath)) {
+      fs.mkdirSync(basePath, { recursive: true });
+    }
+    this.ensureConfig();
+  }
+
+  private ensureConfig() {
+    const scraperDataDir = path.join(
+      process.cwd(),
+      "data",
+      "scrapers",
+      "gallery-dl",
+    );
+    const configPath = path.join(scraperDataDir, "gallery-dl.conf");
+    const logsDir = path.join(scraperDataDir, "logs");
+    const archivesDir = path.join(scraperDataDir, "archives");
+
+    // Ensure directories exist
+    [scraperDataDir, logsDir, archivesDir].forEach((dir) => {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+    });
+
+    const defaultConfigPath = path.join(
+      process.cwd(),
+      "gallery-dl-default.conf",
+    );
+
+    if (!fs.existsSync(configPath)) {
+      if (fs.existsSync(defaultConfigPath)) {
+        fs.copyFileSync(defaultConfigPath, configPath);
+      } else {
+        console.warn(
+          "Warning: gallery-dl-default.conf not found. Skipping default config creation.",
+        );
+      }
+    }
+  }
+
+  run(
+    tool: "gallery-dl" | "yt-dlp",
+    options: ScraperOptions,
+    limits?: ScrapeLimits,
+  ): {
+    promise: Promise<ScrapeResult>;
+    child: import("child_process").ChildProcess;
+    strategy: BaseScraperStrategy;
+  } {
+    let childProcess: import("child_process").ChildProcess;
+    let strategy: BaseScraperStrategy;
+
+    if (tool === "yt-dlp") {
+      strategy = new YtDlpStrategy(this.basePath, options, limits);
+    } else {
+      strategy = new GalleryDlStrategy(this.basePath, options, limits);
     }
 
-    private ensureConfig() {
-        const scraperDataDir = path.join(process.cwd(), 'data', 'scrapers', 'gallery-dl');
-        const configPath = path.join(scraperDataDir, 'gallery-dl.conf');
-        const logsDir = path.join(scraperDataDir, 'logs');
-        const archivesDir = path.join(scraperDataDir, 'archives');
+    const promise = new Promise<ScrapeResult>((resolve) => {
+      const args = strategy.buildArgs();
 
-        // Ensure directories exist
-        [scraperDataDir, logsDir, archivesDir].forEach(dir => {
-            if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-            }
+      console.log(`Starting ${tool} with args:`, args);
+
+      const child = spawn(tool, args, {
+        shell: false,
+        cwd: process.cwd(),
+      });
+      childProcess = child;
+
+      child.stdout?.on("data", (data: Buffer) => {
+        const text = data.toString();
+        text.split("\n").forEach((line: string) => {
+          if (!line.trim()) return;
+
+          if (
+            !line.startsWith("[progress]") &&
+            !line.startsWith("[download]")
+          ) {
+            strategy.stdout += line + "\n";
+          }
+
+          strategy.parseLine(line, child);
         });
+      });
 
-        const defaultConfigPath = path.join(process.cwd(), 'gallery-dl-default.conf');
+      child.stderr?.on("data", (data: Buffer) => {
+        const text = data.toString();
+        text.split("\n").forEach((line: string) => {
+          if (!line.trim()) return;
 
-        if (!fs.existsSync(configPath)) {
-            if (fs.existsSync(defaultConfigPath)) {
-                fs.copyFileSync(defaultConfigPath, configPath);
-            } else {
-                console.warn('Warning: gallery-dl-default.conf not found. Skipping default config creation.');
-            }
-        }
-    }
+          if (
+            !line.startsWith("[progress]") &&
+            !line.startsWith("[download]")
+          ) {
+            strategy.stderr += line + "\n";
+          }
 
-    run(tool: 'gallery-dl' | 'yt-dlp', options: ScraperOptions, limits?: ScrapeLimits): {
-        promise: Promise<ScrapeResult>,
-        child: import('child_process').ChildProcess,
-        strategy: BaseScraperStrategy
-    } {
-        let childProcess: import('child_process').ChildProcess;
-        let strategy: BaseScraperStrategy;
+          if (line.includes("[error]") || line.includes("ERROR:")) {
+            console.error(`[ScraperRunner] ${tool} Error:`, line.trim());
+          }
 
-        if (tool === 'yt-dlp') {
-            strategy = new YtDlpStrategy(this.basePath, options, limits);
+          strategy.parseLine(line, child);
+        });
+      });
+
+      child.on("close", (code) => {
+        if (code === 0 || strategy.intentionalStop) {
+          resolve(strategy.getFinalResult(true));
+        } else if (code === null) {
+          resolve(strategy.getFinalResult(false, "Process was terminated"));
         } else {
-            strategy = new GalleryDlStrategy(this.basePath, options, limits);
+          resolve(strategy.getFinalResult(false, strategy.stderr));
         }
+      });
+    });
 
-        const promise = new Promise<ScrapeResult>((resolve) => {
-            const args = strategy.buildArgs();
-
-            console.log(`Starting ${tool} with args:`, args);
-
-            const child = spawn(tool, args, { shell: false, cwd: process.cwd() });
-            childProcess = child;
-
-            child.stdout?.on('data', (data: Buffer) => {
-                const text = data.toString();
-                text.split('\n').forEach((line: string) => {
-                    if (!line.trim()) return;
-
-                    if (!line.startsWith('[progress]') && !line.startsWith('[download]')) {
-                        strategy.stdout += line + '\n';
-                    }
-
-                    strategy.parseLine(line, child);
-                });
-            });
-
-            child.stderr?.on('data', (data: Buffer) => {
-                const text = data.toString();
-                text.split('\n').forEach((line: string) => {
-                    if (!line.trim()) return;
-
-                    if (!line.startsWith('[progress]') && !line.startsWith('[download]')) {
-                        strategy.stderr += line + '\n';
-                    }
-
-                    if (line.includes('[error]') || line.includes('ERROR:')) {
-                        console.error(`[ScraperRunner] ${tool} Error:`, line.trim());
-                    }
-
-                    strategy.parseLine(line, child);
-                });
-            });
-
-            child.on('close', (code) => {
-                if (code === 0 || strategy.intentionalStop) {
-                    resolve(strategy.getFinalResult(true));
-                } else if (code === null) {
-                    resolve(strategy.getFinalResult(false, 'Process was terminated'));
-                } else {
-                    resolve(strategy.getFinalResult(false, strategy.stderr));
-                }
-            });
-        });
-
-        return { promise, child: childProcess!, strategy };
-    }
+    return { promise, child: childProcess!, strategy };
+  }
 }

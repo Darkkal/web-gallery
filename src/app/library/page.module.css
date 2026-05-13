@@ -7,7 +7,11 @@
 .title {
   font-size: 2.5rem;
   font-weight: 700;
-  background: linear-gradient(to right, hsl(var(--foreground)), hsl(var(--color-muted-label)));
+  background: linear-gradient(
+    to right,
+    hsl(var(--foreground)),
+    hsl(var(--color-muted-label))
+  );
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;

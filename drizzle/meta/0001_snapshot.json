@@ -42,12 +42,8 @@
           "name": "collection_items_collection_id_collections_id_fk",
           "tableFrom": "collection_items",
           "tableTo": "collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -55,12 +51,8 @@
           "name": "collection_items_media_item_id_media_items_id_fk",
           "tableFrom": "collection_items",
           "tableTo": "media_items",
-          "columnsFrom": [
-            "media_item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["media_item_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -184,12 +176,8 @@
           "name": "media_items_post_id_posts_id_fk",
           "tableFrom": "media_items",
           "tableTo": "posts",
-          "columnsFrom": [
-            "post_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["post_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -330,12 +318,8 @@
           "name": "post_details_gelbooruv02_post_id_posts_id_fk",
           "tableFrom": "post_details_gelbooruv02",
           "tableTo": "posts",
-          "columnsFrom": [
-            "post_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["post_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -487,12 +471,8 @@
           "name": "post_details_pixiv_post_id_posts_id_fk",
           "tableFrom": "post_details_pixiv",
           "tableTo": "posts",
-          "columnsFrom": [
-            "post_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["post_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -637,12 +617,8 @@
           "name": "post_details_twitter_post_id_posts_id_fk",
           "tableFrom": "post_details_twitter",
           "tableTo": "posts",
-          "columnsFrom": [
-            "post_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["post_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -675,12 +651,8 @@
           "name": "post_tags_tag_id_tags_id_fk",
           "tableFrom": "post_tags",
           "tableTo": "tags",
-          "columnsFrom": [
-            "tag_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tag_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -688,22 +660,15 @@
           "name": "post_tags_post_id_posts_id_fk",
           "tableFrom": "post_tags",
           "tableTo": "posts",
-          "columnsFrom": [
-            "post_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["post_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "post_tags_tag_id_post_id_pk": {
-          "columns": [
-            "tag_id",
-            "post_id"
-          ],
+          "columns": ["tag_id", "post_id"],
           "name": "post_tags_tag_id_post_id_pk"
         }
       },
@@ -797,12 +762,8 @@
           "name": "posts_internal_source_id_sources_id_fk",
           "tableFrom": "posts",
           "tableTo": "sources",
-          "columnsFrom": [
-            "internal_source_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["internal_source_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1010,12 +971,8 @@
           "name": "scrape_history_source_id_sources_id_fk",
           "tableFrom": "scrape_history",
           "tableTo": "sources",
-          "columnsFrom": [
-            "source_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["source_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1023,12 +980,8 @@
           "name": "scrape_history_task_id_scraping_tasks_id_fk",
           "tableFrom": "scrape_history",
           "tableTo": "scraping_tasks",
-          "columnsFrom": [
-            "task_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["task_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1072,9 +1025,7 @@
       "indexes": {
         "scraper_download_logs_file_path_unique": {
           "name": "scraper_download_logs_file_path_unique",
-          "columns": [
-            "file_path"
-          ],
+          "columns": ["file_path"],
           "isUnique": true
         }
       },
@@ -1083,12 +1034,8 @@
           "name": "scraper_download_logs_source_id_sources_id_fk",
           "tableFrom": "scraper_download_logs",
           "tableTo": "sources",
-          "columnsFrom": [
-            "source_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["source_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1171,12 +1118,8 @@
           "name": "scraping_tasks_source_id_sources_id_fk",
           "tableFrom": "scraping_tasks",
           "tableTo": "sources",
-          "columnsFrom": [
-            "source_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["source_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1237,12 +1180,8 @@
           "name": "sources_extractor_type_gallerydl_extractor_types_id_fk",
           "tableFrom": "sources",
           "tableTo": "gallerydl_extractor_types",
-          "columnsFrom": [
-            "extractor_type"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["extractor_type"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1272,9 +1211,7 @@
       "indexes": {
         "tags_name_unique": {
           "name": "tags_name_unique",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "isUnique": true
         }
       },

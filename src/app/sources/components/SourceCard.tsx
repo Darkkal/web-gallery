@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Image as ImageIcon } from 'lucide-react';
-import type { Source } from '@/types/source';
-import styles from '@/app/sources/page.module.css';
+import React from "react";
+import { Image as ImageIcon } from "lucide-react";
+import type { Source } from "@/types/source";
+import styles from "@/app/sources/page.module.css";
 
 interface SourceCardProps {
   source: Source;
@@ -14,19 +14,21 @@ interface SourceCardProps {
 export default function SourceCard({
   source,
   isSelected,
-  onToggleSelection
+  onToggleSelection,
 }: SourceCardProps) {
-  const displayTitle = source.name || source.url.replace(/^https?:\/\//, '');
+  const displayTitle = source.name || source.url.replace(/^https?:\/\//, "");
 
   return (
     <div
-      className={`${styles.card} ${isSelected ? styles.selected : ''}`}
+      className={`${styles.card} ${isSelected ? styles.selected : ""}`}
       onClick={onToggleSelection}
     >
       <div
         className={styles.cardBg}
         style={{
-          backgroundImage: source.previewImage ? `url(${source.previewImage})` : 'none',
+          backgroundImage: source.previewImage
+            ? `url(${source.previewImage})`
+            : "none",
         }}
       />
       {!source.previewImage && (
@@ -37,7 +39,9 @@ export default function SourceCard({
 
       <div className={styles.cardOverlay}>
         <div className={styles.cardContent}>
-          <div className={styles.cardTitle} title={source.url}>{displayTitle}</div>
+          <div className={styles.cardTitle} title={source.url}>
+            {displayTitle}
+          </div>
           <div className={styles.cardMeta}>
             <span className={styles.badge}>{source.extractorType}</span>
           </div>
