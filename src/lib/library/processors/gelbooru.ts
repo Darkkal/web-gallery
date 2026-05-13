@@ -1,8 +1,8 @@
-import { IMetadataProcessor } from "@/lib/library/processors/base";
-import { ProcessTask, ProcessorContext } from "@/lib/library/types";
-import { posts, postDetailsGelbooruV02, tags, postTags } from "@/lib/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import path from "path";
+import { postDetailsGelbooruV02, posts, postTags, tags } from "@/lib/db/schema";
+import type { IMetadataProcessor } from "@/lib/library/processors/base";
+import type { ProcessorContext, ProcessTask } from "@/lib/library/types";
 
 interface GelbooruMeta {
   id?: string | number;

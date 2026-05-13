@@ -1,10 +1,10 @@
 import { spawn } from "child_process";
-import path from "path";
 import fs from "fs";
-import { ScraperOptions, ScrapeResult } from "@/lib/scrapers/types";
+import path from "path";
+import type { BaseScraperStrategy } from "@/lib/scrapers/strategies/base";
 import { GalleryDlStrategy } from "@/lib/scrapers/strategies/gallery-dl";
 import { YtDlpStrategy } from "@/lib/scrapers/strategies/yt-dlp";
-import { BaseScraperStrategy } from "@/lib/scrapers/strategies/base";
+import type { ScrapeResult, ScraperOptions } from "@/lib/scrapers/types";
 
 export interface ScrapeLimits {
   stopAfterCompleted?: number;

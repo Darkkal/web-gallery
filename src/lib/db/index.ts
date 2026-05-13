@@ -1,9 +1,9 @@
 import { createClient } from "@libsql/client";
+import { createHash } from "crypto";
 import { drizzle } from "drizzle-orm/libsql";
-import * as schema from "@/lib/db/schema";
 import * as fs from "fs";
 import * as path from "path";
-import { createHash } from "crypto";
+import * as schema from "@/lib/db/schema";
 
 const dbPath = path.join(process.cwd(), "sqlite.db");
 const dbUrl = process.env.DATABASE_URL ?? `file:${dbPath}`;

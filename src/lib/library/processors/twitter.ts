@@ -1,8 +1,8 @@
-import { IMetadataProcessor } from "@/lib/library/processors/base";
-import { ProcessTask, ProcessorContext } from "@/lib/library/types";
-import { posts, postDetailsTwitter, twitterUsers } from "@/lib/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import path from "path";
+import { postDetailsTwitter, posts, twitterUsers } from "@/lib/db/schema";
+import type { IMetadataProcessor } from "@/lib/library/processors/base";
+import type { ProcessorContext, ProcessTask } from "@/lib/library/types";
 
 interface TwitterUser {
   id?: string | number;

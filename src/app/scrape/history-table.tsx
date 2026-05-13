@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
 import { formatDistanceToNow } from "date-fns";
-import styles from "@/app/scrape/page.module.css";
+import { useCallback, useEffect, useState } from "react";
 import {
   getActiveScrapeStatuses,
   getScrapeHistory,
 } from "@/app/scrape/actions";
+import styles from "@/app/scrape/page.module.css";
 
 interface HistoryItem {
   id: number;
@@ -111,7 +111,7 @@ export default function ScrapeHistoryTable({
     const k = 1024;
     const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+    return parseFloat((bytes / k ** i).toFixed(2)) + " " + sizes[i];
   };
 
   return (

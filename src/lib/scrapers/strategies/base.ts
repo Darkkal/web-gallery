@@ -1,7 +1,7 @@
-import { ChildProcess, spawn } from "child_process";
-import { ScraperOptions, ScrapeResult } from "@/lib/scrapers/types";
-import { ScrapeLimits } from "@/lib/scrapers/runner";
-import { parseSizeToBytes, formatBytes } from "@/lib/utils/format";
+import { type ChildProcess, spawn } from "child_process";
+import type { ScrapeLimits } from "@/lib/scrapers/runner";
+import type { ScrapeResult, ScraperOptions } from "@/lib/scrapers/types";
+import { formatBytes, parseSizeToBytes } from "@/lib/utils/format";
 
 export abstract class BaseScraperStrategy {
   protected basePath: string;

@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { scanLibrary, stopLibraryScan } from "@/app/actions/scanning";
+import type { InferSelectModel } from "drizzle-orm";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  purgeDatabases,
   purgeAvatars,
+  purgeDatabases,
   purgeDownloads,
 } from "@/app/actions/debug";
-import type { InferSelectModel } from "drizzle-orm";
-import type { scanHistory } from "@/lib/db/schema";
+import { scanLibrary, stopLibraryScan } from "@/app/actions/scanning";
 import styles from "@/app/library/page.module.css";
+import type { scanHistory } from "@/lib/db/schema";
 
 type ScanStatus = InferSelectModel<typeof scanHistory>;
 

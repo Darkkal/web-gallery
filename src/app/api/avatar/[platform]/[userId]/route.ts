@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import path from "path";
-import fs from "fs";
-import { promises as fsPromises } from "fs";
-import { db } from "@/lib/db";
-import { twitterUsers, pixivUsers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { avatarRequestQueue } from "@/lib/request-queue";
+import fs, { promises as fsPromises } from "fs";
+import { type NextRequest, NextResponse } from "next/server";
+import path from "path";
 import { Readable } from "stream";
+import { db } from "@/lib/db";
+import { pixivUsers, twitterUsers } from "@/lib/db/schema";
+import { avatarRequestQueue } from "@/lib/request-queue";
 
 export async function GET(
   request: NextRequest,

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 test("timeline page loads", async ({ page }) => {
   // Start from the index page (which redirects to timeline)

@@ -1,12 +1,12 @@
-import { ChildProcess, spawn } from "child_process";
+import { type ChildProcess, spawn } from "child_process";
+import { eq } from "drizzle-orm";
 import path from "path";
-import { ScraperRunner, ScrapeLimits } from "@/lib/scrapers/runner";
-import { ScrapeProgress } from "@/lib/scrapers/types";
 import { db } from "@/lib/db";
 import { scrapeHistory, scraperDownloadLogs } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { syncLibrary } from "@/lib/library/scanner";
-import { BaseScraperStrategy } from "@/lib/scrapers/strategies/base";
+import { type ScrapeLimits, ScraperRunner } from "@/lib/scrapers/runner";
+import type { BaseScraperStrategy } from "@/lib/scrapers/strategies/base";
+import type { ScrapeProgress } from "@/lib/scrapers/types";
 import { parseSizeToBytes } from "@/lib/utils/format";
 
 export interface ScrapingStatus extends ScrapeProgress {

@@ -1,11 +1,10 @@
 "use client";
 
-import React from "react";
 import Image from "next/image";
-import type { TimelinePost } from "@/types/posts";
+import type React from "react";
 import styles from "@/app/timeline/page.module.css";
-
 import FormattedContent from "@/components/FormattedContent";
+import type { TimelinePost } from "@/types/posts";
 
 interface PostCardProps {
   post: TimelinePost;

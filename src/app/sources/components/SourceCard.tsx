@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
 import { Image as ImageIcon } from "lucide-react";
-import type { Source } from "@/types/source";
+import React from "react";
 import styles from "@/app/sources/page.module.css";
+import type { Source } from "@/types/source";
 
 interface SourceCardProps {
   source: Source;

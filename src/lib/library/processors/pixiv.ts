@@ -1,14 +1,14 @@
-import { IMetadataProcessor } from "@/lib/library/processors/base";
-import { ProcessTask, ProcessorContext } from "@/lib/library/types";
-import {
-  posts,
-  postDetailsPixiv,
-  pixivUsers,
-  tags,
-  postTags,
-} from "@/lib/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import path from "path";
+import {
+  pixivUsers,
+  postDetailsPixiv,
+  posts,
+  postTags,
+  tags,
+} from "@/lib/db/schema";
+import type { IMetadataProcessor } from "@/lib/library/processors/base";
+import type { ProcessorContext, ProcessTask } from "@/lib/library/types";
 
 interface PixivUser {
   id?: string | number;

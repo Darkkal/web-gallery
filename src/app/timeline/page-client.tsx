@@ -1,20 +1,20 @@
 "use client";
 
 import { useMemo } from "react";
-import type { TimelinePost } from "@/types/posts";
-import Lightbox from "@/components/Lightbox";
-import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
-import styles from "@/app/timeline/page.module.css";
-import {
-  mergePixivMetadata,
-  mergeTwitterMetadata,
-  mergeGelbooruv02Metadata,
-} from "@/lib/metadata";
-import { usePaginatedData } from "@/hooks/usePaginatedData";
-import { useScrollMode, ScrollModeProvider } from "@/hooks/useScrollMode";
-import { useLightbox } from "@/hooks/useLightbox";
 import FilterBar from "@/app/timeline/components/FilterBar";
 import PostCard from "@/app/timeline/components/PostCard";
+import styles from "@/app/timeline/page.module.css";
+import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
+import Lightbox from "@/components/Lightbox";
+import { useLightbox } from "@/hooks/useLightbox";
+import { usePaginatedData } from "@/hooks/usePaginatedData";
+import { ScrollModeProvider, useScrollMode } from "@/hooks/useScrollMode";
+import {
+  mergeGelbooruv02Metadata,
+  mergePixivMetadata,
+  mergeTwitterMetadata,
+} from "@/lib/metadata";
+import type { TimelinePost } from "@/types/posts";
 
 export default function TimelinePageClient({
   initialPosts,

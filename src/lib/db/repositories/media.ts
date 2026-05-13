@@ -1,35 +1,35 @@
-import { db } from "@/lib/db";
 import {
-  mediaItems,
-  posts,
-  postDetailsTwitter,
-  postDetailsPixiv,
-  postDetailsGelbooruV02,
-  twitterUsers,
-  pixivUsers,
-  sources,
-  tags,
-  postTags,
-  collectionItems,
-} from "@/lib/db/schema";
-import {
-  eq,
-  ne,
-  inArray,
   and,
-  like,
-  SQL,
-  or,
-  desc,
   asc,
-  lt,
-  gt,
+  desc,
+  eq,
   exists,
+  gt,
+  inArray,
+  like,
+  lt,
+  ne,
+  or,
+  type SQL,
   sql,
 } from "drizzle-orm";
-import { parseSearchQuery } from "@/lib/utils/search-parser";
 import fs from "fs/promises";
 import path from "path";
+import { db } from "@/lib/db";
+import {
+  collectionItems,
+  mediaItems,
+  pixivUsers,
+  postDetailsGelbooruV02,
+  postDetailsPixiv,
+  postDetailsTwitter,
+  posts,
+  postTags,
+  sources,
+  tags,
+  twitterUsers,
+} from "@/lib/db/schema";
+import { parseSearchQuery } from "@/lib/utils/search-parser";
 
 export async function getMediaItems(filters?: {
   search?: string;
@@ -91,7 +91,7 @@ export async function getMediaItems(filters?: {
   }
 
   const orderBys: SQL[] = [];
-  let cursorCond: SQL | undefined = undefined;
+  let cursorCond: SQL | undefined;
 
   // Use coalesce to get a numeric timestamp for sorting
   const sortField = sql`COALESCE(${posts.createdAt}, ${mediaItems.capturedAt}, 0)`;

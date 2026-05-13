@@ -1,9 +1,9 @@
 "use server";
 
+import { desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { scanHistory } from "@/lib/db/schema";
-import { desc } from "drizzle-orm";
-import { syncLibrary, stopScanning } from "@/lib/library/scanner";
+import { stopScanning, syncLibrary } from "@/lib/library/scanner";
 
 export async function scanLibrary() {
   syncLibrary().catch(console.error);

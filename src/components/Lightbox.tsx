@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getPostTags } from "@/app/actions/tags";
+import FormattedContent from "@/components/FormattedContent";
 import styles from "@/components/Lightbox.module.css";
-import {
+import type {
+  UnifiedGelbooruv02Data,
   UnifiedPixivData,
   UnifiedTwitterData,
   UnifiedUserData,
-  UnifiedGelbooruv02Data,
 } from "@/lib/metadata";
-import FormattedContent from "@/components/FormattedContent";
 
 interface LightboxProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,21 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
-  Image,
-  Clock,
-  ListMusic,
-  Database,
   ChevronLeft,
   ChevronRight,
-  Sun,
-  Moon,
-  Library,
-  Tag,
+  Clock,
+  Database,
   Download,
+  Image,
+  Library,
+  ListMusic,
+  Moon,
+  Sun,
+  Tag,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import styles from "@/components/Navbar.module.css";
 import { useTheme } from "@/components/ThemeProvider";
 

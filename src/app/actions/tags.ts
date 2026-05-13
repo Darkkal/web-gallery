@@ -1,9 +1,9 @@
 "use server";
 
+import { count, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { tags, posts, postTags } from "@/lib/db/schema";
-import { desc, count, sql, eq } from "drizzle-orm";
 import * as postsRepo from "@/lib/db/repositories/posts";
+import { posts, postTags, tags } from "@/lib/db/schema";
 
 export async function getPostTags(postId: number) {
   return postsRepo.getPostTags(postId);

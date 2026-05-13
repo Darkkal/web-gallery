@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import ScrapeTaskForm from "@/app/scrape/task-form";
-import ScrapeTaskList from "@/app/scrape/task-list";
 import ScrapeHistoryTable from "@/app/scrape/history-table";
 import styles from "@/app/scrape/page.module.css";
+import ScrapeTaskForm from "@/app/scrape/task-form";
+import ScrapeTaskList from "@/app/scrape/task-list";
 
 export default function ScrapePageClient({
   tasks,

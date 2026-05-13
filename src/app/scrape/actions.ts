@@ -1,11 +1,10 @@
 "use server";
 
-import { db } from "@/lib/db";
-import { scrapingTasks, scrapeHistory, sources } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
-import { scraperManager, ScrapingStatus } from "@/lib/scrapers/manager";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { isNull, and } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { scrapeHistory, scrapingTasks, sources } from "@/lib/db/schema";
+import { type ScrapingStatus, scraperManager } from "@/lib/scrapers/manager";
 
 export async function getActiveScrapeStatuses(): Promise<ScrapingStatus[]> {
   return scraperManager.getAllStatuses();

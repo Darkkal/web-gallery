@@ -1,10 +1,10 @@
+import { relations } from "drizzle-orm";
 import {
-  sqliteTable,
-  text,
   integer,
   primaryKey,
+  sqliteTable,
+  text,
 } from "drizzle-orm/sqlite-core";
-import { relations } from "drizzle-orm";
 
 export const gallerydlExtractorTypes = sqliteTable(
   "gallerydl_extractor_types",

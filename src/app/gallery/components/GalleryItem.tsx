@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
 import Image from "next/image";
+import React from "react";
 import styles from "@/app/gallery/page.module.css";
-import { GalleryGroup } from "@/types/media";
+import type { GalleryGroup } from "@/types/media";
 
 interface GalleryItemProps {
   row: GalleryGroup;

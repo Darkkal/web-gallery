@@ -1,14 +1,14 @@
 "use server";
 
-import { db } from "@/lib/db";
-import { scraperManager } from "@/lib/scrapers/manager";
-import { stopScanning } from "@/lib/library/scanner";
-import fs from "fs/promises";
-import path from "path";
-import { sql, is, getTableName } from "drizzle-orm";
+import { getTableName, is, sql } from "drizzle-orm";
 import { SQLiteTable } from "drizzle-orm/sqlite-core";
+import fs from "fs/promises";
 import { revalidatePath } from "next/cache";
+import path from "path";
+import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
+import { stopScanning } from "@/lib/library/scanner";
+import { scraperManager } from "@/lib/scrapers/manager";
 
 /**
  * Throws if called in a production environment.

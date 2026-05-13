@@ -1,7 +1,7 @@
+import { desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { scanHistory } from "@/lib/db/schema";
-import { desc } from "drizzle-orm";
 
 import { syncLibrary } from "@/lib/library/scanner";
 

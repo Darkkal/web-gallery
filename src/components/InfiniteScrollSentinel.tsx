@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import styles from "@/components/InfiniteScrollSentinel.module.css";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 interface InfiniteScrollSentinelProps {
   loadMore: () => void;

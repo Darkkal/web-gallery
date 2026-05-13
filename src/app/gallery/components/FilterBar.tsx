@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
 import { CheckSquare, Square } from "lucide-react";
-import ScrollModeToggle from "@/components/ScrollModeToggle";
+import React from "react";
 import styles from "@/app/gallery/page.module.css";
+import ScrollModeToggle from "@/components/ScrollModeToggle";
 
 interface FilterBarProps {
   selectionMode: boolean;

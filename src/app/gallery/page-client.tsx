@@ -2,23 +2,23 @@
 
 import { useState } from "react";
 import { deleteMediaItems } from "@/app/actions/gallery";
+import BulkActionBar from "@/app/gallery/components/BulkActionBar";
+import FilterBar from "@/app/gallery/components/FilterBar";
+import GalleryItem from "@/app/gallery/components/GalleryItem";
+import styles from "@/app/gallery/page.module.css";
+import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 import Lightbox from "@/components/Lightbox";
 import MasonryGrid from "@/components/MasonryGrid";
-import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
-import styles from "@/app/gallery/page.module.css";
+import { useLightbox } from "@/hooks/useLightbox";
+import { usePaginatedData } from "@/hooks/usePaginatedData";
+import { ScrollModeProvider, useScrollMode } from "@/hooks/useScrollMode";
+import { useSelection } from "@/hooks/useSelection";
 import {
+  mergeGelbooruv02Metadata,
   mergePixivMetadata,
   mergeTwitterMetadata,
-  mergeGelbooruv02Metadata,
 } from "@/lib/metadata";
-import { GalleryGroup } from "@/types/media";
-import { useSelection } from "@/hooks/useSelection";
-import { usePaginatedData } from "@/hooks/usePaginatedData";
-import { useScrollMode, ScrollModeProvider } from "@/hooks/useScrollMode";
-import { useLightbox } from "@/hooks/useLightbox";
-import FilterBar from "@/app/gallery/components/FilterBar";
-import BulkActionBar from "@/app/gallery/components/BulkActionBar";
-import GalleryItem from "@/app/gallery/components/GalleryItem";
+import type { GalleryGroup } from "@/types/media";
 
 export default function GalleryPageClient({
   initialItems,

@@ -1,30 +1,30 @@
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  gt,
+  inArray,
+  like,
+  lt,
+  ne,
+  or,
+  type SQL,
+} from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  posts,
-  postDetailsTwitter,
-  postDetailsPixiv,
-  postDetailsGelbooruV02,
-  twitterUsers,
+  mediaItems,
   pixivUsers,
+  postDetailsGelbooruV02,
+  postDetailsPixiv,
+  postDetailsTwitter,
+  posts,
+  postTags,
   sources,
   tags,
-  postTags,
-  mediaItems,
+  twitterUsers,
 } from "@/lib/db/schema";
-import {
-  eq,
-  ne,
-  inArray,
-  and,
-  like,
-  SQL,
-  or,
-  desc,
-  asc,
-  lt,
-  gt,
-  exists,
-} from "drizzle-orm";
 import { parseSearchQuery } from "@/lib/utils/search-parser";
 
 export type TimelinePost = {
@@ -127,7 +127,7 @@ export async function getTimelinePosts(filters?: {
   }
 
   const orderBys: SQL[] = [];
-  let cursorCond: SQL | undefined = undefined;
+  let cursorCond: SQL | undefined;
 
   if (sortBy === "created-asc") {
     orderBys.push(asc(posts.createdAt), asc(posts.id));
@@ -225,14 +225,14 @@ export async function getTimelinePosts(filters?: {
   }
 
   const timelinePosts: TimelinePost[] = rawPosts.map((row) => {
-    let stats: TimelinePost["stats"] = undefined;
+    let stats: TimelinePost["stats"];
     let type: "twitter" | "pixiv" | "other" = "other";
     if (row.post.extractorType === "twitter") type = "twitter";
     else if (row.post.extractorType === "pixiv") type = "pixiv";
 
-    let author: TimelinePost["author"] = undefined;
-    let pixivMetadata: TimelinePost["pixivMetadata"] = undefined;
-    let gelbooruMetadata: TimelinePost["gelbooruMetadata"] = undefined;
+    let author: TimelinePost["author"];
+    let pixivMetadata: TimelinePost["pixivMetadata"];
+    let gelbooruMetadata: TimelinePost["gelbooruMetadata"];
 
     if (type === "twitter") {
       stats = {

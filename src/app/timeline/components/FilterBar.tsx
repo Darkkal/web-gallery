@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import ScrollModeToggle from "@/components/ScrollModeToggle";
 import styles from "@/app/timeline/page.module.css";
+import ScrollModeToggle from "@/components/ScrollModeToggle";
 
 interface FilterBarProps {
   searchQuery: string;

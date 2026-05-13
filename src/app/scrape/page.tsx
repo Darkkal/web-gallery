@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import {
+  getScrapeHistory,
   getScrapeTasks,
   getSources,
-  getScrapeHistory,
 } from "@/app/scrape/actions";
 import ScrapePageClient from "@/app/scrape/page-client";
 

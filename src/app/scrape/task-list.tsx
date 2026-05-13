@@ -1,14 +1,14 @@
 "use client";
 
+import { formatDistanceToNow } from "date-fns";
+import { Check, Pencil, Play, Square, Trash2, X, Zap } from "lucide-react";
 import { useState } from "react";
 import {
+  deleteScrapeTask,
   runTaskNow,
   stopTask,
-  deleteScrapeTask,
   updateScrapeTask,
 } from "@/app/scrape/actions";
-import { Play, Square, Trash2, Pencil, Check, X, Zap } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import styles from "@/app/scrape/page.module.css";
 
 interface Task {

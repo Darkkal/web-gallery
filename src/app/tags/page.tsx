@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { getTopTags } from "@/app/actions/tags";
 import Link from "next/link";
+import { getTopTags } from "@/app/actions/tags";
 import styles from "@/app/tags/page.module.css";
 
 export const metadata: Metadata = { title: "Tag Statistics" };

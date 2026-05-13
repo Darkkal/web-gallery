@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { useScrollMode } from "@/hooks/useScrollMode";
 import styles from "@/components/ScrollModeToggle.module.css";
+import { useScrollMode } from "@/hooks/useScrollMode";
 
 export default function ScrollModeToggle() {
   const { scrollMode, setScrollMode } = useScrollMode();

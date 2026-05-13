@@ -1,5 +1,5 @@
+import type { ChildProcess } from "child_process";
 import { BaseScraperStrategy } from "@/lib/scrapers/strategies/base";
-import { ChildProcess } from "child_process";
 export class YtDlpStrategy extends BaseScraperStrategy {
   get toolName() {
     return "yt-dlp" as const;
@@ -17,7 +17,7 @@ export class YtDlpStrategy extends BaseScraperStrategy {
     this.parseProgressPrefix(line);
 
     const match = line.match(
-      /\[download\]\s+(\d+\.\d+)%\s+of\s+([\d\.]+\w+)\s+at\s+([\d\.]+\w+\/s)/,
+      /\[download\]\s+(\d+\.\d+)%\s+of\s+([\d.]+\w+)\s+at\s+([\d.]+\w+\/s)/,
     );
     if (match) {
       const size = match[2];

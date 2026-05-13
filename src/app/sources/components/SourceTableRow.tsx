@@ -1,10 +1,10 @@
 "use client";
 
-import React from "react";
+import { Check, Edit2, Image as ImageIcon, X } from "lucide-react";
 import Image from "next/image";
-import { Image as ImageIcon, Edit2, Check, X } from "lucide-react";
-import type { Source } from "@/types/source";
+import React from "react";
 import styles from "@/app/sources/page.module.css";
+import type { Source } from "@/types/source";
 
 interface SourceTableRowProps {
   source: Source;

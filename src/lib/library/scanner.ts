@@ -1,25 +1,25 @@
+import { eq, inArray } from "drizzle-orm";
 import fs, { promises as fsPromises } from "fs";
 import path from "path";
 import { db } from "@/lib/db";
 import {
-  mediaItems,
-  twitterUsers,
-  pixivUsers,
-  tags,
-  scanHistory,
   gallerydlExtractorTypes,
-  scraperDownloadLogs,
+  mediaItems,
+  pixivUsers,
   // New Tables
   posts,
+  scanHistory,
+  scraperDownloadLogs,
+  tags,
+  twitterUsers,
 } from "@/lib/db/schema";
-import { eq, inArray } from "drizzle-orm";
-import {
-  ProcessTask,
-  ProcessorContext,
-  UserCache,
-  TagCache,
-} from "@/lib/library/types";
 import { MetadataProcessorFactory } from "@/lib/library/processors/factory";
+import type {
+  ProcessorContext,
+  ProcessTask,
+  TagCache,
+  UserCache,
+} from "@/lib/library/types";
 
 const DOWNLOAD_DIR = path.join(process.cwd(), "public", "downloads");
 // Global control flags for this module process
@@ -412,7 +412,7 @@ async function prepareTask(task: ProcessTask): Promise<PrepareResult> {
       const raw = await fsPromises.readFile(task.jsonPath, "utf-8");
       // Fix for large integers (e.g. Twitter Snowflakes) that exceed Number.MAX_SAFE_INTEGER
       // We wrap numbers with 16 or more digits in quotes so JSON.parse treats them as strings.
-      const fixedRaw = raw.replace(/([:\[,]\s*)([0-9]{16,})/g, '$1"$2"');
+      const fixedRaw = raw.replace(/([:[,]\s*)([0-9]{16,})/g, '$1"$2"');
       meta = JSON.parse(fixedRaw);
     } catch {}
   }
