@@ -96,7 +96,7 @@ export function usePaginatedData<T>({
       return;
     }
     refresh();
-  }, [debouncedSearch, debouncedSort, refresh]);
+  }, [refresh]);
 
   return {
     items,

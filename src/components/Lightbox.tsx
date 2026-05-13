@@ -70,7 +70,7 @@ export default function Lightbox({
       };
       playVideo();
     }
-  }, [item.id, item.mediaType, item.filePath]);
+  }, [item.mediaType]);
 
   async function handleDeleteDB() {
     if (!onDelete) return;
@@ -409,9 +409,7 @@ export default function Lightbox({
           </div>
         )}
 
-        {(item.originalUrl ||
-          (tweet && tweet.tweetId && user) ||
-          (pixiv && pixiv.pixivId)) && (
+        {(item.originalUrl || (tweet?.tweetId && user) || pixiv?.pixivId) && (
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Source</h3>
             {item.originalUrl && (
@@ -424,7 +422,7 @@ export default function Lightbox({
                 Open Original File
               </a>
             )}
-            {tweet && tweet.tweetId && user && (
+            {tweet?.tweetId && user && (
               <a
                 href={`https://twitter.com/${user.nick || user.username}/status/${tweet.tweetId}`}
                 target="_blank"
@@ -434,7 +432,7 @@ export default function Lightbox({
                 View Tweet
               </a>
             )}
-            {pixiv && pixiv.pixivId && (
+            {pixiv?.pixivId && (
               <a
                 href={`https://www.pixiv.net/artworks/${pixiv.pixivId}`}
                 target="_blank"

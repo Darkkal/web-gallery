@@ -1,7 +1,7 @@
 "use client";
 
 import type { InferSelectModel } from "drizzle-orm";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   purgeAvatars,
   purgeDatabases,

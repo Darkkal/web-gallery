@@ -1,6 +1,6 @@
-import { spawn } from "child_process";
-import fs from "fs";
-import path from "path";
+import { spawn } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import type { BaseScraperStrategy } from "@/lib/scrapers/strategies/base";
 import { GalleryDlStrategy } from "@/lib/scrapers/strategies/gallery-dl";
 import { YtDlpStrategy } from "@/lib/scrapers/strategies/yt-dlp";
@@ -95,7 +95,7 @@ export class ScraperRunner {
             !line.startsWith("[progress]") &&
             !line.startsWith("[download]")
           ) {
-            strategy.stdout += line + "\n";
+            strategy.stdout += `${line}\n`;
           }
 
           strategy.parseLine(line, child);
@@ -111,7 +111,7 @@ export class ScraperRunner {
             !line.startsWith("[progress]") &&
             !line.startsWith("[download]")
           ) {
-            strategy.stderr += line + "\n";
+            strategy.stderr += `${line}\n`;
           }
 
           if (line.includes("[error]") || line.includes("ERROR:")) {

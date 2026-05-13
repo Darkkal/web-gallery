@@ -1,5 +1,5 @@
+import path from "node:path";
 import { and, eq, isNull } from "drizzle-orm";
-import path from "path";
 import { postDetailsGelbooruV02, posts, postTags, tags } from "@/lib/db/schema";
 import type { IMetadataProcessor } from "@/lib/library/processors/base";
 import type { ProcessorContext, ProcessTask } from "@/lib/library/types";

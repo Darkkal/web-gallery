@@ -1,7 +1,6 @@
 "use client";
 
 import { LayoutGrid, List as ListIcon, Search, Trash2 } from "lucide-react";
-import React from "react";
 import styles from "@/app/sources/page.module.css";
 
 interface ControlsBarProps {

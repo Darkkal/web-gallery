@@ -1,6 +1,6 @@
-import { type ChildProcess, spawn } from "child_process";
+import { type ChildProcess, spawn } from "node:child_process";
+import path from "node:path";
 import { eq } from "drizzle-orm";
-import path from "path";
 import { db } from "@/lib/db";
 import { scrapeHistory, scraperDownloadLogs } from "@/lib/db/schema";
 import { syncLibrary } from "@/lib/library/scanner";
@@ -146,7 +146,7 @@ class ScraperManager {
       .then(async (result) => {
         let logMsg = result.error || result.output || "";
         if (logMsg.length > 200) {
-          logMsg = logMsg.substring(0, 200) + "...";
+          logMsg = `${logMsg.substring(0, 200)}...`;
         }
         console.log(
           `[ScraperManager] FINISHED scrape for source ID: ${sourceId} - Result: ${result.success ? "Success" : "Failed"} ${logMsg}`,

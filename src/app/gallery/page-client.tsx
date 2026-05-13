@@ -114,7 +114,7 @@ function GalleryPageContent({
       clearSelection();
       await refresh();
     } catch (err) {
-      alert("Failed to delete items: " + err);
+      alert(`Failed to delete items: ${err}`);
     } finally {
       setDeleting(false);
     }
@@ -127,7 +127,7 @@ function GalleryPageContent({
       setSelectedIndex(null);
       await refresh();
     } catch (err) {
-      alert("Failed to delete item: " + err);
+      alert(`Failed to delete item: ${err}`);
     } finally {
       setDeleting(false);
     }

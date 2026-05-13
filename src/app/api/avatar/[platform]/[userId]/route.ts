@@ -1,8 +1,8 @@
+import fs, { promises as fsPromises } from "node:fs";
+import path from "node:path";
+import { Readable } from "node:stream";
 import { eq } from "drizzle-orm";
-import fs, { promises as fsPromises } from "fs";
 import { type NextRequest, NextResponse } from "next/server";
-import path from "path";
-import { Readable } from "stream";
 import { db } from "@/lib/db";
 import { pixivUsers, twitterUsers } from "@/lib/db/schema";
 import { avatarRequestQueue } from "@/lib/request-queue";
@@ -25,7 +25,7 @@ export async function GET(
   try {
     await fsPromises.mkdir(platformDir, { recursive: true });
     const files = await fsPromises.readdir(platformDir);
-    existingFile = files.find((f) => f.startsWith(userId + "."));
+    existingFile = files.find((f) => f.startsWith(`${userId}.`));
   } catch (e) {
     console.error("[API] Avatar dir error:", e);
   }
@@ -92,7 +92,7 @@ export async function GET(
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       };
-      if (platform === "pixiv") headers["Referer"] = "https://www.pixiv.net/";
+      if (platform === "pixiv") headers.Referer = "https://www.pixiv.net/";
 
       const response = await fetch(avatarUrl!, {
         headers,

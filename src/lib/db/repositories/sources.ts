@@ -126,7 +126,7 @@ export async function getSourcesWithHistory() {
 
 export async function deleteSource(id: number) {
   const numericId = Number(id);
-  if (isNaN(numericId)) {
+  if (Number.isNaN(numericId)) {
     throw new Error(`Invalid source ID: ${id}`);
   }
 

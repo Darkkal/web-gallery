@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import styles from "@/app/gallery/page.module.css";
 
 interface BulkActionBarProps {

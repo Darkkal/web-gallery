@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn } from "child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import type { ScrapeLimits } from "@/lib/scrapers/runner";
 import type { ScrapeResult, ScraperOptions } from "@/lib/scrapers/types";
 import { formatBytes, parseSizeToBytes } from "@/lib/utils/format";
@@ -107,8 +107,9 @@ export abstract class BaseScraperStrategy {
   }
 
   protected killChild(child: ChildProcess) {
-    if (process.platform === "win32") {
-      spawn("taskkill", ["/pid", child.pid!.toString(), "/f", "/t"]);
+    if (process.platform === "win32"
+      && child.pid !== undefined) {
+      spawn("taskkill", ["/pid", child.pid?.toString(), "/f", "/t"]);
     } else {
       child.kill();
     }

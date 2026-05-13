@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import styles from "@/app/timeline/page.module.css";
 import ScrollModeToggle from "@/components/ScrollModeToggle";
 

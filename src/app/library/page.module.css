@@ -134,7 +134,7 @@
 }
 
 .dangerTitle {
-  color: hsl(var(--color-danger)) !important;
+  color: hsl(var(--color-danger));
 }
 
 .dangerActions {

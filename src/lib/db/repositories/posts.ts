@@ -131,7 +131,11 @@ export async function getTimelinePosts(filters?: {
 
   if (sortBy === "created-asc") {
     orderBys.push(asc(posts.createdAt), asc(posts.id));
-    if (cursorSortVal !== null && cursorId !== null && !isNaN(cursorId)) {
+    if (
+      cursorSortVal !== null &&
+      cursorId !== null &&
+      !Number.isNaN(cursorId)
+    ) {
       const dateVal = new Date(parseInt(cursorSortVal, 10));
       cursorCond = or(
         gt(posts.createdAt, dateVal),
@@ -140,7 +144,11 @@ export async function getTimelinePosts(filters?: {
     }
   } else if (sortBy === "created-desc") {
     orderBys.push(desc(posts.createdAt), desc(posts.id));
-    if (cursorSortVal !== null && cursorId !== null && !isNaN(cursorId)) {
+    if (
+      cursorSortVal !== null &&
+      cursorId !== null &&
+      !Number.isNaN(cursorId)
+    ) {
       const dateVal = new Date(parseInt(cursorSortVal, 10));
       cursorCond = or(
         lt(posts.createdAt, dateVal),
@@ -149,7 +157,11 @@ export async function getTimelinePosts(filters?: {
     }
   } else if (sortBy === "captured-asc") {
     orderBys.push(asc(posts.date), asc(posts.id));
-    if (cursorSortVal !== null && cursorId !== null && !isNaN(cursorId)) {
+    if (
+      cursorSortVal !== null &&
+      cursorId !== null &&
+      !Number.isNaN(cursorId)
+    ) {
       cursorCond = or(
         gt(posts.date, cursorSortVal),
         and(eq(posts.date, cursorSortVal), gt(posts.id, cursorId)),
@@ -158,7 +170,11 @@ export async function getTimelinePosts(filters?: {
   } else {
     // captured-desc
     orderBys.push(desc(posts.date), desc(posts.id));
-    if (cursorSortVal !== null && cursorId !== null && !isNaN(cursorId)) {
+    if (
+      cursorSortVal !== null &&
+      cursorId !== null &&
+      !Number.isNaN(cursorId)
+    ) {
       cursorCond = or(
         lt(posts.date, cursorSortVal),
         and(eq(posts.date, cursorSortVal), lt(posts.id, cursorId)),
@@ -220,7 +236,7 @@ export async function getTimelinePosts(filters?: {
   for (const m of pageMedia) {
     if (m.postId) {
       if (!mediaMap.has(m.postId)) mediaMap.set(m.postId, []);
-      mediaMap.get(m.postId)!.push(m);
+      mediaMap.get(m.postId)?.push(m);
     }
   }
 
@@ -264,7 +280,7 @@ export async function getTimelinePosts(filters?: {
       };
       pixivMetadata = {
         dbId: row.post.id,
-        illustId: parseInt(row.post.jsonSourceId || "0"),
+        illustId: parseInt(row.post.jsonSourceId || "0", 10),
       };
     } else if (row.post.extractorType === "gelbooruv02") {
       type = "other";

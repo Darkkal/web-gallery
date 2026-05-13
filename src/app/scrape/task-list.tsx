@@ -104,13 +104,13 @@ export default function ScrapeTaskList({
         name: editValues.name || undefined,
         downloadOptions: {
           stopAfterCompleted: editValues.stopAfterCompleted
-            ? parseInt(editValues.stopAfterCompleted)
+            ? parseInt(editValues.stopAfterCompleted, 10)
             : undefined,
           stopAfterSkipped: editValues.stopAfterSkipped
-            ? parseInt(editValues.stopAfterSkipped)
+            ? parseInt(editValues.stopAfterSkipped, 10)
             : undefined,
           stopAfterPosts: editValues.stopAfterPosts
-            ? parseInt(editValues.stopAfterPosts)
+            ? parseInt(editValues.stopAfterPosts, 10)
             : undefined,
         },
         enabled: editValues.enabled,

@@ -1,8 +1,8 @@
+import { createHash } from "node:crypto";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { createClient } from "@libsql/client";
-import { createHash } from "crypto";
 import { drizzle } from "drizzle-orm/libsql";
-import * as fs from "fs";
-import * as path from "path";
 import * as schema from "@/lib/db/schema";
 
 const dbPath = path.join(process.cwd(), "sqlite.db");

@@ -235,13 +235,13 @@
 }
 
 .deleteDBButton:hover {
-  background: hsl(var(--color-warning)) !important;
-  color: white !important;
+  background: hsl(var(--color-warning));
+  color: white;
 }
 
 .deleteDiskButton:hover {
-  background: hsl(var(--color-danger)) !important;
-  color: white !important;
+  background: hsl(var(--color-danger));
+  color: white;
 }
 
 .buttonBadge {

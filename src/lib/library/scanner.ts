@@ -1,6 +1,6 @@
+import fs, { promises as fsPromises } from "node:fs";
+import path from "node:path";
 import { eq, inArray } from "drizzle-orm";
-import fs, { promises as fsPromises } from "fs";
-import path from "path";
 import { db } from "@/lib/db";
 import {
   gallerydlExtractorTypes,
@@ -41,8 +41,7 @@ function getAllFiles(dirPath: string): string[] {
     const fullPath = path.join(dirPath, file);
     try {
       const stat = fs.statSync(fullPath);
-      if (stat && stat.isDirectory())
-        results = results.concat(getAllFiles(fullPath));
+      if (stat?.isDirectory()) results = results.concat(getAllFiles(fullPath));
       else results.push(fullPath);
     } catch {}
   });
@@ -216,10 +215,10 @@ export async function syncLibrary() {
           }
           // 2. Contains match (Safebooru: category_id_hash)
           else if (
-            mediaName.includes("_" + jsonName + "_") ||
-            mediaName.includes("-" + jsonName + "-") ||
-            mediaName.endsWith("_" + jsonName) ||
-            mediaName.startsWith(jsonName + "_")
+            mediaName.includes(`_${jsonName}_`) ||
+            mediaName.includes(`-${jsonName}-`) ||
+            mediaName.endsWith(`_${jsonName}`) ||
+            mediaName.startsWith(`${jsonName}_`)
           ) {
             if (jsonName.length > bestMatchLen) {
               bestMatchLen = jsonName.length;
@@ -250,7 +249,7 @@ export async function syncLibrary() {
             .relative(group.sourceRoot, mediaPath)
             .split(path.sep)
             .join("/");
-          urlPath = "/" + relativePath;
+          urlPath = `/${relativePath}`;
         }
 
         processedPaths.add(urlPath);
@@ -282,7 +281,7 @@ export async function syncLibrary() {
               .relative(group.sourceRoot, jsonPath)
               .split(path.sep)
               .join("/");
-            urlPath = "/" + relativePath;
+            urlPath = `/${relativePath}`;
           }
 
           tasks.push({

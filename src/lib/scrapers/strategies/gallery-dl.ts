@@ -1,20 +1,10 @@
-import type { ChildProcess } from "child_process";
-import path from "path";
-import type { ScrapeLimits } from "@/lib/scrapers/runner";
+import type { ChildProcess } from "node:child_process";
+import path from "node:path";
 import { BaseScraperStrategy } from "@/lib/scrapers/strategies/base";
-import type { ScraperOptions } from "@/lib/scrapers/types";
 
 export class GalleryDlStrategy extends BaseScraperStrategy {
   get toolName() {
     return "gallery-dl" as const;
-  }
-
-  constructor(
-    basePath: string,
-    options: ScraperOptions,
-    limits?: ScrapeLimits,
-  ) {
-    super(basePath, options, limits);
   }
 
   buildArgs() {

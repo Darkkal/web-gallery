@@ -59,7 +59,7 @@ export default function MasonryGrid<T>({
           {col.map((item, itemIndex) => {
             const originalIndex = itemIndex * currentColumnCount + colIndex;
             return (
-              <React.Fragment key={colIndex + "-" + itemIndex}>
+              <React.Fragment key={`${colIndex}-${itemIndex}`}>
                 {renderItem(item, originalIndex)}
               </React.Fragment>
             );

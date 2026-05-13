@@ -1,7 +1,6 @@
 "use client";
 
 import { Image as ImageIcon } from "lucide-react";
-import React from "react";
 import styles from "@/app/sources/page.module.css";
 import type { Source } from "@/types/source";
 

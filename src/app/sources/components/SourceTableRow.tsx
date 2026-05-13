@@ -2,7 +2,6 @@
 
 import { Check, Edit2, Image as ImageIcon, X } from "lucide-react";
 import Image from "next/image";
-import React from "react";
 import styles from "@/app/sources/page.module.css";
 import type { Source } from "@/types/source";
 

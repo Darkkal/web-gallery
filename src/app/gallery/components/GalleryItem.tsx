@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import React from "react";
 import styles from "@/app/gallery/page.module.css";
 import type { GalleryGroup } from "@/types/media";
 

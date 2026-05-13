@@ -1,10 +1,10 @@
 "use server";
 
+import fs from "node:fs/promises";
+import path from "node:path";
 import { getTableName, is, sql } from "drizzle-orm";
 import { SQLiteTable } from "drizzle-orm/sqlite-core";
-import fs from "fs/promises";
 import { revalidatePath } from "next/cache";
-import path from "path";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { stopScanning } from "@/lib/library/scanner";

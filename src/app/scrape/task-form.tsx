@@ -26,16 +26,18 @@ export default function ScrapeTaskForm({ sources }: { sources: Source[] }) {
     setLoading(true);
     try {
       await createScrapeTask({
-        sourceId: parseInt(sourceId),
+        sourceId: parseInt(sourceId, 10),
         name: name || undefined,
         downloadOptions: {
           stopAfterCompleted: stopAfterCompleted
-            ? parseInt(stopAfterCompleted)
+            ? parseInt(stopAfterCompleted, 10)
             : undefined,
           stopAfterSkipped: stopAfterSkipped
-            ? parseInt(stopAfterSkipped)
+            ? parseInt(stopAfterSkipped, 10)
             : undefined,
-          stopAfterPosts: stopAfterPosts ? parseInt(stopAfterPosts) : undefined,
+          stopAfterPosts: stopAfterPosts
+            ? parseInt(stopAfterPosts, 10)
+            : undefined,
         },
         scheduleInterval: undefined,
         enabled: true,

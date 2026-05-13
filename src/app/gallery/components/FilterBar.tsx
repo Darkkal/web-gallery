@@ -1,7 +1,6 @@
 "use client";
 
 import { CheckSquare, Square } from "lucide-react";
-import React from "react";
 import styles from "@/app/gallery/page.module.css";
 import ScrollModeToggle from "@/components/ScrollModeToggle";
 
@@ -82,7 +81,7 @@ export default function FilterBar({
           min="1"
           max="10"
           value={columnCount}
-          onChange={(e) => setColumnCount(parseInt(e.target.value))}
+          onChange={(e) => setColumnCount(parseInt(e.target.value, 10))}
           className={styles.slider}
         />
       </div>

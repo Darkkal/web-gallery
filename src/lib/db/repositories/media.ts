@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import {
   and,
   asc,
@@ -13,8 +15,6 @@ import {
   type SQL,
   sql,
 } from "drizzle-orm";
-import fs from "fs/promises";
-import path from "path";
 import { db } from "@/lib/db";
 import {
   collectionItems,
@@ -98,7 +98,11 @@ export async function getMediaItems(filters?: {
 
   if (sortBy === "created-asc" || sortBy === "captured-asc") {
     orderBys.push(asc(sortField), asc(mediaItems.id));
-    if (cursorSortVal !== null && cursorId !== null && !isNaN(cursorId)) {
+    if (
+      cursorSortVal !== null &&
+      cursorId !== null &&
+      !Number.isNaN(cursorId)
+    ) {
       cursorCond = or(
         gt(sortField, cursorSortVal),
         and(eq(sortField, cursorSortVal), gt(mediaItems.id, cursorId)),
@@ -107,7 +111,11 @@ export async function getMediaItems(filters?: {
   } else {
     // created-desc, captured-desc
     orderBys.push(desc(sortField), desc(mediaItems.id));
-    if (cursorSortVal !== null && cursorId !== null && !isNaN(cursorId)) {
+    if (
+      cursorSortVal !== null &&
+      cursorId !== null &&
+      !Number.isNaN(cursorId)
+    ) {
       cursorCond = or(
         lt(sortField, cursorSortVal),
         and(eq(sortField, cursorSortVal), lt(mediaItems.id, cursorId)),
@@ -156,10 +164,10 @@ export async function getMediaItems(filters?: {
     .limit(limit);
 
   results.forEach((row) => {
-    if (row.user && row.user.id) {
+    if (row.user?.id) {
       row.user.profileImage = `/api/avatar/twitter/${row.user.id}`;
     }
-    if (row.pixivUser && row.pixivUser.id) {
+    if (row.pixivUser?.id) {
       row.pixivUser.profileImage = `/api/avatar/pixiv/${row.pixivUser.id}`;
     }
   });

@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import styles from "@/components/FormattedContent.module.css";
 
 interface FormattedContentProps {
@@ -28,7 +27,7 @@ export default function FormattedContent({
       /<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1/gi,
       (match) => {
         if (!match.includes("target=")) {
-          return match + ' target="_blank" rel="noopener noreferrer"';
+          return `${match} target="_blank" rel="noopener noreferrer"`;
         }
         return match;
       },
