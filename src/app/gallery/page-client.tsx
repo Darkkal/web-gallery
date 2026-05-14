@@ -13,7 +13,7 @@ import { useLightbox } from "@/hooks/useLightbox";
 import { usePaginatedData } from "@/hooks/usePaginatedData";
 import { ScrollModeProvider, useScrollMode } from "@/hooks/useScrollMode";
 import { useSelection } from "@/hooks/useSelection";
-import { mergePixivMetadata } from "@/lib/metadata";
+import { mergePixivMetadata, mergeTwitterMetadata } from "@/lib/metadata";
 import type { UnifiedUserData } from "@/lib/metadata";
 import type { GalleryGroup } from "@/types/media";
 
@@ -71,7 +71,7 @@ function GalleryPageContent({
     initialSort,
     fetchPath: "/api/gallery",
     dataKey: "items",
-    pageSize: 20,
+    pageSize: 50,
   });
 
   const { scrollMode } = useScrollMode();

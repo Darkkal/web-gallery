@@ -131,8 +131,8 @@ function TimelinePageContent({
           id: media.id,
           filePath: media.url,
           mediaType: media.type,
-          capturedAt: post.date,
-          createdAt: post.date || new Date(),
+          capturedAt: post.date ? new Date(post.date) : null,
+          createdAt: post.date ? new Date(post.date) : new Date(),
           postId: post.internalDbId || null,
         },
         post: {
@@ -142,11 +142,11 @@ function TimelinePageContent({
           jsonSourceId: post.sourceUrl || null, // approximation
           internalSourceId: post.internalDbId || null,
           userId: post.author?.handle || null,
-          date: post.date?.toISOString() || null,
+          date: post.date ? (typeof post.date === 'string' ? post.date : (post.date as Date).toISOString()) : null,
           content: post.content || null,
           url: post.sourceUrl || null,
           metadataPath: null,
-          createdAt: post.date || new Date(),
+          createdAt: post.date ? new Date(post.date) : new Date(),
         },
       } as GalleryRow,
       tweet:

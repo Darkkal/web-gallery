@@ -14,7 +14,7 @@ export default async function GalleryPage({
   const sortBy = (params.sortBy as string) || "created-desc";
 
   // Initial data fetch on the server — reduced from 50 for faster first paint
-  const filters = { search, sortBy, limit: 20 };
+  const filters = { search, sortBy, limit: 50 };
   const { items, nextCursor } = await getMediaItems(filters);
 
   // Ensure data is serializable
