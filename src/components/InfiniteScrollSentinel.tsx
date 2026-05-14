@@ -1,21 +1,24 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
-import styles from '@/components/InfiniteScrollSentinel.module.css';
+import styles from "@/components/InfiniteScrollSentinel.module.css";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 interface InfiniteScrollSentinelProps {
-    loadMore: () => void;
-    hasMore: boolean;
-    isLoading: boolean;
+  loadMore: () => void;
+  hasMore: boolean;
+  isLoading: boolean;
 }
 
-export default function InfiniteScrollSentinel({ loadMore, hasMore, isLoading }: InfiniteScrollSentinelProps) {
-    const { sentinelRef } = useInfiniteScroll({ loadMore, hasMore, isLoading });
+export default function InfiniteScrollSentinel({
+  loadMore,
+  hasMore,
+  isLoading,
+}: InfiniteScrollSentinelProps) {
+  const { sentinelRef } = useInfiniteScroll({ loadMore, hasMore, isLoading });
 
-    return (
-        <div ref={sentinelRef} className={styles.sentinel}>
-            {isLoading && <span className={styles.spinner}>Loading…</span>}
-        </div>
-    );
+  return (
+    <div ref={sentinelRef} className={styles.sentinel}>
+      {isLoading && <span className={styles.spinner}>Loading…</span>}
+    </div>
+  );
 }

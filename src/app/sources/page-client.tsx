@@ -1,37 +1,41 @@
-'use client';
+"use client";
 
-import React, { useState, useMemo } from 'react';
-import { addSource, deleteSource, updateSource } from '@/app/actions/sources';
-import styles from '@/app/sources/page.module.css';
-import { useSelection } from '@/hooks/useSelection';
-import type { Source } from '@/types/source';
-import AddSourceForm from '@/app/sources/components/AddSourceForm';
-import ControlsBar from '@/app/sources/components/ControlsBar';
-import SourceCard from '@/app/sources/components/SourceCard';
-import SourceTableRow from '@/app/sources/components/SourceTableRow';
+import type React from "react";
+import { useMemo, useState } from "react";
+import { addSource, deleteSource, updateSource } from "@/app/actions/sources";
+import AddSourceForm from "@/app/sources/components/AddSourceForm";
+import ControlsBar from "@/app/sources/components/ControlsBar";
+import SourceCard from "@/app/sources/components/SourceCard";
+import SourceTableRow from "@/app/sources/components/SourceTableRow";
+import styles from "@/app/sources/page.module.css";
+import { useSelection } from "@/hooks/useSelection";
+import type { Source } from "@/types/source";
 
-export default function SourcesPageClient({ initialSources }: { initialSources: Source[] }) {
+export default function SourcesPageClient({
+  initialSources,
+}: {
+  initialSources: Source[];
+}) {
   const [sources, setSources] = useState<Source[]>(initialSources);
-  const [newUrl, setNewUrl] = useState('');
-  const [newName, setNewName] = useState('');
+  const [newUrl, setNewUrl] = useState("");
+  const [newName, setNewName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
-  const [sortBy, setSortBy] = useState<'created' | 'name'>('created');
-  const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState<"card" | "table">("card");
+  const [sortBy, setSortBy] = useState<"created" | "name">("created");
+  const [search, setSearch] = useState("");
 
   // Edit State
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<{ url: string; name: string }>({ url: '', name: '' });
+  const [editForm, setEditForm] = useState<{ url: string; name: string }>({
+    url: "",
+    name: "",
+  });
 
-  const {
-    selectedIds,
-    toggleSelection,
-    selectAll,
-    selectedCount
-  } = useSelection();
+  const { selectedIds, toggleSelection, selectAll, selectedCount } =
+    useSelection();
 
   async function loadSources() {
-    const res = await fetch('/api/sources');
+    const res = await fetch("/api/sources");
     const data = await res.json();
     return data as Source[];
   }
@@ -42,8 +46,8 @@ export default function SourcesPageClient({ initialSources }: { initialSources: 
 
     setLoading(true);
     await addSource(newUrl, newName);
-    setNewUrl('');
-    setNewName('');
+    setNewUrl("");
+    setNewName("");
     const data = await loadSources();
     setSources(data);
     setLoading(false);
@@ -51,7 +55,8 @@ export default function SourcesPageClient({ initialSources }: { initialSources: 
 
   async function handleDeleteSelected() {
     if (selectedCount === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedCount} sources?`)) return;
+    if (!confirm(`Are you sure you want to delete ${selectedCount} sources?`))
+      return;
 
     const ids = Array.from(selectedIds);
     for (const id of ids) {
@@ -65,16 +70,20 @@ export default function SourcesPageClient({ initialSources }: { initialSources: 
   // Edit Handlers
   function startEditing(source: Source) {
     setEditingId(source.id);
-    setEditForm({ url: source.url, name: source.name || '' });
+    setEditForm({ url: source.url, name: source.name || "" });
   }
 
   function cancelEditing() {
     setEditingId(null);
-    setEditForm({ url: '', name: '' });
+    setEditForm({ url: "", name: "" });
   }
 
   async function saveEdit(id: number) {
-    setSources(prev => prev.map(s => s.id === id ? { ...s, url: editForm.url, name: editForm.name } : s));
+    setSources((prev) =>
+      prev.map((s) =>
+        s.id === id ? { ...s, url: editForm.url, name: editForm.name } : s,
+      ),
+    );
     await updateSource(id, { url: editForm.url, name: editForm.name });
     setEditingId(null);
     const data = await loadSources();
@@ -86,18 +95,21 @@ export default function SourcesPageClient({ initialSources }: { initialSources: 
 
     if (search) {
       const lower = search.toLowerCase();
-      result = result.filter(s =>
-        (s.name || '').toLowerCase().includes(lower) ||
-        s.url.toLowerCase().includes(lower) ||
-        (s.extractorType || '').toLowerCase().includes(lower)
+      result = result.filter(
+        (s) =>
+          (s.name || "").toLowerCase().includes(lower) ||
+          s.url.toLowerCase().includes(lower) ||
+          (s.extractorType || "").toLowerCase().includes(lower),
       );
     }
 
     result.sort((a, b) => {
-      if (sortBy === 'name') {
+      if (sortBy === "name") {
         return (a.name || a.url).localeCompare(b.name || b.url);
       } else {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       }
     });
 
@@ -126,9 +138,9 @@ export default function SourcesPageClient({ initialSources }: { initialSources: 
         setViewMode={setViewMode}
       />
 
-      {viewMode === 'card' ? (
+      {viewMode === "card" ? (
         <div className={styles.grid}>
-          {filteredAndSortedSources.map(source => (
+          {filteredAndSortedSources.map((source) => (
             <SourceCard
               key={source.id}
               source={source}
@@ -146,8 +158,13 @@ export default function SourcesPageClient({ initialSources }: { initialSources: 
                   <input
                     type="checkbox"
                     className={styles.checkbox}
-                    checked={filteredAndSortedSources.length > 0 && selectedCount === filteredAndSortedSources.length}
-                    onChange={() => selectAll(filteredAndSortedSources.map(s => s.id))}
+                    checked={
+                      filteredAndSortedSources.length > 0 &&
+                      selectedCount === filteredAndSortedSources.length
+                    }
+                    onChange={() =>
+                      selectAll(filteredAndSortedSources.map((s) => s.id))
+                    }
                   />
                 </th>
                 <th className={styles.thThumb}>Preview</th>
@@ -158,14 +175,19 @@ export default function SourcesPageClient({ initialSources }: { initialSources: 
               </tr>
             </thead>
             <tbody>
-              {filteredAndSortedSources.map(source => (
+              {filteredAndSortedSources.map((source) => (
                 <SourceTableRow
                   key={source.id}
                   source={source}
                   isSelected={selectedIds.has(source.id)}
                   isEditing={editingId === source.id}
                   editForm={editForm}
-                  onEditFormChange={(updates) => setEditForm(prev => ({ ...prev, ...updates }))}
+                  onEditFormChange={(updates) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      ...updates,
+                    }))
+                  }
                   onToggleSelection={() => toggleSelection(source.id)}
                   onStartEditing={() => startEditing(source)}
                   onCancelEditing={cancelEditing}
@@ -178,9 +200,7 @@ export default function SourcesPageClient({ initialSources }: { initialSources: 
       )}
 
       {filteredAndSortedSources.length === 0 && (
-        <div className={styles.emptyState}>
-          No sources found.
-        </div>
+        <div className={styles.emptyState}>No sources found.</div>
       )}
     </div>
   );

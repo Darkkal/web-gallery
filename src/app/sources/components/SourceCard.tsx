@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Image as ImageIcon } from 'lucide-react';
-import type { Source } from '@/types/source';
-import styles from '@/app/sources/page.module.css';
+import { Image as ImageIcon } from "lucide-react";
+import styles from "@/app/sources/page.module.css";
+import { handleKeyActivate } from "@/lib/utils/a11y";
+import type { Source } from "@/types/source";
 
 interface SourceCardProps {
   source: Source;
@@ -14,19 +14,26 @@ interface SourceCardProps {
 export default function SourceCard({
   source,
   isSelected,
-  onToggleSelection
+  onToggleSelection,
 }: SourceCardProps) {
-  const displayTitle = source.name || source.url.replace(/^https?:\/\//, '');
+  const displayTitle = source.name || source.url.replace(/^https?:\/\//, "");
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: Maintains current styling structure
     <div
-      className={`${styles.card} ${isSelected ? styles.selected : ''}`}
+      className={`${styles.card} ${isSelected ? styles.selected : ""}`}
       onClick={onToggleSelection}
+      onKeyDown={handleKeyActivate(onToggleSelection)}
+      role="button"
+      tabIndex={0}
+      aria-pressed={isSelected}
     >
       <div
         className={styles.cardBg}
         style={{
-          backgroundImage: source.previewImage ? `url(${source.previewImage})` : 'none',
+          backgroundImage: source.previewImage
+            ? `url(${source.previewImage})`
+            : "none",
         }}
       />
       {!source.previewImage && (
@@ -37,7 +44,9 @@ export default function SourceCard({
 
       <div className={styles.cardOverlay}>
         <div className={styles.cardContent}>
-          <div className={styles.cardTitle} title={source.url}>{displayTitle}</div>
+          <div className={styles.cardTitle} title={source.url}>
+            {displayTitle}
+          </div>
           <div className={styles.cardMeta}>
             <span className={styles.badge}>{source.extractorType}</span>
           </div>

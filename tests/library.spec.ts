@@ -1,23 +1,23 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from "@playwright/test";
 
-test('library page loads', async ({ page }) => {
-    await page.goto('/library');
-    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
-    await expect(page).toHaveURL(/.*\/library/);
+test("library page loads", async ({ page }) => {
+  await page.goto("/library");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+  await expect(page).toHaveURL(/.*\/library/);
 
-    // Check main headers
-    await expect(page.getByRole('heading', { name: 'Library Management' })).toBeVisible();
+  // Check main headers
+  await expect(
+    page.getByRole("heading", { name: "Library Management" }),
+  ).toBeVisible();
 });
 
-test('scan library interaction', async ({ page }) => {
-    await page.goto('/library');
-    await expect(page.getByTestId('loading-skeleton')).toBeHidden();
+test("scan library interaction", async ({ page }) => {
+  await page.goto("/library");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
 
-    // Check for "Scan Library" button
-    const scanButton = page.getByRole('button', { name: 'Scan Library' });
-    await expect(scanButton).toBeVisible();
+  // Check for "Scan Library" button
+  const scanButton = page.getByRole("button", { name: "Scan Library" });
+  await expect(scanButton).toBeVisible();
 
-    // Not clicking to avoid starting actual scan in test environment
+  // Not clicking to avoid starting actual scan in test environment
 });
-
-

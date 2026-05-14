@@ -1,30 +1,29 @@
-export interface MediaItem {
-    id: number;
-    filePath: string;
-    mediaType: 'image' | 'video' | 'audio' | 'text';
-    capturedAt: Date | null;
-    createdAt: Date;
-    postId: number | null;
-}
+import type { InferSelectModel } from "drizzle-orm";
+import type {
+  mediaItems,
+  pixivUsers,
+  postDetailsGelbooruV02,
+  postDetailsPixiv,
+  postDetailsTwitter,
+  posts,
+  sources,
+  twitterUsers,
+} from "@/lib/db/schema";
+
+export interface MediaItem extends InferSelectModel<typeof mediaItems> {}
 
 export interface GalleryRow {
-    item: MediaItem;
-    post?: import('./posts').Post;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    twitter?: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    pixiv?: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    gelbooru?: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    user?: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    pixivUser?: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    source?: any;
+  item: MediaItem;
+  post?: InferSelectModel<typeof posts> | null;
+  twitter?: InferSelectModel<typeof postDetailsTwitter> | null;
+  pixiv?: InferSelectModel<typeof postDetailsPixiv> | null;
+  gelbooru?: InferSelectModel<typeof postDetailsGelbooruV02> | null;
+  user?: InferSelectModel<typeof twitterUsers> | null;
+  pixivUser?: InferSelectModel<typeof pixivUsers> | null;
+  source?: InferSelectModel<typeof sources> | null;
 }
 
 export interface GalleryGroup extends GalleryRow {
-    groupItems: GalleryRow[];
-    groupCount: number;
+  groupItems: GalleryRow[];
+  groupCount: number;
 }

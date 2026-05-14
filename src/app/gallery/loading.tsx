@@ -1,4 +1,4 @@
-import styles from '@/app/loading.module.css';
+import styles from "@/app/loading.module.css";
 
 export default function GalleryLoading() {
   return (
@@ -10,17 +10,21 @@ export default function GalleryLoading() {
           <div className={`${styles.skeleton} ${styles.controlItem}`}></div>
         </div>
       </div>
-      
-      <div className={`${styles.skeleton} ${styles.filterBar}`} style={{ marginBottom: '1rem', height: '4rem' }}></div>
-      
+
+      <div
+        className={`${styles.skeleton} ${styles.filterBar}`}
+        style={{ marginBottom: "1rem", height: "4rem" }}
+      ></div>
+
       <div className={styles.grid}>
         {[...Array(12)].map((_, i) => (
-          <div 
-            key={i} 
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton
+            key={i}
             className={`${styles.skeleton} ${styles.card}`}
-            style={{ 
+            style={{
               height: `${[250, 320, 200, 400][i % 4]}px`,
-              aspectRatio: 'auto'
+              aspectRatio: "auto",
             }}
           ></div>
         ))}

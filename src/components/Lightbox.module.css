@@ -1,336 +1,339 @@
 .overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: var(--glass-background);
-    backdrop-filter: blur(var(--glass-blur));
-    z-index: 100;
-    display: flex;
-    align-items: stretch;
-    opacity: 0;
-    animation: fadeIn 0.3s forwards;
-    color: hsl(var(--foreground));
-    font-family: system-ui, -apple-system, sans-serif;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--glass-background);
+  backdrop-filter: blur(var(--glass-blur));
+  z-index: 100;
+  display: flex;
+  align-items: stretch;
+  opacity: 0;
+  animation: fadeIn 0.3s forwards;
+  color: hsl(var(--foreground));
+  font-family: system-ui, -apple-system, sans-serif;
 }
 
 @keyframes fadeIn {
-    to {
-        opacity: 1;
-    }
+  to {
+    opacity: 1;
+  }
 }
 
 .mainArea {
-    flex: 1;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
 }
 
 .mediaWrapper {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .image {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
-    transition: transform 0.3s ease;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+  transition: transform 0.3s ease;
 }
 
 .video {
-    max-width: 100%;
-    max-height: 100%;
-    outline: none;
-    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+  max-width: 100%;
+  max-height: 100%;
+  outline: none;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
 }
 
 .sidebar {
-    width: 360px;
-    background: var(--glass-background);
-    backdrop-filter: blur(var(--glass-blur));
-    border-left: 1px solid var(--glass-border);
-    display: flex;
-    flex-direction: column;
-    padding: 24px;
-    overflow-y: auto;
-    transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
-    flex-shrink: 0;
+  width: 360px;
+  background: var(--glass-background);
+  backdrop-filter: blur(var(--glass-blur));
+  border-left: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  overflow-y: auto;
+  transition:
+    width 0.3s ease,
+    padding 0.3s ease,
+    opacity 0.3s ease;
+  flex-shrink: 0;
 }
 
 .sidebarHidden {
-    width: 0;
-    padding: 0;
-    opacity: 0;
-    overflow: hidden;
-    border-left: none;
+  width: 0;
+  padding: 0;
+  opacity: 0;
+  overflow: hidden;
+  border-left: none;
 }
 
 .sidebarHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
 }
 
 .sidebarTitle {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin: 0;
-    line-height: 1.4;
-    color: hsl(var(--foreground));
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.4;
+  color: hsl(var(--foreground));
 }
 
 .sidebarCloseMobile {
-    display: none;
+  display: none;
 }
 
 .section {
-    margin-bottom: 24px;
-    border-bottom: 1px solid hsl(var(--border));
-    padding-bottom: 16px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid hsl(var(--border));
+  padding-bottom: 16px;
 }
 
 .section:last-child {
-    border-bottom: none;
+  border-bottom: none;
 }
 
 .sectionTitle {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: hsl(var(--muted-foreground));
-    margin-bottom: 8px;
-    margin-top: 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 8px;
+  margin-top: 0;
 }
 
 .sectionContent {
-    font-size: 0.95rem;
-    color: hsl(var(--foreground));
-    line-height: 1.5;
-    opacity: 0.9;
+  font-size: 0.95rem;
+  color: hsl(var(--foreground));
+  line-height: 1.5;
+  opacity: 0.9;
 }
 
 .userCard {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    object-fit: cover;
-    background: hsl(var(--muted));
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: hsl(var(--muted));
 }
 
 .userInfo {
-    display: flex;
-    flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 
 .userName {
-    font-weight: 600;
-    color: hsl(var(--foreground));
+  font-weight: 600;
+  color: hsl(var(--foreground));
 }
 
 .userHandle {
-    color: hsl(var(--muted-foreground));
-    font-size: 0.9rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.9rem;
 }
 
 .statsGrid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
 .statItem {
-    background: hsl(var(--secondary));
-    padding: 10px;
-    border-radius: var(--radius);
-    text-align: center;
+  background: hsl(var(--secondary));
+  padding: 10px;
+  border-radius: var(--radius);
+  text-align: center;
 }
 
 .statItemFull {
-    grid-column: 1 / -1;
+  grid-column: 1 / -1;
 }
 
 .statValue {
-    display: block;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: hsl(var(--foreground));
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
 }
 
 .statLabel {
-    font-size: 0.8rem;
-    color: hsl(var(--muted-foreground));
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
 }
 
 .linkButton {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 10px;
-    background: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
-    text-decoration: none;
-    border-radius: var(--radius);
-    font-weight: 600;
-    transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  text-decoration: none;
+  border-radius: var(--radius);
+  font-weight: 600;
+  transition: all 0.2s;
 }
 
 .linkButton:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
 .linkButton + .linkButton {
-    margin-top: 10px;
+  margin-top: 10px;
 }
 
 .controls {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    display: flex;
-    gap: 10px;
-    z-index: 10;
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  gap: 10px;
+  z-index: 10;
 }
 
 .iconButton {
-    position: relative;
-    background: hsl(var(--secondary));
-    border: 1px solid hsl(var(--border));
-    color: hsl(var(--foreground));
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 1.2rem;
+  position: relative;
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1.2rem;
 }
 
 .iconButton:hover {
-    background: hsl(var(--accent));
-    transform: scale(1.1);
+  background: hsl(var(--accent));
+  transform: scale(1.1);
 }
 
 .deleteDBButton:hover {
-    background: hsl(var(--color-warning)) !important;
-    color: white !important;
+  background: hsl(var(--color-warning));
+  color: white;
 }
 
 .deleteDiskButton:hover {
-    background: hsl(var(--color-danger)) !important;
-    color: white !important;
+  background: hsl(var(--color-danger));
+  color: white;
 }
 
 .buttonBadge {
-    position: absolute;
-    bottom: -4px;
-    right: -4px;
-    background: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
-    font-size: 8px;
-    padding: 1px 4px;
-    border-radius: 4px;
-    font-weight: bold;
-    border: 1px solid hsl(var(--border));
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 8px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: bold;
+  border: 1px solid hsl(var(--border));
 }
 
 .navButton {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background: hsl(var(--secondary));
-    color: hsl(var(--foreground));
-    border: none;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    z-index: 5;
-    font-size: 1.5rem;
-    opacity: 0.7;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 5;
+  font-size: 1.5rem;
+  opacity: 0.7;
 }
 
 .navButton:hover {
-    background: hsl(var(--accent));
-    opacity: 1;
-    transform: translateY(-50%) scale(1.1);
+  background: hsl(var(--accent));
+  opacity: 1;
+  transform: translateY(-50%) scale(1.1);
 }
 
 .prevButton {
-    left: 20px;
+  left: 20px;
 }
 
 .nextButton {
-    right: 20px;
+  right: 20px;
 }
 
 /* Scrollbar styling for sidebar */
 .sidebar::-webkit-scrollbar {
-    width: 6px;
+  width: 6px;
 }
 
 .sidebar::-webkit-scrollbar-track {
-    background: transparent;
+  background: transparent;
 }
 
 .sidebar::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted));
-    border-radius: 3px;
+  background: hsl(var(--muted));
+  border-radius: 3px;
 }
 
 .sidebar::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground));
+  background: hsl(var(--muted-foreground));
 }
 
 .textContent {
-    color: hsl(var(--foreground));
-    font-size: 1.5rem;
-    max-width: 800px;
-    line-height: 1.6;
-    white-space: pre-wrap;
-    padding: 2rem;
-    background: var(--glass-background);
-    backdrop-filter: blur(var(--glass-blur));
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius);
-    overflow-y: auto;
-    max-height: 80vh;
+  color: hsl(var(--foreground));
+  font-size: 1.5rem;
+  max-width: 800px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  padding: 2rem;
+  background: var(--glass-background);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  overflow-y: auto;
+  max-height: 80vh;
 }
 
 .tagsContainer {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .tagChip {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    color: hsl(var(--muted-foreground));
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
 }

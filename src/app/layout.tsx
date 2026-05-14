@@ -19,7 +19,8 @@ export const metadata: Metadata = {
     default: "Web Gallery",
     template: "%s | Web Gallery",
   },
-  description: "A personal media gallery for organizing and browsing downloaded content",
+  description:
+    "A personal media gallery for organizing and browsing downloaded content",
 };
 
 export default function RootLayout({
@@ -33,9 +34,7 @@ export default function RootLayout({
         <div className="app-container">
           <ThemeProvider>
             <Navbar />
-            <main className="main-content">
-              {children}
-            </main>
+            <main className="main-content">{children}</main>
           </ThemeProvider>
         </div>
       </body>
