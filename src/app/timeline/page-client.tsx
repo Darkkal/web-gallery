@@ -206,6 +206,7 @@ function TimelinePageContent({
       {hasMore && scrollMode === "button" && (
         <div className={styles.loadMoreContainer}>
           <button
+            type="button"
             onClick={() => loadMore()}
             disabled={isLoading}
             className={styles.secondaryButton}

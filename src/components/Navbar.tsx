@@ -98,6 +98,7 @@ export function Navbar() {
 
       <div className={styles.footer}>
         <button
+          type="button"
           className={`${styles.collapseButton} ${styles.themeToggle}`}
           onClick={toggleTheme}
           aria-label="Toggle theme"
@@ -107,6 +108,7 @@ export function Navbar() {
         </button>
 
         <button
+          type="button"
           className={styles.collapseButton}
           onClick={toggleCollapse}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}

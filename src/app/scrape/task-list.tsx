@@ -277,6 +277,7 @@ export default function ScrapeTaskList({
                 <td>
                   <div className={styles.actionGroup}>
                     <button
+                      type="button"
                       onClick={() => handleSaveEdit(task.id)}
                       disabled={savingId === task.id}
                       className={styles.iconButton}
@@ -288,6 +289,7 @@ export default function ScrapeTaskList({
                       <Check size={16} />
                     </button>
                     <button
+                      type="button"
                       onClick={handleCancelEdit}
                       disabled={savingId === task.id}
                       className={styles.iconButton}
@@ -379,6 +381,7 @@ export default function ScrapeTaskList({
                 <td>
                   <div className={styles.actionGroup}>
                     <button
+                      type="button"
                       onClick={() => handleRun(task.id, "quick")}
                       disabled={runningTasks.has(task.id)}
                       className={styles.iconButton}
@@ -390,6 +393,7 @@ export default function ScrapeTaskList({
                       <Zap size={16} />
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleRun(task.id, "full")}
                       disabled={runningTasks.has(task.id)}
                       className={styles.iconButton}
@@ -398,6 +402,7 @@ export default function ScrapeTaskList({
                       <Play size={16} />
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleStop(task.id)}
                       className={styles.iconButton}
                       title="Stop Task"
@@ -405,6 +410,7 @@ export default function ScrapeTaskList({
                       <Square size={16} />
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleEditClick(task)}
                       className={styles.iconButton}
                       title="Edit Task"
@@ -412,6 +418,7 @@ export default function ScrapeTaskList({
                       <Pencil size={16} />
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleDelete(task.id)}
                       className={styles.iconButton}
                       style={{

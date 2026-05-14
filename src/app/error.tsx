@@ -72,6 +72,7 @@ export default function RootError({
         </div>
 
         <button
+          type="button"
           onClick={() => reset()}
           style={{
             background: "hsl(var(--primary))",

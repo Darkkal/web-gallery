@@ -9,6 +9,7 @@ export default function ScrollModeToggle() {
   return (
     <div className={styles.toggle}>
       <button
+        type="button"
         className={`${styles.option} ${scrollMode === "infinite" ? styles.active : ""}`}
         onClick={() => setScrollMode("infinite")}
         title="Infinite Scroll"
@@ -27,6 +28,7 @@ export default function ScrollModeToggle() {
         </svg>
       </button>
       <button
+        type="button"
         className={`${styles.option} ${scrollMode === "button" ? styles.active : ""}`}
         onClick={() => setScrollMode("button")}
         title="Paginate manually"

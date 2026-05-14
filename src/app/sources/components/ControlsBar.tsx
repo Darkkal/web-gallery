@@ -50,7 +50,7 @@ export default function ControlsBar({
 
       <div className={styles.rightControls}>
         {selectedCount > 0 && (
-          <button className={styles.deleteButton} onClick={onDeleteSelected}>
+          <button type="button" className={styles.deleteButton} onClick={onDeleteSelected}>
             <Trash2 size={18} />
             Delete ({selectedCount})
           </button>
@@ -58,6 +58,7 @@ export default function ControlsBar({
 
         <div className={styles.viewToggle}>
           <button
+            type="button"
             className={`${styles.actionButton} ${viewMode === "card" ? styles.active : ""}`}
             onClick={() => setViewMode("card")}
             title="Grid View"
@@ -65,6 +66,7 @@ export default function ControlsBar({
             <LayoutGrid size={20} />
           </button>
           <button
+            type="button"
             className={`${styles.actionButton} ${viewMode === "table" ? styles.active : ""}`}
             onClick={() => setViewMode("table")}
             title="List View"

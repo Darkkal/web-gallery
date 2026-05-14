@@ -48,13 +48,13 @@ export default function ScrapePageClient({
 
       <section className={styles.tabsContainer}>
         <div className={styles.tabsList}>
-          <button
+          <button type="button"
             onClick={() => setActiveTab("tasks")}
             className={`${styles.tabTrigger} ${activeTab === "tasks" ? styles.active : ""}`}
           >
             Tasks
           </button>
-          <button
+          <button type="button"
             onClick={() => setActiveTab("history")}
             className={`${styles.tabTrigger} ${activeTab === "history" ? styles.active : ""}`}
           >

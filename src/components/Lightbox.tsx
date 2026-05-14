@@ -133,6 +133,7 @@ export default function Lightbox({
       >
         {onPrev && (
           <button
+            type="button"
             className={`${styles.navButton} ${styles.prevButton}`}
             onClick={(e) => {
               e.stopPropagation();
@@ -182,6 +183,7 @@ export default function Lightbox({
 
         {onNext && (
           <button
+            type="button"
             className={`${styles.navButton} ${styles.nextButton}`}
             onClick={(e) => {
               e.stopPropagation();
@@ -196,6 +198,7 @@ export default function Lightbox({
           {onDelete && (
             <>
               <button
+                type="button"
                 className={`${styles.iconButton} ${styles.deleteDBButton}`}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -206,6 +209,7 @@ export default function Lightbox({
                 🗑<span className={styles.buttonBadge}>DB</span>
               </button>
               <button
+                type="button"
                 className={`${styles.iconButton} ${styles.deleteDiskButton}`}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -218,6 +222,7 @@ export default function Lightbox({
             </>
           )}
           <button
+            type="button"
             className={styles.iconButton}
             onClick={(e) => {
               e.stopPropagation();
@@ -228,6 +233,7 @@ export default function Lightbox({
             ⓘ
           </button>
           <button
+            type="button"
             className={styles.iconButton}
             onClick={(e) => {
               e.stopPropagation();

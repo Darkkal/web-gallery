@@ -20,6 +20,7 @@ export default function BulkActionBar({
       <span>{selectedCount} items selected</span>
       <div className={styles.bulkActionButtons}>
         <button
+          type="button"
           className={styles.secondaryDeleteButton}
           onClick={() => onBulkDelete(false)}
           disabled={deleting}
@@ -27,6 +28,7 @@ export default function BulkActionBar({
           {deleting ? "..." : "Delete from DB"}
         </button>
         <button
+          type="button"
           className={styles.deleteButton}
           onClick={() => onBulkDelete(true)}
           disabled={deleting}

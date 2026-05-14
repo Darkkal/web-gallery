@@ -72,6 +72,7 @@ export default function SourceTableRow({
         {isEditing ? (
           <div className={styles.editActions}>
             <button
+              type="button"
               className={styles.iconButton}
               onClick={(e) => {
                 e.stopPropagation();
@@ -82,6 +83,7 @@ export default function SourceTableRow({
               <Check size={16} className={styles.iconSuccess} />
             </button>
             <button
+              type="button"
               className={styles.iconButton}
               onClick={(e) => {
                 e.stopPropagation();
@@ -94,6 +96,7 @@ export default function SourceTableRow({
           </div>
         ) : (
           <button
+            type="button"
             className={styles.iconButton}
             onClick={(e) => {
               e.stopPropagation();

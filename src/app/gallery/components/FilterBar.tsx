@@ -32,6 +32,7 @@ export default function FilterBar({
   return (
     <div className={styles.filterBar}>
       <button
+        type="button"
         className={selectionMode ? styles.activeButton : styles.secondaryButton}
         onClick={() => setSelectionMode(!selectionMode)}
         title={selectionMode ? "Cancel Selection" : "Select Items"}
@@ -41,6 +42,7 @@ export default function FilterBar({
 
       {selectionMode && (
         <button
+          type="button"
           className={styles.secondaryButton}
           onClick={onSelectAll}
           title="Select All"
