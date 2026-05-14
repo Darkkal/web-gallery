@@ -66,7 +66,10 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
     if (uidStr) {
       const avatarPath = userAvatars.get(uidStr);
       if (!existingPixivUsers.has(uidStr)) {
-        const user = meta.user!;
+        const user = meta.user;
+        if (!user) {
+          throw new Error(`User data missing for Pixiv user: ${uidStr}`);
+        }
         const updateSet: Record<string, unknown> = {
           name: user.name,
         };
@@ -116,10 +119,13 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
           .returning({ id: posts.id });
 
         postId = inserted[0]?.id ?? null;
-        existingPosts.set(key, postId!);
+        if (postId === null) {
+          throw new Error(`Failed to insert post for Pixiv ID: ${pid}`);
+        }
+        existingPosts.set(key, postId);
 
         await tx.insert(postDetailsPixiv).values({
-          postId: postId!,
+          postId: postId,
           width: meta.width,
           height: meta.height,
           pageCount: meta.page_count,

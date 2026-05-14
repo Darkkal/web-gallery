@@ -73,7 +73,10 @@ export class GelbooruProcessor implements IMetadataProcessor<GelbooruMeta> {
           .returning({ id: posts.id });
 
         postId = inserted[0]?.id ?? null;
-        existingPosts.set(key, postId!);
+        if (postId === null) {
+          throw new Error(`Failed to insert post for Gelbooru ID: ${idStr}`);
+        }
+        existingPosts.set(key, postId);
 
         const parsedTags: string[] | null =
           typeof meta.tags === "string"
@@ -83,7 +86,7 @@ export class GelbooruProcessor implements IMetadataProcessor<GelbooruMeta> {
               : null;
 
         await tx.insert(postDetailsGelbooruV02).values({
-          postId: postId!,
+          postId: postId,
           width: meta.width,
           height: meta.height,
           score: meta.score,

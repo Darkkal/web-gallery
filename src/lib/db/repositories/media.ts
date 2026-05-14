@@ -74,7 +74,10 @@ export async function getMediaItems(filters?: {
         ),
     );
 
-    whereConditions.push(or(textMatch, tagMatch)!);
+    const searchCondition = or(textMatch, tagMatch);
+    if (searchCondition) {
+      whereConditions.push(searchCondition);
+    }
   }
 
   let cursorSortVal: number | null = null;
@@ -190,9 +193,11 @@ export async function getMediaItems(filters?: {
       });
     }
 
-    const group = groupedMap.get(key)!;
-    group.groupItems.push(row);
-    group.groupCount++;
+    const group = groupedMap.get(key);
+    if (group) {
+      group.groupItems.push(row);
+      group.groupCount++;
+    }
   }
 
   let nextCursor: string | null = null;

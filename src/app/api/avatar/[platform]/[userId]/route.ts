@@ -86,6 +86,7 @@ export async function GET(
     }
 
     let downloadedPath: string | null = null;
+    const targetUrl = avatarUrl;
 
     await avatarRequestQueue.enqueue(async () => {
       const headers: Record<string, string> = {
@@ -94,7 +95,7 @@ export async function GET(
       };
       if (platform === "pixiv") headers.Referer = "https://www.pixiv.net/";
 
-      const response = await fetch(avatarUrl!, {
+      const response = await fetch(targetUrl, {
         headers,
         signal: request.signal,
       });
@@ -106,7 +107,7 @@ export async function GET(
 
       const buffer = await response.arrayBuffer();
 
-      let ext = path.extname(avatarUrl!).split("?")[0] || ".jpg";
+      let ext = path.extname(targetUrl).split("?")[0] || ".jpg";
       if (ext === "." || ext.length > 5) ext = ".jpg";
 
       const fname = `${userId}${ext}`;

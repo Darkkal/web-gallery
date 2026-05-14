@@ -66,7 +66,6 @@ export class ScraperRunner {
     child: import("child_process").ChildProcess;
     strategy: BaseScraperStrategy;
   } {
-    let childProcess: import("child_process").ChildProcess;
     let strategy: BaseScraperStrategy;
 
     if (tool === "yt-dlp") {
@@ -75,17 +74,15 @@ export class ScraperRunner {
       strategy = new GalleryDlStrategy(this.basePath, options, limits);
     }
 
+    const args = strategy.buildArgs();
+    console.log(`Starting ${tool} with args:`, args);
+
+    const child = spawn(tool, args, {
+      shell: false,
+      cwd: process.cwd(),
+    });
+
     const promise = new Promise<ScrapeResult>((resolve) => {
-      const args = strategy.buildArgs();
-
-      console.log(`Starting ${tool} with args:`, args);
-
-      const child = spawn(tool, args, {
-        shell: false,
-        cwd: process.cwd(),
-      });
-      childProcess = child;
-
       child.stdout?.on("data", (data: Buffer) => {
         const text = data.toString();
         text.split("\n").forEach((line: string) => {
@@ -133,6 +130,6 @@ export class ScraperRunner {
       });
     });
 
-    return { promise, child: childProcess!, strategy };
+    return { promise, child, strategy };
   }
 }

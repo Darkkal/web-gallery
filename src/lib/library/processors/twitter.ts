@@ -127,11 +127,14 @@ export class TwitterProcessor implements IMetadataProcessor<TwitterMeta> {
           })
           .returning({ id: posts.id });
 
-        const postId = inserted[0]?.id;
+        const postId = inserted[0]?.id ?? null;
+        if (postId === null) {
+          throw new Error(`Failed to insert post for Twitter ID: ${tid}`);
+        }
         existingPosts.set(key, postId);
 
         await tx.insert(postDetailsTwitter).values({
-          postId: postId!,
+          postId: postId,
           retweetId: meta.retweet_id ? String(meta.retweet_id) : null,
           quoteId: meta.quote_id ? String(meta.quote_id) : null,
           replyId: meta.reply_id ? String(meta.reply_id) : null,
@@ -151,7 +154,7 @@ export class TwitterProcessor implements IMetadataProcessor<TwitterMeta> {
           category: "twitter",
           subcategory: "tweet",
         });
-        return postId!;
+        return postId;
       } else {
         const postId = existingPosts.get(key) || null;
         if (postId && internalSourceId) {

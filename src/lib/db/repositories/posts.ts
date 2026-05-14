@@ -108,7 +108,10 @@ export async function getTimelinePosts(filters?: {
         ),
     );
 
-    whereConditions.push(or(textMatch, tagMatch)!);
+    const searchCondition = or(textMatch, tagMatch);
+    if (searchCondition) {
+      whereConditions.push(searchCondition);
+    }
   }
 
   let cursorSortVal: string | null = null;

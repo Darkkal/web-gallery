@@ -111,7 +111,9 @@ export async function syncLibrary() {
           sourceId: null,
           sourceRoot: publicRoot,
         });
-      const group = dirGroups.get(dir)!;
+      const group = dirGroups.get(dir);
+      if (!group) return; // Should not happen given the check above
+
       if (ext === ".json") group.jsonFiles.push(absPath);
       else if (
         [
