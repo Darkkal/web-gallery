@@ -32,7 +32,11 @@ export default function TimelineLoading() {
         ></div>
 
         {[...Array(5)].map((_, i) => (
-          <div key={i} className={styles.post}>
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton
+            key={i}
+            className={styles.post}
+          >
             <div className={styles.postHeader}>
               <div className={`${styles.skeleton} ${styles.avatar}`}></div>
               <div className={styles.postMeta}>

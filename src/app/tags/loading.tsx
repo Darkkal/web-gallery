@@ -35,7 +35,11 @@ export default function TagsLoading() {
 
       <div className={styles.tagGrid}>
         {[...Array(30)].map((_, i) => (
-          <div key={i} className={`${styles.skeleton} ${styles.tagCard}`}></div>
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton
+            key={i}
+            className={`${styles.skeleton} ${styles.tagCard}`}
+          ></div>
         ))}
       </div>
     </div>

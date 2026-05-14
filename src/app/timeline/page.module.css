@@ -186,7 +186,6 @@
 /* 1 Image */
 .grid-1 {
   grid-template-columns: 1fr;
-  aspect-ratio: 16 / 9;
   /* Default aspect, but usually image should invoke intrinsic height up to max? */
   /* To mimic Twitter, single image usually preserves aspect ratio but capped height.
        CSS Grid with aspect-ratio matches container.

@@ -18,6 +18,8 @@ export default function ScrollModeToggle() {
         <svg
           width="16"
           height="16"
+          role="img"
+          aria-label="Infinite scroll icon"
           viewBox="0 0 16 16"
           fill="none"
           stroke="currentColor"
@@ -37,6 +39,8 @@ export default function ScrollModeToggle() {
         <svg
           width="16"
           height="16"
+          role="img"
+          aria-label="Paginate icon"
           viewBox="0 0 16 16"
           fill="none"
           stroke="currentColor"

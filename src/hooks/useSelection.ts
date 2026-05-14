@@ -19,9 +19,9 @@ export function useSelection<T = number>() {
     const isPrimarySelected = newSelected.has(primaryId);
 
     if (isPrimarySelected) {
-      ids.forEach((id) => newSelected.delete(id));
+      ids.forEach((id) => { newSelected.delete(id); });
     } else {
-      ids.forEach((id) => newSelected.add(id));
+      ids.forEach((id) => { newSelected.add(id); });
     }
     setSelectedIds(newSelected);
   };

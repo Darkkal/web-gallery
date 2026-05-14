@@ -21,6 +21,7 @@ export default function ScrapeLoading() {
       >
         {[...Array(3)].map((_, i) => (
           <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton
             key={i}
             className={`${styles.skeleton}`}
             style={{ height: "2.5rem", flex: 1 }}
@@ -44,6 +45,7 @@ export default function ScrapeLoading() {
         >
           {[...Array(5)].map((_, i) => (
             <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton
               key={i}
               className={`${styles.skeleton}`}
               style={{ height: "1rem", flex: 1 }}
@@ -52,6 +54,7 @@ export default function ScrapeLoading() {
         </div>
         {[...Array(10)].map((_, i) => (
           <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton
             key={i}
             style={{
               height: "4rem",
@@ -64,6 +67,7 @@ export default function ScrapeLoading() {
           >
             {[...Array(5)].map((_, j) => (
               <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton
                 key={j}
                 className={`${styles.skeleton}`}
                 style={{ height: "1rem", flex: 1 }}

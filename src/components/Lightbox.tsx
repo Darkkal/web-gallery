@@ -407,7 +407,11 @@ export default function Lightbox({
             <h3 className={styles.sectionTitle}>Tags</h3>
             <div className={styles.tagsContainer}>
               {tags.map((tag, i) => (
-                <span key={i} className={styles.tagChip}>
+                <span
+                  // biome-ignore lint/suspicious/noArrayIndexKey: Stable sorted tags
+                  key={i}
+                  className={styles.tagChip}
+                >
                   #{tag.name}
                 </span>
               ))}

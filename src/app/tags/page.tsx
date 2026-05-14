@@ -50,6 +50,7 @@ export default async function TagsPage({ searchParams }: TagsPageProps) {
       <div className={styles.grid}>
         {tags.map((tag, i) => (
           <Link
+            // biome-ignore lint/suspicious/noArrayIndexKey: Index used for uniqueness
             key={`${tag.name}-${i}`}
             href={`/gallery?search=${encodeURIComponent(tag.name)}`}
             className={styles.tagCard}

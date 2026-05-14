@@ -33,7 +33,11 @@ export default function SourcesLoading() {
 
       <div className={styles.grid}>
         {[...Array(8)].map((_, i) => (
-          <div key={i} className={`${styles.skeleton} ${styles.card}`}></div>
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton
+            key={i}
+            className={`${styles.skeleton} ${styles.card}`}
+          ></div>
         ))}
       </div>
     </div>

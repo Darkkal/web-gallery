@@ -55,11 +55,18 @@ export default function MasonryGrid<T>({
   return (
     <div className={styles.container} data-testid="masonry-grid">
       {columns.map((col, colIndex) => (
-        <div key={colIndex} className={styles.column}>
+        <div
+          // biome-ignore lint/suspicious/noArrayIndexKey: Stable columns
+          key={colIndex}
+          className={styles.column}
+        >
           {col.map((item, itemIndex) => {
             const originalIndex = itemIndex * currentColumnCount + colIndex;
             return (
-              <React.Fragment key={`${colIndex}-${itemIndex}`}>
+              <React.Fragment
+                // biome-ignore lint/suspicious/noArrayIndexKey: Computed grid position
+                key={`${colIndex}-${itemIndex}`}
+              >
                 {renderItem(item, originalIndex)}
               </React.Fragment>
             );

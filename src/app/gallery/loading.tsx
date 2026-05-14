@@ -19,6 +19,7 @@ export default function GalleryLoading() {
       <div className={styles.grid}>
         {[...Array(12)].map((_, i) => (
           <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton
             key={i}
             className={`${styles.skeleton} ${styles.card}`}
             style={{
