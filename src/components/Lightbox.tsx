@@ -5,14 +5,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getPostTags } from "@/app/actions/tags";
 import FormattedContent from "@/components/FormattedContent";
 import styles from "@/components/Lightbox.module.css";
-import { handleKeyActivate } from "@/lib/utils/a11y";
-import type { GalleryRow } from "@/types/media";
 import type {
   UnifiedGelbooruv02Data,
   UnifiedPixivData,
   UnifiedTwitterData,
   UnifiedUserData,
 } from "@/lib/metadata";
+import { handleKeyActivate } from "@/lib/utils/a11y";
+import type { GalleryRow } from "@/types/media";
 
 interface LightboxProps {
   row: GalleryRow;

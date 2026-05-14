@@ -139,12 +139,16 @@ export async function syncLibrary() {
     const dbItems = await db
       .select({ id: mediaItems.id, filePath: mediaItems.filePath })
       .from(mediaItems);
-    dbItems.forEach((i) => { existingMediaPaths.add(i.filePath); });
+    dbItems.forEach((i) => {
+      existingMediaPaths.add(i.filePath);
+    });
 
     const existingTwitterUsers = new Set<string>();
-    (await db.select({ id: twitterUsers.id }).from(twitterUsers)).forEach((u) => {
-      existingTwitterUsers.add(u.id);
-    });
+    (await db.select({ id: twitterUsers.id }).from(twitterUsers)).forEach(
+      (u) => {
+        existingTwitterUsers.add(u.id);
+      },
+    );
 
     const existingPixivUsers = new Set<string>();
     (await db.select({ id: pixivUsers.id }).from(pixivUsers)).forEach((u) => {
@@ -153,7 +157,9 @@ export async function syncLibrary() {
 
     const existingTags = new Map<string, number>();
     (await db.select({ id: tags.id, name: tags.name }).from(tags)).forEach(
-      (t) => { existingTags.set(t.name, t.id); },
+      (t) => {
+        existingTags.set(t.name, t.id);
+      },
     );
 
     // Cache existing posts to avoid constant duplicate inserts

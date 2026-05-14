@@ -126,14 +126,17 @@ test("gallery infinite scroll loads more items", async ({ page }) => {
   const mediaElements = page.locator(
     'img[class*="media"], video[class*="media"]',
   );
-  
+
   // Wait for the count to be at least 1 to ensure some rendering happened
   await expect(mediaElements.first()).toBeVisible();
-  
+
   const initialCount = await mediaElements.count();
 
   if (initialCount < 20) {
-    test.skip(true, `Only ${initialCount} items, need at least 20 to test infinite scroll`);
+    test.skip(
+      true,
+      `Only ${initialCount} items, need at least 20 to test infinite scroll`,
+    );
     return;
   }
 

@@ -13,8 +13,8 @@ import { useLightbox } from "@/hooks/useLightbox";
 import { usePaginatedData } from "@/hooks/usePaginatedData";
 import { ScrollModeProvider, useScrollMode } from "@/hooks/useScrollMode";
 import { useSelection } from "@/hooks/useSelection";
-import { mergePixivMetadata, mergeTwitterMetadata } from "@/lib/metadata";
 import type { UnifiedUserData } from "@/lib/metadata";
+import { mergePixivMetadata, mergeTwitterMetadata } from "@/lib/metadata";
 import type { GalleryGroup } from "@/types/media";
 
 export default function GalleryPageClient({
@@ -236,10 +236,7 @@ function GalleryPageContent({
           }
           pixiv={
             currentItemRow.post?.extractorType === "pixiv"
-              ? mergePixivMetadata(
-                  currentItemRow.post,
-                  currentItemRow.pixiv,
-                )
+              ? mergePixivMetadata(currentItemRow.post, currentItemRow.pixiv)
               : undefined
           }
           pixivUser={

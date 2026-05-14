@@ -107,8 +107,7 @@ export abstract class BaseScraperStrategy {
   }
 
   protected killChild(child: ChildProcess) {
-    if (process.platform === "win32"
-      && child.pid !== undefined) {
+    if (process.platform === "win32" && child.pid !== undefined) {
       spawn("taskkill", ["/pid", child.pid?.toString(), "/f", "/t"]);
     } else {
       child.kill();

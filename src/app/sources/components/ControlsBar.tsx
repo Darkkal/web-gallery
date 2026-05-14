@@ -50,7 +50,11 @@ export default function ControlsBar({
 
       <div className={styles.rightControls}>
         {selectedCount > 0 && (
-          <button type="button" className={styles.deleteButton} onClick={onDeleteSelected}>
+          <button
+            type="button"
+            className={styles.deleteButton}
+            onClick={onDeleteSelected}
+          >
             <Trash2 size={18} />
             Delete ({selectedCount})
           </button>

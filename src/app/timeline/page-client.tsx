@@ -9,12 +9,12 @@ import Lightbox from "@/components/Lightbox";
 import { useLightbox } from "@/hooks/useLightbox";
 import { usePaginatedData } from "@/hooks/usePaginatedData";
 import { ScrollModeProvider, useScrollMode } from "@/hooks/useScrollMode";
+import type { UnifiedUserData } from "@/lib/metadata";
 import {
   mergeGelbooruv02Metadata,
   mergePixivMetadata,
   mergeTwitterMetadata,
 } from "@/lib/metadata";
-import type { UnifiedUserData } from "@/lib/metadata";
 import type { GalleryRow } from "@/types/media";
 import type { TimelinePost } from "@/types/posts";
 
@@ -142,7 +142,11 @@ function TimelinePageContent({
           jsonSourceId: post.sourceUrl || null, // approximation
           internalSourceId: post.internalDbId || null,
           userId: post.author?.handle || null,
-          date: post.date ? (typeof post.date === 'string' ? post.date : (post.date as Date).toISOString()) : null,
+          date: post.date
+            ? typeof post.date === "string"
+              ? post.date
+              : (post.date as Date).toISOString()
+            : null,
           content: post.content || null,
           url: post.sourceUrl || null,
           metadataPath: null,
