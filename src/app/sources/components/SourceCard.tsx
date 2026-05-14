@@ -1,6 +1,7 @@
 "use client";
 
 import { Image as ImageIcon } from "lucide-react";
+import { handleKeyActivate } from "@/lib/utils/a11y";
 import styles from "@/app/sources/page.module.css";
 import type { Source } from "@/types/source";
 
@@ -21,6 +22,10 @@ export default function SourceCard({
     <div
       className={`${styles.card} ${isSelected ? styles.selected : ""}`}
       onClick={onToggleSelection}
+      onKeyDown={handleKeyActivate(onToggleSelection)}
+      role="button"
+      tabIndex={0}
+      aria-pressed={isSelected}
     >
       <div
         className={styles.cardBg}

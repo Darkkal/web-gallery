@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getPostTags } from "@/app/actions/tags";
 import FormattedContent from "@/components/FormattedContent";
 import styles from "@/components/Lightbox.module.css";
+import { handleKeyActivate } from "@/lib/utils/a11y";
 import type {
   UnifiedGelbooruv02Data,
   UnifiedPixivData,
@@ -130,6 +131,15 @@ export default function Lightbox({
           // Let's make clicking background close.
           if (e.target === e.currentTarget) onClose();
         }}
+        onKeyDown={handleKeyActivate(() => {
+          if (typeof window !== "undefined") {
+            // Check if we are actually on the target area, though handleKeyActivate handles the key
+            onClose();
+          }
+        })}
+        role="button"
+        tabIndex={0}
+        aria-label="Close lightbox"
       >
         {onPrev && (
           <button
@@ -162,6 +172,11 @@ export default function Lightbox({
                 e.stopPropagation();
                 setShowInfo(!showInfo);
               }}
+              onKeyDown={handleKeyActivate(() => {
+                setShowInfo(!showInfo);
+              })}
+              role="button"
+              tabIndex={0}
             >
               <FormattedContent content={item.title} />
             </div>

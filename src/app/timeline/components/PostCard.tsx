@@ -3,6 +3,7 @@
 import Image from "next/image";
 import type React from "react";
 import styles from "@/app/timeline/page.module.css";
+import { handleKeyActivate } from "@/lib/utils/a11y";
 import FormattedContent from "@/components/FormattedContent";
 import type { TimelinePost } from "@/types/posts";
 
@@ -70,9 +71,10 @@ export default function PostCard({
 
       {/* Content: Text */}
       {post.content && (
+        // biome-ignore lint/a11y/noStaticElementInteractions: Click handler is conditional and handled via key listener when active
         <div
           className={styles.postContent}
-          onClick={(e) => {
+          onClick={post.mediaItems.some((m) => m.type === "text") ? (e) => {
             // Don't trigger media click if we're clicking a link in the HTML
             if ((e.target as HTMLElement).tagName === "A") return;
 
@@ -82,7 +84,18 @@ export default function PostCard({
             if (textMediaIndex !== -1) {
               onMediaClick(postIndex, textMediaIndex, e);
             }
-          }}
+          } : undefined}
+          onKeyDown={handleKeyActivate(() => {
+            const textMediaIndex = post.mediaItems.findIndex(
+              (m) => m.type === "text",
+            );
+            if (textMediaIndex !== -1) {
+              // Note: passing null for event as we're just triggering the action
+              onMediaClick(postIndex, textMediaIndex, null as unknown as React.MouseEvent);
+            }
+          })}
+          role={post.mediaItems.some((m) => m.type === "text") ? "button" : undefined}
+          tabIndex={post.mediaItems.some((m) => m.type === "text") ? 0 : undefined}
           style={{
             cursor: post.mediaItems.some((m) => m.type === "text")
               ? "pointer"
@@ -105,6 +118,9 @@ export default function PostCard({
                 key={media.id}
                 className={styles.mediaItem}
                 onClick={(e) => onMediaClick(postIndex, originalIndex, e)}
+                onKeyDown={handleKeyActivate(() => onMediaClick(postIndex, originalIndex, null as unknown as React.MouseEvent))}
+                role="button"
+                tabIndex={0}
               >
                 {media.type === "video" ? (
                   <video src={media.url} controls className={styles.media} />

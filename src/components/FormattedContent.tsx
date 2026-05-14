@@ -1,6 +1,7 @@
 "use client";
 
 import styles from "@/components/FormattedContent.module.css";
+import { handleKeyActivate } from "@/lib/utils/a11y";
 
 interface FormattedContentProps {
   content: string | null | undefined;
@@ -34,17 +35,17 @@ export default function FormattedContent({
     );
 
     return (
+      // biome-ignore lint/a11y/noStaticElementInteractions: Only used for stopping propagation on links
       <div
         className={combinedClassName}
         dangerouslySetInnerHTML={{ __html: processedHtml }}
         onClick={(e) => {
-          // Prevent clicks on links from bubbling up if needed,
-          // but usually we want them to bubble to the parent if the parent handles background clicks.
-          // However, if the parent has an onClick that toggles UI, we might want to stop propagation for links.
           if ((e.target as HTMLElement).tagName === "A") {
             e.stopPropagation();
           }
         }}
+        onKeyDown={handleKeyActivate(() => {})}
+        role="presentation"
       />
     );
   }

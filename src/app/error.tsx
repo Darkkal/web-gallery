@@ -89,6 +89,8 @@ export default function RootError({
           }}
           onMouseOver={(e) => (e.currentTarget.style.opacity = "0.9")}
           onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
+          onFocus={(e) => (e.currentTarget.style.opacity = "0.9")}
+          onBlur={(e) => (e.currentTarget.style.opacity = "1")}
         >
           <RefreshCw size={18} />
           Try again

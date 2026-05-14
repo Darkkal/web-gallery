@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import styles from "@/app/gallery/page.module.css";
+import { handleKeyActivate } from "@/lib/utils/a11y";
 import type { GalleryGroup } from "@/types/media";
 
 interface GalleryItemProps {
@@ -20,10 +21,28 @@ export default function GalleryItem({
   const item = row.item;
   const count = row.groupCount || 1;
 
+  const handleVideoPlay = async (target: HTMLVideoElement) => {
+    try {
+      await target.play();
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== "AbortError") {
+        console.error(err);
+      }
+    }
+  };
+
+  const handleVideoPause = (target: HTMLVideoElement) => {
+    target.pause();
+  };
+
   return (
     <div
       className={`${styles.item} ${isSelected ? styles.selectedItem : ""}`}
       onClick={onClick}
+      onKeyDown={handleKeyActivate(onClick)}
+      role="button"
+      tabIndex={0}
+      aria-pressed={isSelected}
     >
       {selectionMode && (
         <div className={styles.checkbox}>{isSelected ? "✓" : ""}</div>
@@ -42,15 +61,11 @@ export default function GalleryItem({
             className={styles.media}
             muted
             loop
-            onMouseOver={async (e) => {
-              try {
-                await (e.currentTarget as HTMLVideoElement).play();
-              } catch (err: unknown) {
-                if (err instanceof Error && err.name !== "AbortError")
-                  console.error(err);
-              }
-            }}
-            onMouseOut={(e) => (e.currentTarget as HTMLVideoElement).pause()}
+            tabIndex={0}
+            onMouseOver={(e) => handleVideoPlay(e.currentTarget)}
+            onMouseOut={(e) => handleVideoPause(e.currentTarget)}
+            onFocus={(e) => handleVideoPlay(e.currentTarget)}
+            onBlur={(e) => handleVideoPause(e.currentTarget)}
           />
           <div className={styles.videoBadge}>VIDEO</div>
         </>
