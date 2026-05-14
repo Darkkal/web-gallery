@@ -114,6 +114,7 @@ export default function PostCard({
           {post.mediaItems.map((media, originalIndex) => {
             if (media.type === "text") return null;
             return (
+              // biome-ignore lint/a11y/useSemanticElements: Maintains current styling structure
               <div
                 key={media.id}
                 className={styles.mediaItem}
@@ -123,6 +124,7 @@ export default function PostCard({
                 tabIndex={0}
               >
                 {media.type === "video" ? (
+                  // biome-ignore lint/a11y/useMediaCaption: User generated content does not have captions
                   <video src={media.url} controls className={styles.media} />
                 ) : (
                   <Image

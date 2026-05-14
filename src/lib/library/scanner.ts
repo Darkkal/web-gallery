@@ -396,10 +396,35 @@ export async function syncLibrary() {
   }
 }
 
+interface PlatformMetadata {
+  category?: string;
+  extractor?: string;
+  tweet_id?: string;
+  user_id?: string;
+  uploader_id?: string;
+  user?: {
+    id?: string | number;
+    profile_image?: string;
+    profile_image_url_https?: string;
+    profile_image_urls?: {
+      medium?: string;
+      px_1600x1600?: string;
+      px_170x170?: string;
+    };
+  };
+  author?: {
+    id?: string | number;
+    profile_image?: string;
+  };
+  create_date?: string;
+  created_at?: string;
+  date?: string;
+  [key: string]: unknown;
+}
+
 interface PrepareResult {
   task: ProcessTask;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  meta: any | null;
+  meta: PlatformMetadata | null;
   stat: fs.Stats | null;
   mediaType: "image" | "video" | "audio" | "text";
 }
@@ -456,7 +481,8 @@ async function processBatch(
       res.meta.extractor === "twitter" ||
       res.meta.tweet_id
     ) {
-      const userObj = res.meta.user || res.meta.author || {};
+      // biome-ignore lint/suspicious/noExplicitAny: Metadata is highly dynamic across platforms
+      const userObj = (res.meta.user || res.meta.author || {}) as any;
       const userId = userObj.id || res.meta.user_id || res.meta.uploader_id;
       const avatarUrl =
         userObj.profile_image || userObj.profile_image_url_https;

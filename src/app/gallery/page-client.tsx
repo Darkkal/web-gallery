@@ -13,11 +13,8 @@ import { useLightbox } from "@/hooks/useLightbox";
 import { usePaginatedData } from "@/hooks/usePaginatedData";
 import { ScrollModeProvider, useScrollMode } from "@/hooks/useScrollMode";
 import { useSelection } from "@/hooks/useSelection";
-import {
-  mergeGelbooruv02Metadata,
-  mergePixivMetadata,
-  mergeTwitterMetadata,
-} from "@/lib/metadata";
+import { mergePixivMetadata } from "@/lib/metadata";
+import type { UnifiedUserData } from "@/lib/metadata";
 import type { GalleryGroup } from "@/types/media";
 
 export default function GalleryPageClient({
@@ -223,7 +220,7 @@ function GalleryPageContent({
 
       {currentGroup && currentItemRow && (
         <Lightbox
-          item={currentItemRow.item}
+          row={currentItemRow}
           tweet={
             currentItemRow.post?.extractorType === "twitter"
               ? mergeTwitterMetadata(
@@ -234,25 +231,20 @@ function GalleryPageContent({
           }
           user={
             currentItemRow.post?.extractorType === "twitter"
-              ? currentItemRow.user
+              ? (currentItemRow.user as UnifiedUserData)
               : undefined
           }
           pixiv={
             currentItemRow.post?.extractorType === "pixiv"
-              ? mergePixivMetadata(currentItemRow.post, currentItemRow.pixiv)
-              : undefined
-          }
-          gelbooru={
-            currentItemRow.post?.extractorType === "gelbooruv02"
-              ? mergeGelbooruv02Metadata(
+              ? mergePixivMetadata(
                   currentItemRow.post,
-                  currentItemRow.gelbooru,
+                  currentItemRow.pixiv,
                 )
               : undefined
           }
           pixivUser={
             currentItemRow.post?.extractorType === "pixiv"
-              ? currentItemRow.pixivUser
+              ? (currentItemRow.pixivUser as UnifiedUserData)
               : undefined
           }
           onClose={closeLightbox}

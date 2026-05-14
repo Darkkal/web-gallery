@@ -19,6 +19,7 @@ export default function SourceCard({
   const displayTitle = source.name || source.url.replace(/^https?:\/\//, "");
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: Maintains current styling structure
     <div
       className={`${styles.card} ${isSelected ? styles.selected : ""}`}
       onClick={onToggleSelection}

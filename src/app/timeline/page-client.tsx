@@ -14,6 +14,8 @@ import {
   mergePixivMetadata,
   mergeTwitterMetadata,
 } from "@/lib/metadata";
+import type { UnifiedUserData } from "@/lib/metadata";
+import type { GalleryRow } from "@/types/media";
 import type { TimelinePost } from "@/types/posts";
 
 export default function TimelinePageClient({
@@ -124,24 +126,40 @@ function TimelinePageContent({
         : null;
 
     return {
-      item: {
-        id: media.id,
-        filePath: media.url,
-        mediaType: media.type,
-        title: post.title || post.content,
-        capturedAt: post.date,
-      },
+      row: {
+        item: {
+          id: media.id,
+          filePath: media.url,
+          mediaType: media.type,
+          capturedAt: post.date,
+          createdAt: post.date || new Date(),
+          postId: post.internalDbId || null,
+        },
+        post: {
+          id: post.internalDbId || 0,
+          title: post.title || post.content || null,
+          extractorType: post.type,
+          jsonSourceId: post.sourceUrl || null, // approximation
+          internalSourceId: post.internalDbId || null,
+          userId: post.author?.handle || null,
+          date: post.date?.toISOString() || null,
+          content: post.content || null,
+          url: post.sourceUrl || null,
+          metadataPath: null,
+          createdAt: post.date || new Date(),
+        },
+      } as GalleryRow,
       tweet:
         post.type === "twitter"
           ? mergeTwitterMetadata(twitterInput, twitterDetails)
           : undefined,
       user:
         post.type === "twitter"
-          ? {
+          ? ({
               name: post.author?.name,
               nick: post.author?.handle,
               profileImage: post.author?.avatar,
-            }
+            } as UnifiedUserData)
           : undefined,
       pixiv:
         post.type === "pixiv"
@@ -164,11 +182,11 @@ function TimelinePageContent({
           : undefined,
       pixivUser:
         post.type === "pixiv"
-          ? {
+          ? ({
               name: post.author?.name,
               account: post.author?.handle,
               profileImage: post.author?.avatar,
-            }
+            } as UnifiedUserData)
           : undefined,
     };
   }, [selectedIndex, mediaIndex, posts]);

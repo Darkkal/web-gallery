@@ -36,6 +36,7 @@ export default function GalleryItem({
   };
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: Maintains current styling structure
     <div
       className={`${styles.item} ${isSelected ? styles.selectedItem : ""}`}
       onClick={onClick}
@@ -84,7 +85,7 @@ export default function GalleryItem({
       {row.twitter && (
         <div className={styles.twitterOverlay}>
           <span>❤️ {row.twitter.favoriteCount}</span>
-          {row.user && <span>@{row.user.username}</span>}
+          {row.user && <span>@{row.user.nick}</span>}
         </div>
       )}
     </div>

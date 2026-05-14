@@ -18,10 +18,11 @@ export interface UnifiedTwitterData {
 }
 
 export interface UnifiedUserData {
+  id?: string | number | null;
   name?: string | null;
-  username?: string | null; // For Twitter handle
-  nick?: string | null; // For Twitter nickname / handle
-  account?: string | null; // For Pixiv account
+  username?: string | null;
+  nick?: string | null;
+  account?: string | null;
   profileImage?: string | null;
 }
 

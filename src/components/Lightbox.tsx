@@ -6,6 +6,7 @@ import { getPostTags } from "@/app/actions/tags";
 import FormattedContent from "@/components/FormattedContent";
 import styles from "@/components/Lightbox.module.css";
 import { handleKeyActivate } from "@/lib/utils/a11y";
+import type { GalleryRow } from "@/types/media";
 import type {
   UnifiedGelbooruv02Data,
   UnifiedPixivData,
@@ -14,8 +15,7 @@ import type {
 } from "@/lib/metadata";
 
 interface LightboxProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  item: any; // Using any for now matching the page usage
+  row: GalleryRow;
   tweet?: UnifiedTwitterData;
   user?: UnifiedUserData;
   pixiv?: UnifiedPixivData;
@@ -28,7 +28,7 @@ interface LightboxProps {
 }
 
 export default function Lightbox({
-  item,
+  row,
   tweet,
   user,
   pixiv,
@@ -39,6 +39,7 @@ export default function Lightbox({
   onPrev,
   onDelete,
 }: LightboxProps) {
+  const { item } = row;
   const [showInfo, setShowInfo] = useState(true);
   const [pixivTags, setPixivTags] = useState<{ name: string }[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -123,6 +124,7 @@ export default function Lightbox({
   return (
     <div className={styles.overlay}>
       {/* Main Image Area */}
+      {/* biome-ignore lint/a11y/useSemanticElements: Maintains current styling structure */}
       <div
         className={styles.mainArea}
         onClick={(e) => {
@@ -156,6 +158,7 @@ export default function Lightbox({
 
         <div className={styles.mediaWrapper}>
           {item.mediaType === "video" ? (
+            // biome-ignore lint/a11y/useMediaCaption: User generated content does not have captions
             <video
               ref={videoRef}
               src={item.filePath}
@@ -164,6 +167,7 @@ export default function Lightbox({
               onClick={(e) => e.stopPropagation()}
             />
           ) : item.mediaType === "text" ? (
+            // biome-ignore lint/a11y/useSemanticElements: Maintains current styling structure
             <div
               className={styles.textContent}
               onClick={(e) => {
@@ -178,12 +182,12 @@ export default function Lightbox({
               role="button"
               tabIndex={0}
             >
-              <FormattedContent content={item.title} />
+              <FormattedContent content={row.post?.title || ""} />
             </div>
           ) : (
             <Image
               src={item.filePath}
-              alt={item.title || "Gallery Image"}
+              alt={row.post?.title || "Gallery Image"}
               className={styles.image}
               onClick={(e) => {
                 e.stopPropagation();
@@ -267,7 +271,7 @@ export default function Lightbox({
       >
         <div className={styles.sidebarHeader}>
           <h2 className={styles.sidebarTitle}>
-            {tweet ? null : pixiv?.title || item.title || "Untitled"}
+            {tweet ? null : pixiv?.title || row.post?.title || "Untitled"}
           </h2>
         </div>
 
@@ -315,7 +319,7 @@ export default function Lightbox({
             <FormattedContent
               content={
                 pixiv?.caption ||
-                item.description ||
+                row.post?.content ||
                 tweet?.content ||
                 "No description available."
               }
@@ -434,17 +438,17 @@ export default function Lightbox({
           </div>
         )}
 
-        {(item.originalUrl || (tweet?.tweetId && user) || pixiv?.pixivId) && (
+        {(row.post?.url || (tweet?.tweetId && user) || pixiv?.pixivId) && (
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Source</h3>
-            {item.originalUrl && (
+            {row.post?.url && (
               <a
-                href={item.originalUrl}
+                href={row.post.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.linkButton}
               >
-                Open Original File
+                Open Original Post
               </a>
             )}
             {tweet?.tweetId && user && (

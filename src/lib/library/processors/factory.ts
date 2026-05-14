@@ -3,8 +3,8 @@ import { GelbooruProcessor } from "@/lib/library/processors/gelbooru";
 import { PixivProcessor } from "@/lib/library/processors/pixiv";
 import { TwitterProcessor } from "@/lib/library/processors/twitter";
 
-export class MetadataProcessorFactory {
-  static getProcessor(extractorType: string): IMetadataProcessor | null {
+export const MetadataProcessorFactory = {
+  getProcessor(extractorType: string): IMetadataProcessor | null {
     switch (extractorType) {
       case "twitter":
         return new TwitterProcessor();
@@ -15,5 +15,5 @@ export class MetadataProcessorFactory {
       default:
         return null;
     }
-  }
-}
+  },
+};

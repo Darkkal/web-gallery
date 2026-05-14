@@ -38,6 +38,7 @@ export default function FormattedContent({
       // biome-ignore lint/a11y/noStaticElementInteractions: Only used for stopping propagation on links
       <div
         className={combinedClassName}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: Intentional rendering of processed HTML
         dangerouslySetInnerHTML={{ __html: processedHtml }}
         onClick={(e) => {
           if ((e.target as HTMLElement).tagName === "A") {
