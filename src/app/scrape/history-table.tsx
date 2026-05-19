@@ -147,8 +147,10 @@ export default function ScrapeHistoryTable({
                     )}
                     s
                   </span>
-                ) : (
+                ) : item.status === "running" ? (
                   <span className={styles.runningPulse}>Running...</span>
+                ) : (
+                  <span>-</span>
                 )}
               </td>
               <td>

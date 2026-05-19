@@ -17,6 +17,7 @@ export interface ScrapingStatus extends ScrapeProgress {
   startTime: Date;
   taskId?: number;
   logPath?: string;
+  lastDbUpdate?: number;
 }
 
 class ScraperManager {
@@ -30,7 +31,30 @@ class ScraperManager {
     }
   > = new Map();
 
-  private constructor() {}
+  private constructor() {
+    // Cleanup any zombie tasks from previous crashes/restarts
+    db.update(scrapeHistory)
+      .set({
+        status: "failed",
+        lastError: "Application stopped unexpectedly",
+        endTime: new Date(),
+      })
+      .where(eq(scrapeHistory.status, "running"))
+      .returning({ id: scrapeHistory.id })
+      .then((res) => {
+        if (res.length > 0) {
+          console.log(
+            `[ScraperManager] Cleaned up ${res.length} zombie scrape tasks`,
+          );
+        }
+      })
+      .catch((err) =>
+        console.error(
+          "[ScraperManager] Failed to cleanup zombie scrapes:",
+          err,
+        ),
+      );
+  }
 
   public static getInstance(): ScraperManager {
     if (!ScraperManager.instance) {
@@ -134,6 +158,43 @@ class ScraperManager {
           const current = this.activeScrapes.get(sourceId);
           if (current) {
             current.status = { ...current.status, ...p };
+
+            // Throttle database updates to every 5 seconds
+            const now = Date.now();
+            if (
+              !current.status.lastDbUpdate ||
+              now - current.status.lastDbUpdate > 5000
+            ) {
+              current.status.lastDbUpdate = now;
+
+              const durationSeconds =
+                (now - current.status.startTime.getTime()) / 1000;
+              const bytesDownloaded = this.parseSizeToBytes(
+                current.status.totalSize,
+              );
+              const averageSpeed =
+                durationSeconds > 0
+                  ? Math.floor(bytesDownloaded / durationSeconds)
+                  : 0;
+
+              db.update(scrapeHistory)
+                .set({
+                  filesDownloaded: current.status.downloadedCount,
+                  bytesDownloaded,
+                  errorCount: current.status.errorCount,
+                  skippedCount: current.status.skippedCount,
+                  postsProcessed: current.status.postsProcessed,
+                  averageSpeed,
+                })
+                .where(eq(scrapeHistory.id, current.status.historyId))
+                .execute()
+                .catch((err) =>
+                  console.error(
+                    `[ScraperManager] Failed to update progress for history ${current.status.historyId}`,
+                    err,
+                  ),
+                );
+            }
           }
         },
       },
