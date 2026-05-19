@@ -22,14 +22,24 @@ import type {
 } from "@/lib/library/types";
 
 const DOWNLOAD_DIR = path.join(process.cwd(), "public", "downloads");
-// Global control flags for this module process
-let isScanning = false;
-let stopRequested = false;
+
+// Store scan control flags on globalThis so they survive Next.js hot reloads.
+const globalForScanner = globalThis as unknown as {
+  __scanState?: { isScanning: boolean; stopRequested: boolean };
+};
+
+if (!globalForScanner.__scanState) {
+  globalForScanner.__scanState = {
+    isScanning: false,
+    stopRequested: false,
+  };
+}
+const scanState = globalForScanner.__scanState;
 
 export function stopScanning() {
-  if (isScanning) {
+  if (scanState.isScanning) {
     console.log("Stopping scan requested...");
-    stopRequested = true;
+    scanState.stopRequested = true;
   }
 }
 
@@ -43,20 +53,20 @@ function getAllFiles(dirPath: string): string[] {
       const stat = fs.statSync(fullPath);
       if (stat?.isDirectory()) results = results.concat(getAllFiles(fullPath));
       else results.push(fullPath);
-    } catch {}
+    } catch { }
   });
   return results;
 }
 
 export async function syncLibrary() {
-  if (isScanning) {
+  if (scanState.isScanning) {
     console.warn("Scan already running.");
     return;
   }
 
   console.log("Starting library sync...");
-  isScanning = true;
-  stopRequested = false;
+  scanState.isScanning = true;
+  scanState.stopRequested = false;
 
   const start = Date.now();
 
@@ -307,7 +317,7 @@ export async function syncLibrary() {
 
     const BATCH_SIZE = 100; // Smaller batch size due to more DB ops
     for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
-      if (stopRequested) {
+      if (scanState.stopRequested) {
         console.log("Scan stopped by user.");
         break;
       }
@@ -342,7 +352,7 @@ export async function syncLibrary() {
       }
     }
 
-    if (!stopRequested) {
+    if (!scanState.stopRequested) {
       console.log("Cleaning up removed items...");
       const pathsToDelete: string[] = [];
       // Re-fetch all paths to be safe or use what we cached if robust
@@ -365,7 +375,7 @@ export async function syncLibrary() {
       }
     }
 
-    const finalStatus = stopRequested ? "stopped" : "completed";
+    const finalStatus = scanState.stopRequested ? "stopped" : "completed";
 
     await db
       .update(scanHistory)
@@ -397,8 +407,8 @@ export async function syncLibrary() {
       })
       .where(eq(scanHistory.id, scanId));
   } finally {
-    isScanning = false;
-    stopRequested = false;
+    scanState.isScanning = false;
+    scanState.stopRequested = false;
   }
 }
 
@@ -446,12 +456,12 @@ async function prepareTask(task: ProcessTask): Promise<PrepareResult> {
       // We wrap numbers with 16 or more digits in quotes so JSON.parse treats them as strings.
       const fixedRaw = raw.replace(/([:[,]\s*)([0-9]{16,})/g, '$1"$2"');
       meta = JSON.parse(fixedRaw);
-    } catch {}
+    } catch { }
   }
 
   try {
     stat = await fsPromises.stat(task.fsPath);
-  } catch {}
+  } catch { }
 
   let type = task.defaultType;
   if (type !== "text") {
