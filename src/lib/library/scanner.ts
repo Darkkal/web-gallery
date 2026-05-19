@@ -335,7 +335,7 @@ export async function syncLibrary() {
       stats.processed += chunk.length;
       stats.added += batchStats.added;
       stats.updated += batchStats.updated;
-      // errors tracked inside
+      stats.errors += batchStats.errors;
 
       if (i % 500 === 0 && i > 0) {
         console.log(`Processed ${i} / ${tasks.length}`);
@@ -484,6 +484,7 @@ async function processBatch(
   const results = await Promise.all(chunk.map(prepareTask));
   let added = 0;
   let updated = 0;
+  let errors = 0;
 
   // 1. Pre-process Avatars (Just collect URLs, do not download)
   const userAvatars = new Map<string, string>();
@@ -522,99 +523,109 @@ async function processBatch(
 
   await db.transaction(async (tx) => {
     for (const res of results) {
-      const { task, meta, stat, mediaType } = res;
-      let postId: number | null = null;
-      let extractorType: string | null = null;
+      try {
+        const { task, meta, stat, mediaType } = res;
+        let postId: number | null = null;
+        let extractorType: string | null = null;
 
-      // Lookup Internal Source ID from logs OR use explicit sourceId from scanner
-      let internalSourceId: number | null = task.sourceId;
+        // Lookup Internal Source ID from logs OR use explicit sourceId from scanner
+        let internalSourceId: number | null = task.sourceId;
 
-      if (!internalSourceId) {
-        // Use absolute path for lookup to match scraper logs
-        const cleanRelPath = task.dbFilePath
-          .replace(/^\//, "")
-          .split("/")
-          .join(path.sep);
-        const absLookupPath = path.join(process.cwd(), "public", cleanRelPath);
+        if (!internalSourceId) {
+          // Use absolute path for lookup to match scraper logs
+          const cleanRelPath = task.dbFilePath
+            .replace(/^\//, "")
+            .split("/")
+            .join(path.sep);
+          const absLookupPath = path.join(process.cwd(), "public", cleanRelPath);
 
-        const logEntry = await tx
-          .select({ sourceId: scraperDownloadLogs.sourceId })
-          .from(scraperDownloadLogs)
-          .where(eq(scraperDownloadLogs.filePath, absLookupPath));
+          const logEntry = await tx
+            .select({ sourceId: scraperDownloadLogs.sourceId })
+            .from(scraperDownloadLogs)
+            .where(eq(scraperDownloadLogs.filePath, absLookupPath));
 
-        if (logEntry.length > 0) {
-          internalSourceId = logEntry[0].sourceId;
-        }
-      }
-
-      // 2. Process Post Metadata (Users & Posts)
-      if (meta) {
-        // Determine Extractor Type
-        if (
-          meta.category === "twitter" ||
-          meta.extractor === "twitter" ||
-          meta.tweet_id
-        )
-          extractorType = "twitter";
-        else if (meta.category === "pixiv" || meta.extractor === "pixiv")
-          extractorType = "pixiv";
-        else if (
-          meta.category === "gelbooru" ||
-          meta.category === "safebooru" ||
-          meta.extractor === "gelbooru" ||
-          meta.extractor === "gelbooruv02" ||
-          meta.extractor === "safebooru"
-        )
-          extractorType = "gelbooruv02";
-
-        if (extractorType) {
-          const processor =
-            MetadataProcessorFactory.getProcessor(extractorType);
-          if (processor) {
-            const context: ProcessorContext = {
-              tx,
-              existingTwitterUsers,
-              existingPixivUsers,
-              existingTags,
-              existingPosts,
-              userAvatars,
-              internalSourceId,
-            };
-            postId = await processor.process(meta, task, context);
+          if (logEntry.length > 0) {
+            internalSourceId = logEntry[0].sourceId;
           }
         }
-      }
 
-      // 3. Insert/Update Media Item
-      let capturedAt = stat ? stat.mtime : new Date();
-      if (meta) {
-        if (meta.date) capturedAt = new Date(meta.date);
-        else if (meta.create_date) capturedAt = new Date(meta.create_date);
-        else if (meta.created_at) capturedAt = new Date(meta.created_at);
-      }
+        // 2. Process Post Metadata (Users & Posts)
+        if (meta) {
+          // Determine Extractor Type
+          if (
+            meta.category === "twitter" ||
+            meta.extractor === "twitter" ||
+            meta.tweet_id
+          )
+            extractorType = "twitter";
+          else if (meta.category === "pixiv" || meta.extractor === "pixiv")
+            extractorType = "pixiv";
+          else if (
+            meta.category === "gelbooru" ||
+            meta.category === "safebooru" ||
+            meta.extractor === "gelbooru" ||
+            meta.extractor === "gelbooruv02" ||
+            meta.extractor === "safebooru"
+          )
+            extractorType = "gelbooruv02";
 
-      if (mediaType !== "text" && !existingMediaPaths.has(task.dbFilePath)) {
-        await tx.insert(mediaItems).values({
-          filePath: task.dbFilePath,
-          mediaType,
-          capturedAt,
-          postId: postId, // New FK
-        });
-        existingMediaPaths.add(task.dbFilePath);
-        added++;
-      } else if (mediaType !== "text") {
-        if (postId) {
-          await tx
-            .update(mediaItems)
-            .set({
-              postId,
-            })
-            .where(eq(mediaItems.filePath, task.dbFilePath));
-          updated++;
+          if (extractorType) {
+            const processor =
+              MetadataProcessorFactory.getProcessor(extractorType);
+            if (processor) {
+              const context: ProcessorContext = {
+                tx,
+                existingTwitterUsers,
+                existingPixivUsers,
+                existingTags,
+                existingPosts,
+                userAvatars,
+                internalSourceId,
+              };
+              postId = await processor.process(meta, task, context);
+            }
+          }
         }
+
+        // 3. Insert/Update Media Item
+        let capturedAt = stat ? stat.mtime : new Date();
+        if (meta) {
+          if (meta.date) capturedAt = new Date(meta.date);
+          else if (meta.create_date) capturedAt = new Date(meta.create_date);
+          else if (meta.created_at) capturedAt = new Date(meta.created_at);
+        }
+
+        if (mediaType !== "text" && !existingMediaPaths.has(task.dbFilePath)) {
+          await tx.insert(mediaItems).values({
+            filePath: task.dbFilePath,
+            mediaType,
+            capturedAt,
+            postId: postId, // New FK
+          });
+          existingMediaPaths.add(task.dbFilePath);
+          added++;
+        } else if (mediaType !== "text") {
+          if (postId) {
+            await tx
+              .update(mediaItems)
+              .set({
+                postId,
+              })
+              .where(eq(mediaItems.filePath, task.dbFilePath));
+            updated++;
+          }
+        }
+      } catch (itemError: unknown) {
+        errors++;
+        const errMsg = itemError instanceof Error ? itemError.message : String(itemError);
+        console.error(
+          `[Scanner] Failed to process item ${res.task.dbFilePath}: ${errMsg}`,
+        );
+        // Do not re-throw — skip this item and continue processing the rest
+        // of the batch so one bad file doesn't lose the entire batch.
       }
     }
   }); // End Transaction
 
-  return { added, updated };
+  return { added, updated, errors };
 }
