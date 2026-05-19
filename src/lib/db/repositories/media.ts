@@ -5,10 +5,8 @@ import {
   asc,
   desc,
   eq,
-  exists,
   gt,
   inArray,
-  like,
   lt,
   ne,
   or,
@@ -24,9 +22,7 @@ import {
   postDetailsPixiv,
   postDetailsTwitter,
   posts,
-  postTags,
   sources,
-  tags,
   twitterUsers,
 } from "@/lib/db/schema";
 import { parseSearchQuery } from "@/lib/utils/search-parser";
@@ -50,35 +46,20 @@ export async function getMediaItems(filters?: {
     whereConditions.push(eq(posts.extractorType, sourceFilter));
   }
 
-  if (searchLower) {
-    const textMatch = or(
-      like(posts.title, `%${searchLower}%`),
-      like(posts.content, `%${searchLower}%`),
-      like(twitterUsers.name, `%${searchLower}%`),
-      like(twitterUsers.nick, `%${searchLower}%`),
-      like(pixivUsers.name, `%${searchLower}%`),
-      like(pixivUsers.account, `%${searchLower}%`),
-      like(sources.name, `%${searchLower}%`),
-    );
-
-    const tagMatch = exists(
-      db
-        .select()
-        .from(postTags)
-        .innerJoin(tags, eq(postTags.tagId, tags.id))
-        .where(
-          and(
-            eq(postTags.postId, posts.id),
-            like(tags.name, `%${searchLower}%`),
+  const searchSubquery = searchLower
+    ? db
+        .select({
+          search_id: sql<number>`rowid`.as("search_id"),
+          rank: sql<number>`bm25(posts_fts, 10.0, 1.0, 5.0, 5.0, 2.0, 1.0)`.as(
+            "rank",
           ),
-        ),
-    );
+        })
+        .from(sql`posts_fts`)
+        .where(sql`posts_fts MATCH ${searchLower}`)
+        .as("search_subquery")
+    : undefined;
 
-    const searchCondition = or(textMatch, tagMatch);
-    if (searchCondition) {
-      whereConditions.push(searchCondition);
-    }
-  }
+  const rankCol = searchSubquery?.rank;
 
   let cursorSortVal: number | null = null;
   let cursorId: number | null = null;
@@ -86,7 +67,7 @@ export async function getMediaItems(filters?: {
     try {
       const decoded = Buffer.from(filters.cursor, "base64").toString("utf-8");
       const [valStr, idStr] = decoded.split("_");
-      cursorSortVal = parseInt(valStr, 10);
+      cursorSortVal = parseFloat(valStr);
       cursorId = parseInt(idStr, 10);
     } catch {
       // Invalid cursor
@@ -98,8 +79,23 @@ export async function getMediaItems(filters?: {
 
   // Use coalesce to get a numeric timestamp for sorting
   const sortField = sql`COALESCE(${posts.createdAt}, ${mediaItems.capturedAt}, 0)`;
+  // biome-ignore lint/suspicious/noExplicitAny: Drizzle aliased columns conflict with raw SQL types in query builder select shape
+  let sortValOutput: any = sortField;
 
-  if (sortBy === "created-asc" || sortBy === "captured-asc") {
+  if (sortBy === "relevance" && rankCol) {
+    sortValOutput = rankCol;
+    orderBys.push(asc(rankCol), asc(mediaItems.id));
+    if (
+      cursorSortVal !== null &&
+      cursorId !== null &&
+      !Number.isNaN(cursorId)
+    ) {
+      cursorCond = or(
+        gt(rankCol, cursorSortVal),
+        and(eq(rankCol, cursorSortVal), gt(mediaItems.id, cursorId)),
+      );
+    }
+  } else if (sortBy === "created-asc" || sortBy === "captured-asc") {
     orderBys.push(asc(sortField), asc(mediaItems.id));
     if (
       cursorSortVal !== null &&
@@ -130,7 +126,8 @@ export async function getMediaItems(filters?: {
     whereConditions.push(cursorCond);
   }
 
-  const results = await db
+  // biome-ignore lint/suspicious/noExplicitAny: Drizzle dynamic query typing requires any for reassignment
+  let resultsQuery: any = db
     .select({
       item: mediaItems,
       post: posts,
@@ -140,9 +137,19 @@ export async function getMediaItems(filters?: {
       user: twitterUsers,
       pixivUser: pixivUsers,
       source: sources,
-      sortVal: sortField, // include sortVal to easily compute the next cursor
+      sortVal: sortValOutput, // include sortVal to easily compute the next cursor
     })
     .from(mediaItems)
+    .$dynamic();
+
+  if (searchSubquery) {
+    resultsQuery = resultsQuery.innerJoin(
+      searchSubquery,
+      eq(mediaItems.postId, searchSubquery.search_id),
+    );
+  }
+
+  const results = (await resultsQuery
     .leftJoin(posts, eq(mediaItems.postId, posts.id))
     .leftJoin(postDetailsTwitter, eq(posts.id, postDetailsTwitter.postId))
     .leftJoin(postDetailsPixiv, eq(posts.id, postDetailsPixiv.postId))
@@ -162,9 +169,19 @@ export async function getMediaItems(filters?: {
       and(eq(posts.extractorType, "pixiv"), eq(posts.userId, pixivUsers.id)),
     )
     .leftJoin(sources, eq(posts.internalSourceId, sources.id))
-    .where(and(...whereConditions))
+    .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
     .orderBy(...orderBys)
-    .limit(limit);
+    .limit(limit)) as {
+    item: typeof mediaItems.$inferSelect;
+    post: typeof posts.$inferSelect | null;
+    twitter: typeof postDetailsTwitter.$inferSelect | null;
+    pixiv: typeof postDetailsPixiv.$inferSelect | null;
+    gelbooru: typeof postDetailsGelbooruV02.$inferSelect | null;
+    user: typeof twitterUsers.$inferSelect | null;
+    pixivUser: typeof pixivUsers.$inferSelect | null;
+    source: typeof sources.$inferSelect | null;
+    sortVal: unknown;
+  }[];
 
   results.forEach((row) => {
     if (row.user?.id) {

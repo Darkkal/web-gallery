@@ -35,6 +35,9 @@ export default function FilterBar({
         <option value="created-asc">Oldest First</option>
         <option value="captured-desc">Content Date: Newest First</option>
         <option value="captured-asc">Content Date: Oldest First</option>
+        <option value="relevance" disabled={searchQuery.trim().length === 0}>
+          Relevance (Search Only)
+        </option>
       </select>
       <div className={styles.separator} />
       <ScrollModeToggle />
