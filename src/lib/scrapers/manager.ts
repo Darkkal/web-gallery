@@ -392,4 +392,13 @@ class ScraperManager {
   private parseSizeToBytes = parseSizeToBytes;
 }
 
-export const scraperManager = ScraperManager.getInstance();
+const globalForScraper = globalThis as unknown as {
+  scraperManager: ScraperManager | undefined;
+};
+
+export const scraperManager =
+  globalForScraper.scraperManager ?? ScraperManager.getInstance();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForScraper.scraperManager = scraperManager;
+}
