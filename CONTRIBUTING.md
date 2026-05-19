@@ -19,7 +19,7 @@ This document outlines the architectural decisions, established patterns, and te
 
 ## 2. Project Structure
 
-```
+```text
 src/
 ├── app/
 │   ├── actions/          # Server Actions — split by domain (gallery, sources, scanning, tags, timeline, debug)
@@ -96,6 +96,7 @@ Client pages consume this with a "Load More" button that calls the Route Handler
 - **Scraping**: `ScraperManager` singleton controls scraping tasks. Strategies implement `BaseScraperStrategy` → `GalleryDlStrategy`, `YtDlpStrategy`.
 - **Library Scanning**: `MetadataProcessorFactory` handles metadata extraction per platform (Twitter, Pixiv, Gelbooru).
 - **Rule**: When adding support for a new platform, implement a new strategy/processor. Never add `if/else` platform logic to base classes.
+- **Rule**: If a new extractor introduces new searchable metadata columns that are added to the FTS5 virtual table, you MUST update the `ftsColumnAliases` dictionary in `src/lib/utils/search-parser.ts` to map any friendly search prefixes to the new FTS5 column. This dictionary doubles as the allowlist for valid column filters.
 
 ### 3.5 Styling System — CSS Modules + Design Tokens
 
@@ -109,9 +110,11 @@ Client pages consume this with a "Load More" button that calls the Route Handler
 - **Rule**: NEVER hardcode hex colors (`#4ade80`, `#888`) or inline `style={{ color: ... }}`. Use CSS Module classes referencing `hsl(var(--token))`.
 - **Rule**: Only use inline `style={{}}` for truly dynamic runtime values (e.g., `backgroundImage` with a URL, conditional cursor styles). All static styling belongs in CSS Modules.
 - **Rule**: For status indicators, use `data-attribute` selectors in CSS rather than conditional inline styles:
+
   ```tsx
   <span data-status={item.status}>{item.status}</span>
   ```
+
   ```css
   .badge[data-status="completed"] { color: hsl(var(--color-success)); }
   .badge[data-status="failed"]    { color: hsl(var(--color-danger)); }
@@ -146,7 +149,7 @@ Frontend types are in `src/types/`:
 
 Large pages are decomposed into sub-components under a `components/` directory co-located with the page:
 
-```
+```text
 src/app/gallery/
 ├── page.tsx              # Server Component
 ├── page-client.tsx       # Client Component (orchestration)
@@ -164,7 +167,7 @@ src/app/gallery/
 
 Server Actions are organized into `src/app/actions/` by domain:
 
-```
+```text
 src/app/actions/
 ├── debug.ts      # Destructive debug actions (guarded)
 ├── gallery.ts    # Gallery mutations
@@ -179,10 +182,12 @@ src/app/actions/
 ### 3.10 Loading & Error Boundaries
 
 Every route segment should have:
+
 - **`loading.tsx`** — A skeleton/loading state component. Use `data-testid="loading-skeleton"` on skeleton elements for deterministic E2E testing.
 - **`error.tsx`** — An error boundary that catches unexpected errors and provides a recovery path.
 
 The root layout metadata uses a template pattern:
+
 ```ts
 export const metadata: Metadata = {
   title: { default: "Web Gallery", template: "%s | Web Gallery" },
@@ -195,6 +200,7 @@ Individual pages export their own `metadata` for custom titles (e.g., `export co
 ### 3.11 Security & Destructive Actions
 
 - **Rule**: Any server action that performs destructive operations MUST call `assertNonProduction()` (or equivalent guard) before proceeding:
+
   ```ts
   function assertNonProduction() {
     if (process.env.NODE_ENV === 'production') {
@@ -202,6 +208,7 @@ Individual pages export their own `metadata` for custom titles (e.g., `export co
     }
   }
   ```
+
 - **Rule**: Never use `sql.raw()` with interpolated values. Use Drizzle's query builder or parameterized queries.
 - **Security headers** are configured in `next.config.ts` (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy).
 - **Note**: Content Security Policy is intentionally not configured. This application scrapes arbitrary external content and renders it client-side, making a meaningful CSP infeasible for the current architecture.
@@ -252,6 +259,7 @@ When extracting sub-components from a monolithic page, sub-components should imp
 ### 5.6 Inline Styles: Static vs Dynamic
 
 Not all inline `style={{}}` usage is equally bad. The migration priority is:
+
 1. **Hardcoded colors** (`style={{ color: '#4ade80' }}`) → highest priority, must use design tokens
 2. **Static layout styles** (`style={{ display: 'flex', gap: '4px' }}`) → medium priority, migrate to CSS classes
 3. **Dynamic runtime values** (`style={{ backgroundImage: url }}`) → keep as inline, they depend on data
