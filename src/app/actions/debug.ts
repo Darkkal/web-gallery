@@ -34,7 +34,7 @@ const allTables: SQLiteTable[] = Object.values(schema).filter((value) =>
 
 async function stopAllActivities() {
   console.log("[debug] Stopping library scan...");
-  stopScanning();
+  await stopScanning();
 
   console.log("[debug] Stopping active scrapes...");
   const activeStatues = scraperManager.getAllStatuses();

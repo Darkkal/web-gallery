@@ -1,6 +1,6 @@
 import fs, { promises as fsPromises } from "node:fs";
 import path from "node:path";
-import { eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   gallerydlExtractorTypes,
@@ -36,11 +36,43 @@ if (!globalForScanner.__scanState) {
 }
 const scanState = globalForScanner.__scanState;
 
-export function stopScanning() {
+export function isScanRunning(): boolean {
+  return scanState.isScanning;
+}
+
+export async function stopScanning(): Promise<boolean> {
   if (scanState.isScanning) {
     console.log("Stopping scan requested...");
     scanState.stopRequested = true;
+    return true;
   }
+
+  // If no scan is running in-memory but DB has a stale "running" record, clean it up
+  console.log(
+    "No scan running in-memory. Checking for stale running records...",
+  );
+  const scans = await db
+    .select()
+    .from(scanHistory)
+    .orderBy(desc(scanHistory.startTime))
+    .limit(1);
+  const latest = scans[0];
+  if (latest && latest.status === "running") {
+    console.log(
+      `Cleaning up stale scan record #${latest.id} (started ${latest.startTime})`,
+    );
+    await db
+      .update(scanHistory)
+      .set({
+        status: "stopped",
+        endTime: new Date(),
+        lastError: "Scan was interrupted (server restart or crash)",
+      })
+      .where(eq(scanHistory.id, latest.id));
+    return true;
+  }
+
+  return false;
 }
 
 function getAllFiles(dirPath: string): string[] {
@@ -53,7 +85,7 @@ function getAllFiles(dirPath: string): string[] {
       const stat = fs.statSync(fullPath);
       if (stat?.isDirectory()) results = results.concat(getAllFiles(fullPath));
       else results.push(fullPath);
-    } catch { }
+    } catch {}
   });
   return results;
 }
@@ -456,12 +488,12 @@ async function prepareTask(task: ProcessTask): Promise<PrepareResult> {
       // We wrap numbers with 16 or more digits in quotes so JSON.parse treats them as strings.
       const fixedRaw = raw.replace(/([:[,]\s*)([0-9]{16,})/g, '$1"$2"');
       meta = JSON.parse(fixedRaw);
-    } catch { }
+    } catch {}
   }
 
   try {
     stat = await fsPromises.stat(task.fsPath);
-  } catch { }
+  } catch {}
 
   let type = task.defaultType;
   if (type !== "text") {
@@ -537,7 +569,11 @@ async function processBatch(
             .replace(/^\//, "")
             .split("/")
             .join(path.sep);
-          const absLookupPath = path.join(process.cwd(), "public", cleanRelPath);
+          const absLookupPath = path.join(
+            process.cwd(),
+            "public",
+            cleanRelPath,
+          );
 
           const logEntry = await tx
             .select({ sourceId: scraperDownloadLogs.sourceId })
@@ -617,7 +653,8 @@ async function processBatch(
         }
       } catch (itemError: unknown) {
         errors++;
-        const errMsg = itemError instanceof Error ? itemError.message : String(itemError);
+        const errMsg =
+          itemError instanceof Error ? itemError.message : String(itemError);
         console.error(
           `[Scanner] Failed to process item ${res.task.dbFilePath}: ${errMsg}`,
         );
