@@ -8,7 +8,7 @@ services:
     environment:
       NODE_ENV: development
     ports:
-      - 3000:3000
+      - 3002:3000
       - 9229:9229
     # Run npm install to ensure devDependencies (like typescript) are present, then start the dev server
     command: sh -c "npm install && node --inspect=0.0.0.0:9229 node_modules/.bin/next dev -H 0.0.0.0"

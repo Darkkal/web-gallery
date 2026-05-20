@@ -33,6 +33,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -51,6 +52,14 @@ sqlite.db
 sqlite.db-journal
 gallery-dl-*archive*
 data/
+
+# Test environment data
+test-data/
+test-media/
+
+# Production data directories (default locations, overridden by .env)
+prod-data/
+prod-media/
 
 # Playwright
 node_modules/

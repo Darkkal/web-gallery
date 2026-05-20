@@ -20,8 +20,9 @@ import type {
   TagCache,
   UserCache,
 } from "@/lib/library/types";
+import { paths } from "@/lib/config";
 
-const DOWNLOAD_DIR = path.join(process.cwd(), "public", "downloads");
+const DOWNLOAD_DIR = paths.downloads;
 // Global control flags for this module process
 let isScanning = false;
 let stopRequested = false;
@@ -43,7 +44,7 @@ function getAllFiles(dirPath: string): string[] {
       const stat = fs.statSync(fullPath);
       if (stat?.isDirectory()) results = results.concat(getAllFiles(fullPath));
       else results.push(fullPath);
-    } catch {}
+    } catch { }
   });
   return results;
 }
@@ -100,7 +101,10 @@ export async function syncLibrary() {
     >();
 
     // Process Download Files
-    const publicRoot = path.join(process.cwd(), "public");
+    // publicRoot is the parent of "downloads" — used to compute URL-relative paths.
+    // Dev:  files at ./public/downloads/... → publicRoot = ./public → URL = /downloads/...
+    // Docker: files at /media/downloads/... → publicRoot = /media → URL = /downloads/...
+    const publicRoot = path.dirname(paths.downloads);
     legacyFiles.forEach((absPath) => {
       const ext = path.extname(absPath).toLowerCase();
       const dir = path.dirname(absPath);
@@ -446,12 +450,12 @@ async function prepareTask(task: ProcessTask): Promise<PrepareResult> {
       // We wrap numbers with 16 or more digits in quotes so JSON.parse treats them as strings.
       const fixedRaw = raw.replace(/([:[,]\s*)([0-9]{16,})/g, '$1"$2"');
       meta = JSON.parse(fixedRaw);
-    } catch {}
+    } catch { }
   }
 
   try {
     stat = await fsPromises.stat(task.fsPath);
-  } catch {}
+  } catch { }
 
   let type = task.defaultType;
   if (type !== "text") {

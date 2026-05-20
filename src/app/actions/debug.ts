@@ -1,12 +1,12 @@
 "use server";
 
 import fs from "node:fs/promises";
-import path from "node:path";
 import { getTableName, is, sql } from "drizzle-orm";
 import { SQLiteTable } from "drizzle-orm/sqlite-core";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
+import { paths } from "@/lib/config";
 import { stopScanning } from "@/lib/library/scanner";
 import { scraperManager } from "@/lib/scrapers/manager";
 
@@ -53,22 +53,16 @@ export async function purgeDatabases() {
   await stopAllActivities();
 
   // 2. Delete gallery-dl Archives
-  const archiveFiles = [
-    "gallery-dl-pixiv-archive.sqlite3",
-    "gallery-dl-twitter-archive.sqlite3",
-  ];
-
-  for (const file of archiveFiles) {
-    try {
-      const filePath = path.join(process.cwd(), file);
-      await fs.unlink(filePath);
-      console.log(`[purgeDatabases] Deleted ${file}`);
-    } catch (error) {
-      console.log(
-        `[purgeDatabases] Could not delete ${file} (might not exist):`,
-        error,
-      );
-    }
+  const archiveDir = paths.galleryDl.archives;
+  try {
+    await fs.rm(archiveDir, { recursive: true, force: true });
+    await fs.mkdir(archiveDir, { recursive: true });
+    console.log(`[purgeDatabases] Cleared ${archiveDir}`);
+  } catch (error) {
+    console.log(
+      `[purgeDatabases] Could not clear archives (might not exist):`,
+      error,
+    );
   }
 
   // 3. Truncate Main Database
@@ -87,7 +81,7 @@ export async function purgeDatabases() {
     // Reset Sequence
     try {
       await db.run(sql`DELETE FROM sqlite_sequence`);
-    } catch {}
+    } catch { }
 
     // Re-enable Foreign Keys
     await db.run(sql`PRAGMA foreign_keys = ON`);
@@ -111,7 +105,7 @@ export async function purgeAvatars() {
   console.log("[purgeAvatars] Starting...");
   await stopAllActivities();
 
-  const avatarDir = path.join(process.cwd(), "public", "avatars");
+  const avatarDir = paths.avatars;
   try {
     // Build the path recursively manually or just use rm
     await fs.rm(avatarDir, { recursive: true, force: true });
@@ -131,7 +125,7 @@ export async function purgeDownloads() {
   console.log("[purgeDownloads] Starting...");
   await stopAllActivities();
 
-  const downloadDir = path.join(process.cwd(), "public", "downloads");
+  const downloadDir = paths.downloads;
   try {
     await fs.rm(downloadDir, { recursive: true, force: true });
     console.log("[purgeDownloads] Deleted public/downloads");
