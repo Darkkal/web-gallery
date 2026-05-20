@@ -3,9 +3,9 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
+import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import { pixivUsers, twitterUsers } from "@/lib/db/schema";
-import { paths } from "@/lib/config";
 import { avatarRequestQueue } from "@/lib/request-queue";
 
 export async function GET(

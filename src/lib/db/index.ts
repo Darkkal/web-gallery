@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
-import * as schema from "@/lib/db/schema";
 import { paths } from "@/lib/config";
+import * as schema from "@/lib/db/schema";
 
 const dbUrl = process.env.DATABASE_URL ?? `file:${paths.db}`;
 

@@ -1,5 +1,5 @@
-import type { Config } from "drizzle-kit";
 import path from "node:path";
+import type { Config } from "drizzle-kit";
 
 const dataDir = process.env.DATA_DIR || process.cwd();
 

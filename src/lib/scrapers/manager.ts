@@ -1,9 +1,9 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import path from "node:path";
 import { eq } from "drizzle-orm";
+import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import { scrapeHistory, scraperDownloadLogs } from "@/lib/db/schema";
-import { paths } from "@/lib/config";
 import { syncLibrary } from "@/lib/library/scanner";
 import { type ScrapeLimits, ScraperRunner } from "@/lib/scrapers/runner";
 import type { BaseScraperStrategy } from "@/lib/scrapers/strategies/base";
@@ -118,10 +118,7 @@ class ScraperManager {
     }
 
     const historyId = historyRows[0].id;
-    const logPath = path.join(
-      paths.galleryDl.logs,
-      `scrape_${historyId}.log`,
-    );
+    const logPath = path.join(paths.galleryDl.logs, `scrape_${historyId}.log`);
 
     // Update history with log path (store absolute path)
     await db

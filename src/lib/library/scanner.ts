@@ -1,6 +1,7 @@
 import fs, { promises as fsPromises } from "node:fs";
 import path from "node:path";
 import { eq, inArray } from "drizzle-orm";
+import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import {
   gallerydlExtractorTypes,
@@ -20,7 +21,6 @@ import type {
   TagCache,
   UserCache,
 } from "@/lib/library/types";
-import { paths } from "@/lib/config";
 
 const DOWNLOAD_DIR = paths.downloads;
 // Global control flags for this module process
@@ -44,7 +44,7 @@ function getAllFiles(dirPath: string): string[] {
       const stat = fs.statSync(fullPath);
       if (stat?.isDirectory()) results = results.concat(getAllFiles(fullPath));
       else results.push(fullPath);
-    } catch { }
+    } catch {}
   });
   return results;
 }
@@ -450,12 +450,12 @@ async function prepareTask(task: ProcessTask): Promise<PrepareResult> {
       // We wrap numbers with 16 or more digits in quotes so JSON.parse treats them as strings.
       const fixedRaw = raw.replace(/([:[,]\s*)([0-9]{16,})/g, '$1"$2"');
       meta = JSON.parse(fixedRaw);
-    } catch { }
+    } catch {}
   }
 
   try {
     stat = await fsPromises.stat(task.fsPath);
-  } catch { }
+  } catch {}
 
   let type = task.defaultType;
   if (type !== "text") {

@@ -98,10 +98,7 @@ export class GalleryDlStrategy extends BaseScraperStrategy {
           this.processedFiles.push(fPath);
         }
       }
-    } else if (
-      line.includes("downloads/") ||
-      line.includes("downloads\\")
-    ) {
+    } else if (line.includes("downloads/") || line.includes("downloads\\")) {
       // Fallback detection for files that don't have [success] prefix but are in output
       if (
         !line.endsWith(".json") &&

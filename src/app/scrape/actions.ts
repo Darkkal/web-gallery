@@ -2,9 +2,9 @@
 
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import { scrapeHistory, scrapingTasks, sources } from "@/lib/db/schema";
-import { paths } from "@/lib/config";
 import { type ScrapingStatus, scraperManager } from "@/lib/scrapers/manager";
 
 export async function getActiveScrapeStatuses(): Promise<ScrapingStatus[]> {

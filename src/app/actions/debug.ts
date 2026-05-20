@@ -4,9 +4,9 @@ import fs from "node:fs/promises";
 import { getTableName, is, sql } from "drizzle-orm";
 import { SQLiteTable } from "drizzle-orm/sqlite-core";
 import { revalidatePath } from "next/cache";
+import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { paths } from "@/lib/config";
 import { stopScanning } from "@/lib/library/scanner";
 import { scraperManager } from "@/lib/scrapers/manager";
 
@@ -81,7 +81,7 @@ export async function purgeDatabases() {
     // Reset Sequence
     try {
       await db.run(sql`DELETE FROM sqlite_sequence`);
-    } catch { }
+    } catch {}
 
     // Re-enable Foreign Keys
     await db.run(sql`PRAGMA foreign_keys = ON`);
