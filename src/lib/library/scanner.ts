@@ -1,6 +1,6 @@
 import fs, { promises as fsPromises } from "node:fs";
 import path from "node:path";
-import { eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import {
@@ -27,11 +27,43 @@ const DOWNLOAD_DIR = paths.downloads;
 let isScanning = false;
 let stopRequested = false;
 
-export function stopScanning() {
+export function isScanRunning(): boolean {
+  return isScanning;
+}
+
+export async function stopScanning(): Promise<boolean> {
   if (isScanning) {
     console.log("Stopping scan requested...");
     stopRequested = true;
+    return true;
   }
+
+  // If no scan is running in-memory but DB has a stale "running" record, clean it up
+  console.log(
+    "No scan running in-memory. Checking for stale running records...",
+  );
+  const scans = await db
+    .select()
+    .from(scanHistory)
+    .orderBy(desc(scanHistory.startTime))
+    .limit(1);
+  const latest = scans[0];
+  if (latest && latest.status === "running") {
+    console.log(
+      `Cleaning up stale scan record #${latest.id} (started ${latest.startTime})`,
+    );
+    await db
+      .update(scanHistory)
+      .set({
+        status: "stopped",
+        endTime: new Date(),
+        lastError: "Scan was interrupted (server restart or crash)",
+      })
+      .where(eq(scanHistory.id, latest.id));
+    return true;
+  }
+
+  return false;
 }
 
 function getAllFiles(dirPath: string): string[] {

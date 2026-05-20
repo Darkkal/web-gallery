@@ -45,10 +45,12 @@ test("controls presence", async ({ page }) => {
   await expect(page.getByTestId("loading-skeleton")).toBeHidden();
 
   // Search input
-  await expect(page.getByPlaceholder("Search sources...")).toBeVisible();
+  await expect(
+    page.getByPlaceholder("Search sources...").first(),
+  ).toBeVisible();
 
   // Sort dropdown
-  await expect(page.getByRole("combobox")).toBeVisible(); // Select element
+  await expect(page.getByRole("combobox").first()).toBeVisible(); // Select element
 });
 
 test("add source interaction (mocked)", async ({ page }) => {
