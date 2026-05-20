@@ -4,6 +4,10 @@ import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
+// All pages query the database at runtime — skip static prerendering during build.
+// The database only exists in the mounted volume at runtime, not during `next build`.
+export const dynamic = "force-dynamic";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

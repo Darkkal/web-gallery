@@ -1,6 +1,7 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import path from "node:path";
 import { eq } from "drizzle-orm";
+import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import { scrapeHistory, scraperDownloadLogs } from "@/lib/db/schema";
 import { syncLibrary } from "@/lib/library/scanner";
@@ -32,6 +33,11 @@ class ScraperManager {
   > = new Map();
 
   private constructor() {
+    // Skip zombie cleanup during Next.js build phase (no database available)
+    if (process.env.NEXT_PHASE === "phase-production-build") {
+      return;
+    }
+
     // Cleanup any zombie tasks from previous crashes/restarts
     db.update(scrapeHistory)
       .set({
@@ -112,15 +118,9 @@ class ScraperManager {
     }
 
     const historyId = historyRows[0].id;
-    const logPath = path.join(
-      "data",
-      "scrapers",
-      "gallery-dl",
-      "logs",
-      `scrape_${historyId}.log`,
-    );
+    const logPath = path.join(paths.galleryDl.logs, `scrape_${historyId}.log`);
 
-    // Update history with log path
+    // Update history with log path (store absolute path)
     await db
       .update(scrapeHistory)
       .set({ logPath })
@@ -152,7 +152,7 @@ class ScraperManager {
       type,
       {
         url,
-        logPath: path.join(process.cwd(), logPath),
+        logPath: logPath,
         mode: options.mode,
         onProgress: (p) => {
           const current = this.activeScrapes.get(sourceId);
@@ -392,4 +392,13 @@ class ScraperManager {
   private parseSizeToBytes = parseSizeToBytes;
 }
 
-export const scraperManager = ScraperManager.getInstance();
+const globalForScraper = globalThis as unknown as {
+  scraperManager: ScraperManager | undefined;
+};
+
+export const scraperManager =
+  globalForScraper.scraperManager ?? ScraperManager.getInstance();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForScraper.scraperManager = scraperManager;
+}

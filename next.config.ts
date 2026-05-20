@@ -20,6 +20,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Generate a self-contained standalone server bundle for Docker.
+  // This traces all required dependencies at build time and avoids
+  // Turbopack's runtime external module resolution issues with native packages
+  // like @libsql/client.
+  output: "standalone",
+  serverExternalPackages: ["@libsql/client"],
   images: {
     // Wildcard patterns needed for scraper-sourced content from arbitrary domains.
     // Local paths (e.g. /downloads/...) are served directly and don't require these,

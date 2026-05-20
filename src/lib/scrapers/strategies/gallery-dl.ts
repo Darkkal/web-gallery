@@ -1,5 +1,6 @@
 import type { ChildProcess } from "node:child_process";
 import path from "node:path";
+import { paths } from "@/lib/config";
 import { BaseScraperStrategy } from "@/lib/scrapers/strategies/base";
 
 export class GalleryDlStrategy extends BaseScraperStrategy {
@@ -10,13 +11,7 @@ export class GalleryDlStrategy extends BaseScraperStrategy {
   buildArgs() {
     const args: string[] = [];
     args.push("--config-ignore");
-    const configPath = path.join(
-      process.cwd(),
-      "data",
-      "scrapers",
-      "gallery-dl",
-      "gallery-dl.conf",
-    );
+    const configPath = paths.galleryDl.config;
     args.push("--config", configPath);
     args.push("-v"); // Verbose output
 
@@ -35,6 +30,12 @@ export class GalleryDlStrategy extends BaseScraperStrategy {
 
     // Note: [post-complete] signaling is now handled by the 'post-counter'
     // postprocessor in gallery-dl.conf for better reliability.
+
+    // Override archive path so dedup DBs live in DATA_DIR regardless of CWD
+    args.push(
+      "-o",
+      `extractor.archive=${path.join(paths.galleryDl.archives, "gallery-dl-{category}-archive.sqlite3")}`,
+    );
 
     // Log file overrides
     if (this.options.logPath) {
@@ -97,10 +98,7 @@ export class GalleryDlStrategy extends BaseScraperStrategy {
           this.processedFiles.push(fPath);
         }
       }
-    } else if (
-      line.includes("public/downloads/") ||
-      line.includes("public\\downloads\\")
-    ) {
+    } else if (line.includes("downloads/") || line.includes("downloads\\")) {
       // Fallback detection for files that don't have [success] prefix but are in output
       if (
         !line.endsWith(".json") &&

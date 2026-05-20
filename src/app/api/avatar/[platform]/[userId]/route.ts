@@ -3,6 +3,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
+import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import { pixivUsers, twitterUsers } from "@/lib/db/schema";
 import { avatarRequestQueue } from "@/lib/request-queue";
@@ -17,7 +18,7 @@ export async function GET(
     return new NextResponse("Invalid platform", { status: 400 });
   }
 
-  const AVATAR_DIR = path.join(process.cwd(), "public", "avatars");
+  const AVATAR_DIR = paths.avatars;
   const platformDir = path.join(AVATAR_DIR, platform);
 
   // 1. Check if local file exists

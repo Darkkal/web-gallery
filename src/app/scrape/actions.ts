@@ -2,6 +2,7 @@
 
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import { scrapeHistory, scrapingTasks, sources } from "@/lib/db/schema";
 import { type ScrapingStatus, scraperManager } from "@/lib/scrapers/manager";
@@ -115,7 +116,7 @@ export async function runTaskNow(
     task.sourceId,
     tool,
     source.url,
-    "public/downloads", // Default path, should be configurable?
+    paths.downloads,
     {
       mode: mode, // Use the provided mode
       taskId: task.id,

@@ -20,5 +20,10 @@
 **/obj
 **/secrets.dev.yaml
 **/values.dev.yaml
+**/.next
+**/test-data
+**/test-media
+**/prod-data
+**/prod-media
 LICENSE
 README.md

@@ -3,10 +3,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
+import { paths } from "@/lib/config";
 import * as schema from "@/lib/db/schema";
 
-const dbPath = path.join(process.cwd(), "sqlite.db");
-const dbUrl = process.env.DATABASE_URL ?? `file:${dbPath}`;
+const dbUrl = `file:${paths.db}`;
 
 const client = createClient({ url: dbUrl });
 export const db = drizzle(client, { schema });

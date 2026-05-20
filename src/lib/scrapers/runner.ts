@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { paths } from "@/lib/config";
 import type { BaseScraperStrategy } from "@/lib/scrapers/strategies/base";
 import { GalleryDlStrategy } from "@/lib/scrapers/strategies/gallery-dl";
 import { YtDlpStrategy } from "@/lib/scrapers/strategies/yt-dlp";
@@ -24,15 +25,10 @@ export class ScraperRunner {
   }
 
   private ensureConfig() {
-    const scraperDataDir = path.join(
-      process.cwd(),
-      "data",
-      "scrapers",
-      "gallery-dl",
-    );
-    const configPath = path.join(scraperDataDir, "gallery-dl.conf");
-    const logsDir = path.join(scraperDataDir, "logs");
-    const archivesDir = path.join(scraperDataDir, "archives");
+    const scraperDataDir = paths.galleryDl.root;
+    const configPath = paths.galleryDl.config;
+    const logsDir = paths.galleryDl.logs;
+    const archivesDir = paths.galleryDl.archives;
 
     // Ensure directories exist
     [scraperDataDir, logsDir, archivesDir].forEach((dir) => {
