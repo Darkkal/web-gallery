@@ -1,3 +1,20 @@
+# ---- Stage 0: Development ----
+FROM node:lts-alpine AS dev
+WORKDIR /usr/src/app
+
+# Install runtime system dependencies for scrapers
+RUN apk add --no-cache python3 py3-pip ffmpeg && \
+    pip3 install --no-cache-dir gallery-dl yt-dlp --break-system-packages
+
+COPY ["package.json", "package-lock.json*", "npm-shrinkwrap.json*", "./"]
+RUN npm install --silent
+
+RUN chown -R node /usr/src/app
+USER node
+
+EXPOSE 3000
+CMD ["npx", "next", "dev", "-H", "0.0.0.0"]
+
 # ---- Stage 1: Build ----
 FROM node:lts-alpine AS builder
 WORKDIR /usr/src/app

@@ -6,7 +6,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { paths } from "@/lib/config";
 import * as schema from "@/lib/db/schema";
 
-const dbUrl = process.env.DATABASE_URL ?? `file:${paths.db}`;
+const dbUrl = `file:${paths.db}`;
 
 const client = createClient({ url: dbUrl });
 export const db = drizzle(client, { schema });

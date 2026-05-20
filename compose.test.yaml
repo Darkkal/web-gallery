@@ -1,5 +1,5 @@
 services:
-  webgallery:
+  webgallery-test:
     image: webgallery
     userns_mode: keep-id
     build:
@@ -12,9 +12,11 @@ services:
     ports:
       - 3001:3000
     volumes:
-      # Fast storage: database, scraper state
-      - ./test-data:/data
-      # Bulk storage: downloaded media, avatars
-      - ./test-media:/media
+      # Fast storage: database, scraper state (small files, frequent I/O)
+      # Set WEBGALLERY_DATA_DIR in .env to control where this lives on the host
+      - ${WEBGALLERY_DATA_DIR:-./test-data}:/data
+      # Bulk storage: downloaded media, avatars (large files)
+      # Set WEBGALLERY_MEDIA_DIR in .env to point to your large drive
+      - ${WEBGALLERY_MEDIA_DIR:-./test-media}:/media
       # Firefox cookies for authenticated scraping (Fedora/Nobara path)
       - ~/.config/mozilla/firefox:/home/node/.mozilla/firefox:ro

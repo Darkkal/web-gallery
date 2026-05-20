@@ -1,17 +1,20 @@
 services:
-  webgallery:
-    image: webgallery
+  webgallery-debug:
+    image: webgallery-dev
     userns_mode: keep-id
     build:
       context: .
       dockerfile: ./Dockerfile
+      target: dev
     environment:
       NODE_ENV: development
+      DATA_DIR: /data
     ports:
       - 3002:3000
       - 9229:9229
-    # Run npm install to ensure devDependencies (like typescript) are present, then start the dev server
-    command: sh -c "npm install && node --inspect=0.0.0.0:9229 node_modules/.bin/next dev -H 0.0.0.0"
+    command: >-
+      sh -c "mkdir -p /data/scrapers/gallery-dl/archives /data/scrapers/gallery-dl/logs &&
+        node --inspect=0.0.0.0:9229 node_modules/.bin/next dev -H 0.0.0.0"
     volumes:
       # Mount source code for hot-reloading (with :z for SELinux on Fedora/Nobara)
       - .:/usr/src/app:z
@@ -19,5 +22,7 @@ services:
       - /usr/src/app/node_modules
       # Fix permission errors by keeping the Next.js cache inside the container
       - /usr/src/app/.next
+      # Persistent data: database, scraper state
+      - ./data:/data
       # Firefox cookies, this is where it's hosted on Fedora
       - ~/.config/mozilla/firefox:/home/node/.mozilla/firefox:ro
