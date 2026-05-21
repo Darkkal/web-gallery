@@ -96,12 +96,8 @@
   margin: 0;
 }
 
-html,
 body {
-  overflow-x: hidden;
-}
-
-body {
+  overflow-x: clip;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family:
