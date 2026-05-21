@@ -68,28 +68,31 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
       if (!existingPixivUsers.has(uidStr)) {
         const user = meta.user;
         if (!user) {
-          throw new Error(`User data missing for Pixiv user: ${uidStr}`);
-        }
-        const updateSet: Record<string, unknown> = {
-          name: user.name,
-        };
-        if (avatarPath) updateSet.profileImage = avatarPath;
-
-        await tx
-          .insert(pixivUsers)
-          .values({
-            id: uidStr,
+          console.warn(
+            `[PixivProcessor] Skipping user upsert — user data missing for ID: ${uidStr}`,
+          );
+        } else {
+          const updateSet: Record<string, unknown> = {
             name: user.name,
-            account: user.account,
-            profileImage: avatarPath,
-            isFollowed: user.is_followed,
-            isAcceptRequest: user.is_accept_request,
-          })
-          .onConflictDoUpdate({
-            target: pixivUsers.id,
-            set: updateSet,
-          });
-        existingPixivUsers.add(uidStr);
+          };
+          if (avatarPath) updateSet.profileImage = avatarPath;
+
+          await tx
+            .insert(pixivUsers)
+            .values({
+              id: uidStr,
+              name: user.name,
+              account: user.account,
+              profileImage: avatarPath,
+              isFollowed: user.is_followed,
+              isAcceptRequest: user.is_accept_request,
+            })
+            .onConflictDoUpdate({
+              target: pixivUsers.id,
+              set: updateSet,
+            });
+          existingPixivUsers.add(uidStr);
+        }
       }
     }
 
@@ -120,7 +123,10 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
 
         postId = inserted[0]?.id ?? null;
         if (postId === null) {
-          throw new Error(`Failed to insert post for Pixiv ID: ${pid}`);
+          console.warn(
+            `[PixivProcessor] Failed to insert post for Pixiv ID: ${pid}`,
+          );
+          return null;
         }
         existingPosts.set(key, postId);
 

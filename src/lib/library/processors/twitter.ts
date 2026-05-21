@@ -129,7 +129,10 @@ export class TwitterProcessor implements IMetadataProcessor<TwitterMeta> {
 
         const postId = inserted[0]?.id ?? null;
         if (postId === null) {
-          throw new Error(`Failed to insert post for Twitter ID: ${tid}`);
+          console.warn(
+            `[TwitterProcessor] Failed to insert post for Twitter ID: ${tid}`,
+          );
+          return null;
         }
         existingPosts.set(key, postId);
 

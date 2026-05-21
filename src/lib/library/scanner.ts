@@ -1,6 +1,6 @@
 import fs, { promises as fsPromises } from "node:fs";
 import path from "node:path";
-import { desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import {
@@ -29,6 +29,31 @@ let stopRequested = false;
 
 export function isScanRunning(): boolean {
   return isScanning;
+}
+
+/**
+ * Clean up stale "running" scan records left from a previous crash/restart.
+ * Uses the DB as source of truth — called at app startup via instrumentation.ts.
+ */
+export async function cleanupStaleScans() {
+  const scans = await db
+    .select()
+    .from(scanHistory)
+    .where(eq(scanHistory.status, "running"));
+
+  for (const scan of scans) {
+    console.log(
+      `[Scanner] Cleaning up stale scan record #${scan.id} (started ${scan.startTime})`,
+    );
+    await db
+      .update(scanHistory)
+      .set({
+        status: "stopped",
+        endTime: new Date(),
+        lastError: "Scan was interrupted (server restart or crash)",
+      })
+      .where(eq(scanHistory.id, scan.id));
+  }
 }
 
 export async function stopScanning(): Promise<boolean> {
@@ -117,6 +142,9 @@ export async function syncLibrary() {
   };
 
   try {
+    // Enable WAL mode for much better write throughput during bulk operations
+    await db.run(sql`PRAGMA journal_mode=WAL`);
+
     const legacyFiles = getAllFiles(DOWNLOAD_DIR);
 
     console.log(`Found ${legacyFiles.length} files in downloads.`);
@@ -170,7 +198,6 @@ export async function syncLibrary() {
     });
 
     console.log("Loading existing DB records...");
-    // const existingMedia = new Map<string, { id: number, capturedAt: Date | null }>();
     const existingMediaPaths = new Set<string>();
     const dbItems = await db
       .select({ id: mediaItems.id, filePath: mediaItems.filePath })
@@ -199,7 +226,6 @@ export async function syncLibrary() {
     );
 
     // Cache existing posts to avoid constant duplicate inserts
-    // Cache existing posts to avoid constant duplicate inserts
     // Map key format: "extractor:jsonId" -> postId
     const existingPosts = new Map<string, number>();
     (
@@ -216,6 +242,21 @@ export async function syncLibrary() {
       }
     });
 
+    // Pre-load all source ID lookups into memory.
+    // This avoids a per-item SELECT on scraperDownloadLogs during processing.
+    console.log("Loading source mappings...");
+    const sourceMap = new Map<string, number>();
+    const allDownloadLogs = await db
+      .select({
+        sourceId: scraperDownloadLogs.sourceId,
+        filePath: scraperDownloadLogs.filePath,
+      })
+      .from(scraperDownloadLogs);
+    for (const row of allDownloadLogs) {
+      sourceMap.set(row.filePath, row.sourceId);
+    }
+    console.log(`Loaded ${sourceMap.size} source mappings.`);
+
     // Ensure Extractors
     await db
       .insert(gallerydlExtractorTypes)
@@ -229,10 +270,6 @@ export async function syncLibrary() {
 
     const processedPaths = new Set<string>();
     const tasks: ProcessTask[] = [];
-
-    // Plan Tasks - One task per FILE, but we need to link them
-    // We will process groups of files that share JSON metadata
-    // Actually, we can just pair them up like before, but inside processBatch check if post exists.
 
     for (const [, group] of dirGroups) {
       const mediaToJson = new Map<string, string>();
@@ -277,18 +314,14 @@ export async function syncLibrary() {
       }
 
       for (const mediaPath of group.mediaFiles) {
-        // Determine URL Path
         let urlPath: string;
         if (group.sourceId) {
-          // Local Source: /api/media/<sourceId>/<relativePath>
-          // relativePath from sourceRoot
           const relativePath = path
             .relative(group.sourceRoot, mediaPath)
             .split(path.sep)
             .join("/");
           urlPath = `/api/media/${group.sourceId}/${relativePath}`;
         } else {
-          // Legacy: /downloads/...
           const relativePath = path
             .relative(group.sourceRoot, mediaPath)
             .split(path.sep)
@@ -306,13 +339,9 @@ export async function syncLibrary() {
         });
       }
 
-      // Process unused JSONs (Text-only posts) - Do NOT add to mediaItems anymore
-      // But we might want to register them as Posts still if they were not registered via group.mediaFiles
+      // Process unused JSONs (Text-only posts)
       for (const jsonPath of group.jsonFiles) {
         if (!usedJsons.has(jsonPath)) {
-          // Create a task that has NO fsPath (or skip?)
-          // For text-only posts, we still need a "task" to trigger processBatch to create the Post record.
-          // We'll use the jsonPath as fsPath but defaultType = 'text'
           let urlPath: string;
           if (group.sourceId) {
             const relativePath = path
@@ -341,30 +370,82 @@ export async function syncLibrary() {
 
     console.log(`Processing ${tasks.length} items in batches...`);
 
-    const BATCH_SIZE = 100; // Smaller batch size due to more DB ops
-    for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
+    // libsql leaks ~0.85MB of native (non-heap) memory per db.transaction() call.
+    // Using batched transactions keeps the total count manageable:
+    //   6000 items / 100 per batch = 60 transactions × 0.85MB ≈ 51MB native overhead
+    //   vs. 6000 individual transactions × 0.85MB ≈ 5.1GB → OOM
+    const BATCH_SIZE = 100;
+    const DB_UPDATE_INTERVAL = 500;
+
+    for (
+      let batchStart = 0;
+      batchStart < tasks.length;
+      batchStart += BATCH_SIZE
+    ) {
       if (stopRequested) {
         console.log("Scan stopped by user.");
         break;
       }
 
-      const chunk = tasks.slice(i, i + BATCH_SIZE);
-      const batchStats = await processBatch(
-        chunk,
-        existingMediaPaths,
-        existingTwitterUsers,
-        existingPixivUsers,
-        existingTags,
-        existingPosts,
-      );
+      const chunk = tasks.slice(batchStart, batchStart + BATCH_SIZE);
+
+      // Prepare items sequentially (no memory spikes from concurrent reads)
+      const prepared: PrepareResult[] = [];
+      for (const task of chunk) {
+        prepared.push(await prepareTask(task));
+      }
+
+      const userAvatars = new Map<string, string>();
+      for (const p of prepared) {
+        collectAvatarUrl(p.meta, userAvatars);
+      }
+
+      try {
+        await db.transaction(async (tx) => {
+          for (const p of prepared) {
+            await processItem(
+              p,
+              existingMediaPaths,
+              existingTwitterUsers,
+              existingPixivUsers,
+              existingTags,
+              existingPosts,
+              userAvatars,
+              sourceMap,
+              tx,
+            );
+          }
+        });
+
+        // Count results for successfully committed batch
+        for (const p of prepared) {
+          if (p.mediaType !== "text") {
+            if (existingMediaPaths.has(p.task.dbFilePath)) {
+              stats.updated++;
+            } else {
+              stats.added++;
+            }
+          }
+        }
+      } catch (batchErr) {
+        // Entire batch failed — log and count as errors
+        stats.errors += chunk.length;
+        const msg =
+          batchErr instanceof Error ? batchErr.message : String(batchErr);
+        console.error(`[Scanner] Batch failed at item ${batchStart}: ${msg}`);
+      }
 
       stats.processed += chunk.length;
-      stats.added += batchStats.added;
-      stats.updated += batchStats.updated;
-      // errors tracked inside
 
-      if (i % 500 === 0 && i > 0) {
-        console.log(`Processed ${i} / ${tasks.length}`);
+      // Periodic DB update + progress log with memory stats
+      if (
+        stats.processed % DB_UPDATE_INTERVAL === 0 ||
+        batchStart + BATCH_SIZE >= tasks.length
+      ) {
+        const mem = process.memoryUsage();
+        console.log(
+          `Processed ${stats.processed} / ${tasks.length} | RSS: ${Math.round(mem.rss / 1024 / 1024)}MB | Heap: ${Math.round(mem.heapUsed / 1024 / 1024)}/${Math.round(mem.heapTotal / 1024 / 1024)}MB`,
+        );
         await db
           .update(scanHistory)
           .set({
@@ -381,19 +462,17 @@ export async function syncLibrary() {
     if (!stopRequested) {
       console.log("Cleaning up removed items...");
       const pathsToDelete: string[] = [];
-      // Re-fetch all paths to be safe or use what we cached if robust
-      // Since we iterated ALL files on disk, existingMediaPaths that are NOT in processedPaths are deleted.
-      for (const path of existingMediaPaths) {
-        if (!processedPaths.has(path)) {
-          pathsToDelete.push(path);
+      for (const p of existingMediaPaths) {
+        if (!processedPaths.has(p)) {
+          pathsToDelete.push(p);
         }
       }
 
       if (pathsToDelete.length > 0) {
         console.log(`Deleting ${pathsToDelete.length} missing items...`);
         stats.deleted = pathsToDelete.length;
-        for (let i = 0; i < pathsToDelete.length; i += 100) {
-          const batch = pathsToDelete.slice(i, i + 100);
+        for (let i = 0; i < pathsToDelete.length; i += BATCH_SIZE) {
+          const batch = pathsToDelete.slice(i, i + BATCH_SIZE);
           await db
             .delete(mediaItems)
             .where(inArray(mediaItems.filePath, batch));
@@ -499,148 +578,135 @@ async function prepareTask(task: ProcessTask): Promise<PrepareResult> {
   return { task, meta, stat, mediaType: type };
 }
 
-async function processBatch(
-  chunk: ProcessTask[],
+/**
+ * Extract avatar URL from metadata for pre-processing.
+ */
+function collectAvatarUrl(
+  meta: PlatformMetadata | null,
+  userAvatars: Map<string, string>,
+) {
+  if (!meta) return;
+
+  // Twitter
+  if (
+    meta.category === "twitter" ||
+    meta.extractor === "twitter" ||
+    meta.tweet_id
+  ) {
+    // biome-ignore lint/suspicious/noExplicitAny: Metadata is highly dynamic across platforms
+    const userObj = (meta.user || meta.author || {}) as any;
+    const userId = userObj.id || meta.user_id || meta.uploader_id;
+    const avatarUrl = userObj.profile_image || userObj.profile_image_url_https;
+    if (userId && avatarUrl) {
+      userAvatars.set(String(userId), avatarUrl);
+    }
+  }
+
+  // Pixiv
+  if (meta.category === "pixiv" || meta.extractor === "pixiv") {
+    const userId = meta.user?.id;
+    const avatarUrl =
+      meta.user?.profile_image_urls?.medium ||
+      meta.user?.profile_image_urls?.px_1600x1600 ||
+      meta.user?.profile_image_urls?.px_170x170;
+    if (userId && avatarUrl) {
+      userAvatars.set(String(userId), avatarUrl);
+    }
+  }
+}
+
+/**
+ * Process a single prepared item inside a transaction.
+ * Individual errors are caught by the caller so the batch can continue.
+ */
+async function processItem(
+  prepared: PrepareResult,
   existingMediaPaths: Set<string>,
   existingTwitterUsers: UserCache,
   existingPixivUsers: UserCache,
   existingTags: TagCache,
   existingPosts: Map<string, number>,
+  userAvatars: Map<string, string>,
+  sourceMap: Map<string, number>,
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
 ) {
-  const results = await Promise.all(chunk.map(prepareTask));
-  let added = 0;
-  let updated = 0;
+  const { task, meta, stat, mediaType } = prepared;
+  let postId: number | null = null;
+  let extractorType: string | null = null;
 
-  // 1. Pre-process Avatars (Just collect URLs, do not download)
-  const userAvatars = new Map<string, string>();
+  // Lookup Internal Source ID from pre-loaded map
+  let internalSourceId: number | null = task.sourceId;
 
-  for (const res of results) {
-    if (!res.meta) continue;
+  if (!internalSourceId) {
+    const cleanRelPath = task.dbFilePath
+      .replace(/^\//, "")
+      .split("/")
+      .join(path.sep);
+    const absLookupPath = path.join(process.cwd(), "public", cleanRelPath);
+    internalSourceId = sourceMap.get(absLookupPath) ?? null;
+  }
 
-    // Twitter
+  // 2. Process Post Metadata (Users & Posts)
+  if (meta) {
+    // Determine Extractor Type
     if (
-      res.meta.category === "twitter" ||
-      res.meta.extractor === "twitter" ||
-      res.meta.tweet_id
-    ) {
-      // biome-ignore lint/suspicious/noExplicitAny: Metadata is highly dynamic across platforms
-      const userObj = (res.meta.user || res.meta.author || {}) as any;
-      const userId = userObj.id || res.meta.user_id || res.meta.uploader_id;
-      const avatarUrl =
-        userObj.profile_image || userObj.profile_image_url_https;
-      if (userId && avatarUrl) {
-        userAvatars.set(String(userId), avatarUrl);
-      }
-    }
+      meta.category === "twitter" ||
+      meta.extractor === "twitter" ||
+      meta.tweet_id
+    )
+      extractorType = "twitter";
+    else if (meta.category === "pixiv" || meta.extractor === "pixiv")
+      extractorType = "pixiv";
+    else if (
+      meta.category === "gelbooru" ||
+      meta.category === "safebooru" ||
+      meta.extractor === "gelbooru" ||
+      meta.extractor === "gelbooruv02" ||
+      meta.extractor === "safebooru"
+    )
+      extractorType = "gelbooruv02";
 
-    // Pixiv
-    if (res.meta.category === "pixiv" || res.meta.extractor === "pixiv") {
-      const userId = res.meta.user?.id;
-      const avatarUrl =
-        res.meta.user?.profile_image_urls?.medium ||
-        res.meta.user?.profile_image_urls?.px_1600x1600 ||
-        res.meta.user?.profile_image_urls?.px_170x170;
-      if (userId && avatarUrl) {
-        userAvatars.set(String(userId), avatarUrl);
+    if (extractorType) {
+      const processor = MetadataProcessorFactory.getProcessor(extractorType);
+      if (processor) {
+        const context: ProcessorContext = {
+          tx,
+          existingTwitterUsers,
+          existingPixivUsers,
+          existingTags,
+          existingPosts,
+          userAvatars,
+          internalSourceId,
+        };
+        postId = await processor.process(meta, task, context);
       }
     }
   }
 
-  await db.transaction(async (tx) => {
-    for (const res of results) {
-      const { task, meta, stat, mediaType } = res;
-      let postId: number | null = null;
-      let extractorType: string | null = null;
+  // 3. Insert/Update Media Item
+  let capturedAt = stat ? stat.mtime : new Date();
+  if (meta) {
+    if (meta.date) capturedAt = new Date(meta.date);
+    else if (meta.create_date) capturedAt = new Date(meta.create_date);
+    else if (meta.created_at) capturedAt = new Date(meta.created_at);
+  }
 
-      // Lookup Internal Source ID from logs OR use explicit sourceId from scanner
-      let internalSourceId: number | null = task.sourceId;
-
-      if (!internalSourceId) {
-        // Use absolute path for lookup to match scraper logs
-        const cleanRelPath = task.dbFilePath
-          .replace(/^\//, "")
-          .split("/")
-          .join(path.sep);
-        const absLookupPath = path.join(process.cwd(), "public", cleanRelPath);
-
-        const logEntry = await tx
-          .select({ sourceId: scraperDownloadLogs.sourceId })
-          .from(scraperDownloadLogs)
-          .where(eq(scraperDownloadLogs.filePath, absLookupPath));
-
-        if (logEntry.length > 0) {
-          internalSourceId = logEntry[0].sourceId;
-        }
-      }
-
-      // 2. Process Post Metadata (Users & Posts)
-      if (meta) {
-        // Determine Extractor Type
-        if (
-          meta.category === "twitter" ||
-          meta.extractor === "twitter" ||
-          meta.tweet_id
-        )
-          extractorType = "twitter";
-        else if (meta.category === "pixiv" || meta.extractor === "pixiv")
-          extractorType = "pixiv";
-        else if (
-          meta.category === "gelbooru" ||
-          meta.category === "safebooru" ||
-          meta.extractor === "gelbooru" ||
-          meta.extractor === "gelbooruv02" ||
-          meta.extractor === "safebooru"
-        )
-          extractorType = "gelbooruv02";
-
-        if (extractorType) {
-          const processor =
-            MetadataProcessorFactory.getProcessor(extractorType);
-          if (processor) {
-            const context: ProcessorContext = {
-              tx,
-              existingTwitterUsers,
-              existingPixivUsers,
-              existingTags,
-              existingPosts,
-              userAvatars,
-              internalSourceId,
-            };
-            postId = await processor.process(meta, task, context);
-          }
-        }
-      }
-
-      // 3. Insert/Update Media Item
-      let capturedAt = stat ? stat.mtime : new Date();
-      if (meta) {
-        if (meta.date) capturedAt = new Date(meta.date);
-        else if (meta.create_date) capturedAt = new Date(meta.create_date);
-        else if (meta.created_at) capturedAt = new Date(meta.created_at);
-      }
-
-      if (mediaType !== "text" && !existingMediaPaths.has(task.dbFilePath)) {
-        await tx.insert(mediaItems).values({
-          filePath: task.dbFilePath,
-          mediaType,
-          capturedAt,
-          postId: postId, // New FK
-        });
-        existingMediaPaths.add(task.dbFilePath);
-        added++;
-      } else if (mediaType !== "text") {
-        if (postId) {
-          await tx
-            .update(mediaItems)
-            .set({
-              postId,
-            })
-            .where(eq(mediaItems.filePath, task.dbFilePath));
-          updated++;
-        }
-      }
+  if (mediaType !== "text" && !existingMediaPaths.has(task.dbFilePath)) {
+    await tx.insert(mediaItems).values({
+      filePath: task.dbFilePath,
+      mediaType,
+      capturedAt,
+      postId: postId,
+    });
+    existingMediaPaths.add(task.dbFilePath);
+  } else if (mediaType !== "text") {
+    if (postId) {
+      await tx
+        .update(mediaItems)
+        .set({
+          postId,
+        })
+        .where(eq(mediaItems.filePath, task.dbFilePath));
     }
-  }); // End Transaction
-
-  return { added, updated };
+  }
 }
