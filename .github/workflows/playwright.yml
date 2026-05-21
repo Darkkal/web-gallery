@@ -2,8 +2,22 @@ name: Playwright Tests
 on:
   push:
     branches: [main, master]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - '.vscode/**'
+      - '.zed/**'
+      - 'LICENSE'
   pull_request:
     branches: [main, master]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - '.vscode/**'
+      - '.zed/**'
+      - 'LICENSE'
 permissions:
   contents: read
 jobs:
@@ -15,19 +29,37 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: lts/*
+          cache: 'npm'
+
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          # Caching Next.js build cache. npm cache is handled natively above by setup-node.
+          path: ${{ github.workspace }}/.next/cache
+          # Generate a new cache whenever packages or source files change.
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
+          # If source files changed but packages didn't, rebuild from a prior cache.
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
+
       - name: Install dependencies
         run: npm ci
+
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
+
       - name: Build production
         run: npm run build
+
       - name: Run Playwright tests
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
         run: npx playwright test
+
       - uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
+
