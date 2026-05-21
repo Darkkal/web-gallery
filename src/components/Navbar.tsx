@@ -133,7 +133,13 @@ export function Navbar() {
         if (group.items.length <= 1) return null;
         const isOpen = activeGroupSheet === group.id;
         return (
-          <div key={group.id} className={styles.groupSheet} data-open={isOpen}>
+          <div
+            key={group.id}
+            className={styles.groupSheet}
+            data-open={isOpen}
+            aria-hidden={!isOpen}
+            inert={!isOpen || undefined}
+          >
             <div className={styles.sheetHeader}>
               <span className={styles.sheetTitle}>{group.label}</span>
             </div>
