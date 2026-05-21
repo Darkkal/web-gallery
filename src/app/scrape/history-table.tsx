@@ -161,7 +161,7 @@ export default function ScrapeHistoryTable({
                     {Math.round(
                       (new Date(item.endTime).getTime() -
                         new Date(item.startTime).getTime()) /
-                      1000,
+                        1000,
                     )}
                     s
                   </span>
