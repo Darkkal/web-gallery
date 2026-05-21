@@ -9,7 +9,8 @@
     "lint": "next lint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "prepare": "husky"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0",
@@ -27,6 +28,13 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "typescript": "5.9.3"
+  },
+  "lint-staged": {
+    "*.(js|jsx|ts|tsx|json|css)": [
+      "npx biome check --write --no-errors-on-unmatched"
+    ]
   }
 }
