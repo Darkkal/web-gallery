@@ -3,6 +3,15 @@ export async function register() {
     const { initDb } = await import("@/lib/db");
     await initDb();
 
+    // Clean up any scan records left as "running" from a previous crash/restart.
+    // This uses the DB as source of truth since in-memory state is lost on restart.
+    try {
+      const { cleanupStaleScans } = await import("@/lib/library/scanner");
+      await cleanupStaleScans();
+    } catch {
+      // Scanner module may not be available during build
+    }
+
     // Process-level error handlers to ensure unexpected terminations
     // are logged with stack traces instead of dying silently.
     process.on("uncaughtException", (error) => {

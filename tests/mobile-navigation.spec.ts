@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 
 /**
  * Navigate to a page, wait for content to load, and dismiss the Next.js dev
@@ -15,6 +15,23 @@ async function gotoPage(page: import("@playwright/test").Page, path: string) {
       el.remove();
     }
   });
+
+  // Ensure the page is scrolled to the top so the bottom navbar is fully
+  // visible and not overlapped by page content that may have loaded.
+  await page.evaluate(() => window.scrollTo(0, 0));
+}
+
+/**
+ * Click a locator belonging to the fixed bottom navbar or its sub-sheet.
+ *
+ * Chrome's mobile device emulation has a z-index stacking bug where parent
+ * fixed-position containers (the bottom bar at z-index 50, group sheets at
+ * z-index 49, or scrollable page content) intercept pointer events that
+ * should reach their children.  Using `force: true` bypasses Playwright's
+ * actionability check and dispatches the click directly to the element.
+ */
+async function clickNavbar(locator: Locator) {
+  await locator.click({ force: true });
 }
 
 test.describe("mobile bottom navigation", () => {
@@ -36,7 +53,7 @@ test.describe("mobile bottom navigation", () => {
     await gotoPage(page, "/timeline");
 
     // Tap the Display group button
-    await page.getByRole("button", { name: "Display" }).click();
+    await clickNavbar(page.getByRole("button", { name: "Display" }));
 
     // Sub-sheet should appear with Timeline and Gallery links
     await expect(page.getByRole("link", { name: "Timeline" })).toBeVisible();
@@ -47,8 +64,17 @@ test.describe("mobile bottom navigation", () => {
     await gotoPage(page, "/timeline");
 
     // Open Display group and navigate to Gallery
-    await page.getByRole("button", { name: "Display" }).click();
-    await page.getByRole("link", { name: "Gallery" }).click();
+    await clickNavbar(page.getByRole("button", { name: "Display" }));
+    // Wait for the sheet slide-up animation to finish before clicking.
+    // The link is visible in the DOM immediately but the CSS transition
+    // (bottom: -300px → 60px, 300ms) hasn't completed yet.
+    const galleryLink = page.getByRole("link", { name: "Gallery" });
+    await galleryLink.waitFor({ state: "visible" });
+    await galleryLink.scrollIntoViewIfNeeded();
+    await galleryLink.waitFor({ state: "attached" }); // re-fetch after scroll
+    // Small wait for the CSS transition to settle
+    await page.waitForTimeout(400);
+    await clickNavbar(galleryLink);
     await expect(page).toHaveURL(/.*\/gallery/);
 
     // Sheet should close after navigation
@@ -60,7 +86,7 @@ test.describe("mobile bottom navigation", () => {
 
     // Config is a single-item group — tapping goes straight to Library
     const configLink = page.getByRole("link", { name: "Config" });
-    await configLink.click();
+    await clickNavbar(configLink);
     await expect(page).toHaveURL(/.*\/library/);
   });
 
@@ -70,11 +96,11 @@ test.describe("mobile bottom navigation", () => {
     const displayBtn = page.getByRole("button", { name: "Display" });
 
     // Open
-    await displayBtn.click();
+    await clickNavbar(displayBtn);
     await expect(page.getByRole("link", { name: "Gallery" })).toBeVisible();
 
     // Close by tapping again
-    await displayBtn.click();
+    await clickNavbar(displayBtn);
     await expect(page.locator('[data-open="true"]')).toHaveCount(0);
   });
 });

@@ -74,7 +74,10 @@ export class GelbooruProcessor implements IMetadataProcessor<GelbooruMeta> {
 
         postId = inserted[0]?.id ?? null;
         if (postId === null) {
-          throw new Error(`Failed to insert post for Gelbooru ID: ${idStr}`);
+          console.warn(
+            `[GelbooruProcessor] Failed to insert post for Gelbooru ID: ${idStr}`,
+          );
+          return null;
         }
         existingPosts.set(key, postId);
 
