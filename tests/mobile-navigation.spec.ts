@@ -1,12 +1,28 @@
 import { expect, test } from "@playwright/test";
 
+/**
+ * Navigate to a page, wait for content to load, and dismiss the Next.js dev
+ * overlay that intercepts pointer events in development mode.
+ */
+async function gotoPage(page: import("@playwright/test").Page, path: string) {
+  await page.goto(path);
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+
+  // The Next.js dev overlay (<nextjs-portal>) intercepts all pointer events
+  // when runtime errors occur. Remove it so test clicks work.
+  await page.evaluate(() => {
+    for (const el of document.querySelectorAll("nextjs-portal")) {
+      el.remove();
+    }
+  });
+}
+
 test.describe("mobile bottom navigation", () => {
   // Use a mobile viewport — these tests run under the "Mobile Chrome" project
   test.use({ viewport: { width: 375, height: 812 } });
 
   test("shows 4 group tabs in bottom bar", async ({ page }) => {
-    await page.goto("/timeline");
-    await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+    await gotoPage(page, "/timeline");
 
     // The bottom bar shows 4 group tabs: Display, Download, Filter, Config
     await expect(page.getByRole("button", { name: "Display" })).toBeVisible();
@@ -17,8 +33,7 @@ test.describe("mobile bottom navigation", () => {
   });
 
   test("tapping a multi-item group opens the sub-sheet", async ({ page }) => {
-    await page.goto("/timeline");
-    await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+    await gotoPage(page, "/timeline");
 
     // Tap the Display group button
     await page.getByRole("button", { name: "Display" }).click();
@@ -29,8 +44,7 @@ test.describe("mobile bottom navigation", () => {
   });
 
   test("sub-sheet navigation works", async ({ page }) => {
-    await page.goto("/timeline");
-    await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+    await gotoPage(page, "/timeline");
 
     // Open Display group and navigate to Gallery
     await page.getByRole("button", { name: "Display" }).click();
@@ -42,15 +56,7 @@ test.describe("mobile bottom navigation", () => {
   });
 
   test("single-item group navigates directly", async ({ page }) => {
-    await page.goto("/timeline");
-    await expect(page.getByTestId("loading-skeleton")).toBeHidden();
-
-    // Remove any Next.js dev overlay that might intercept pointer events
-    await page.evaluate(() => {
-      for (const el of document.querySelectorAll("nextjs-portal")) {
-        el.remove();
-      }
-    });
+    await gotoPage(page, "/timeline");
 
     // Config is a single-item group — tapping goes straight to Library
     const configLink = page.getByRole("link", { name: "Config" });
@@ -59,8 +65,7 @@ test.describe("mobile bottom navigation", () => {
   });
 
   test("tapping group again closes the sub-sheet", async ({ page }) => {
-    await page.goto("/timeline");
-    await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+    await gotoPage(page, "/timeline");
 
     const displayBtn = page.getByRole("button", { name: "Display" });
 

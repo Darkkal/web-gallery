@@ -67,11 +67,15 @@ export default defineConfig({
     // },
   ],
 
-  /* Run your local dev server before starting the tests */
+  /* Connect to an existing server or start a production server.
+     Local default: debug container (3002) with hot-reloaded source.
+     CI: production build (3000) built in a prior workflow step.
+     Test container (3001): set PLAYWRIGHT_BASE_URL=http://localhost:3001
+     after rebuilding the image with `docker compose -f compose.test.yaml build`. */
   webServer: {
-    command: "npm run dev",
+    command: "npm start",
     url: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3002",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 120 * 1000,
   },
 });

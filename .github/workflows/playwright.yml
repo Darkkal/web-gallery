@@ -19,6 +19,8 @@ jobs:
         run: npm ci
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
+      - name: Build production
+        run: npm run build
       - name: Run Playwright tests
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
