@@ -20,6 +20,7 @@ export interface ScrapingStatus extends ScrapeProgress {
   logPath?: string;
   lastDbUpdate?: number;
   resumeCursor?: string;
+  status?: "running" | "completed" | "stopped" | "failed";
 }
 
 class ScraperManager {
@@ -86,10 +87,14 @@ class ScraperManager {
       `[ScraperManager] STARTING scrape for source ID: ${sourceId} (${type}) - URL: ${url}`,
     );
     if (this.activeScrapes.has(sourceId)) {
-      console.warn(
-        `[ScraperManager] Scrape already in progress for source ${sourceId}`,
-      );
-      return;
+      const active = this.activeScrapes.get(sourceId);
+      if (active && !active.status.isFinished) {
+        console.warn(
+          `[ScraperManager] Scrape already in progress for source ${sourceId}`,
+        );
+        return;
+      }
+      this.activeScrapes.delete(sourceId);
     }
 
     const runner = new ScraperRunner(downloadDir);
@@ -149,6 +154,7 @@ class ScraperManager {
       isFinished: false,
       logPath,
       resumeCursor: options.cursor,
+      status: "running",
     };
 
     const { promise, child, strategy } = runner.run(
@@ -250,6 +256,12 @@ class ScraperManager {
         const current = this.activeScrapes.get(sourceId);
         if (current) {
           current.status.isFinished = true;
+          const finalStatus = current.strategy.manualStop
+            ? "stopped"
+            : result.success
+              ? "completed"
+              : "failed";
+          current.status.status = finalStatus;
 
           // Update history record with final metrics
           const endTime = new Date();
@@ -267,7 +279,7 @@ class ScraperManager {
             .update(scrapeHistory)
             .set({
               endTime,
-              status: result.success ? "completed" : "failed",
+              status: finalStatus,
               filesDownloaded: current.status.downloadedCount,
               bytesDownloaded,
               errorCount: current.status.errorCount,
@@ -339,56 +351,21 @@ class ScraperManager {
 
       // Mark as intentional stop so runner reports it correctly
       active.strategy.intentionalStop = true;
-
-      // Update history record before stopping
-      if (active.status.historyId) {
-        const endTime = new Date();
-        const durationSeconds =
-          (endTime.getTime() - active.status.startTime.getTime()) / 1000;
-        const bytesDownloaded = this.parseSizeToBytes(active.status.totalSize);
-        const averageSpeed =
-          durationSeconds > 0
-            ? Math.floor(bytesDownloaded / durationSeconds)
-            : 0;
-
-        await db
-          .update(scrapeHistory)
-          .set({
-            endTime,
-            status: "stopped",
-            filesDownloaded: active.status.downloadedCount,
-            bytesDownloaded,
-            errorCount: active.status.errorCount,
-            skippedCount: active.status.skippedCount,
-            postsProcessed: active.status.postsProcessed,
-            averageSpeed,
-          })
-          .where(eq(scrapeHistory.id, active.status.historyId));
-
-        console.log(
-          `[ScraperManager] Updated history record ${active.status.historyId} with stopped status`,
-        );
-      }
+      active.strategy.manualStop = true;
+      active.status.status = "stopped";
 
       if (pid) {
         if (process.platform === "win32") {
           spawn("taskkill", ["/pid", pid.toString(), "/f", "/t"]);
         } else {
-          active.process.kill();
+          active.process.kill("SIGINT");
         }
       }
-      this.activeScrapes.delete(sourceId);
-
-      // Trigger library scan automatically
-      console.log(`[ScraperManager] Triggering library scan (after stop)...`);
-      syncLibrary().catch((err) =>
-        console.error("[ScraperManager] Auto-scan failed:", err),
-      );
 
       return true;
     }
     console.log(
-      `[ScraperManager] STOP requested for source ID: ${sourceId} but no active scrape found.`,
+      `[ScraperManager] STOP REQUESTED for source ID: ${sourceId} but no active scrape found.`,
     );
     return false;
   }

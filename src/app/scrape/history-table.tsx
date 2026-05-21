@@ -97,7 +97,7 @@ export default function ScrapeHistoryTable({
                 errorCount: activeStatus.errorCount,
               };
               if (activeStatus.isFinished && item.status === "running") {
-                updates.status = "completed";
+                updates.status = activeStatus.status || "completed";
                 updates.endTime = new Date();
               }
               return { ...item, ...updates };
@@ -188,7 +188,7 @@ export default function ScrapeHistoryTable({
                 {item.errorCount}
               </td>
               <td>
-                {item.status === "failed" && (
+                {(item.status === "failed" || item.status === "stopped") && (
                   <button
                     type="button"
                     onClick={() => handleResume(item.id)}

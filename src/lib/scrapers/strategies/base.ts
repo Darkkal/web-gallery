@@ -20,6 +20,7 @@ export abstract class BaseScraperStrategy {
   public isRateLimited = false;
   public postsProcessed = 0;
   public intentionalStop = false;
+  public manualStop = false;
   public lastCursor: string | undefined;
 
   public processedFilesSet = new Set<string>();
@@ -117,7 +118,7 @@ export abstract class BaseScraperStrategy {
     if (process.platform === "win32" && child.pid !== undefined) {
       spawn("taskkill", ["/pid", child.pid?.toString(), "/f", "/t"]);
     } else {
-      child.kill();
+      child.kill("SIGINT");
     }
   }
 
