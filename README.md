@@ -36,7 +36,9 @@ By leveraging powerful scraping tools like `gallery-dl` and `yt-dlp`, this appli
 - **Framework**: [Next.js](https://nextjs.org/) (App Router)
 - **Database**: [SQLite](https://www.sqlite.org/) with [Drizzle ORM](https://orm.drizzle.team/)
 - **Scraper Engine**: [gallery-dl](https://github.com/mikf/gallery-dl)
-- **Styling**: Vanilla CSS
+- **Styling**: Vanilla CSS Modules
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Testing**: [Playwright](https://playwright.dev/)
 
 ## Getting Started
 
@@ -60,10 +62,10 @@ By leveraging powerful scraping tools like `gallery-dl` and `yt-dlp`, this appli
    npm install
    ```
 
-3. Initialize the database:
+3. Apply database migrations:
 
    ```bash
-   npm run db:push
+   npm run db:migrate
    ```
 
 ### Running the Development Server
@@ -73,6 +75,13 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## Documentation
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — system architecture, subsystem design, data flow, and key design decisions
+- [docs/configuration.md](./docs/configuration.md) — environment variables, gallery-dl config, Docker volumes, and backup guidance
+- [docs/adding-a-platform.md](./docs/adding-a-platform.md) — step-by-step guide for adding support for a new scraping platform
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — coding patterns and conventions for contributors
 
 ## Roadmap
 
