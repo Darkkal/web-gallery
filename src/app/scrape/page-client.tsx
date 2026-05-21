@@ -35,6 +35,9 @@ export default function ScrapePageClient({
     postsProcessed: number | null;
     bytesDownloaded: number | null;
     errorCount: number | null;
+    cursor: string | null;
+    sourceId: number;
+    taskId: number | null;
   }[];
 }) {
   const [activeTab, setActiveTab] = useState<"tasks" | "history">("tasks");

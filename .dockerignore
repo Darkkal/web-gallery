@@ -1,29 +1,52 @@
-**/.classpath
-**/.dockerignore
-**/.env
-**/.git
-**/.gitignore
-**/.project
-**/.settings
-**/.toolstarget
-**/.vs
-**/.vscode
-**/*.*proj.user
-**/*.dbmdl
-**/*.jfm
-**/charts
-**/docker-compose*
-**/compose*
-**/Dockerfile*
-**/node_modules
-**/npm-debug.log
-**/obj
-**/secrets.dev.yaml
-**/values.dev.yaml
-**/.next
-**/test-data
-**/test-media
-**/prod-data
-**/prod-media
+# Version control
+.git
+.gitignore
+
+# IDE / Editor
+.classpath
+.project
+.settings
+.vs
+.vscode
+.toolstarget
+*.dbmdl
+*.jfm
+*.*proj.user
+
+# Dependencies
+node_modules
+npm-debug.log
+
+# Build output
+.next
+
+# Docker / Compose
+Dockerfile*
+docker-compose*
+compose*
+
+# Runtime data (mounted as volumes in production)
+data
+scratch
+sqlite.db
+public/downloads
+public/avatars
+
+# Test artifacts
+test-results
+test-data
+test-media
+
+# Secrets
+.env
+secrets.dev.yaml
+values.dev.yaml
+
+# Production data mounts
+prod-data
+prod-media
+
+# Documentation
 LICENSE
 README.md
+charts

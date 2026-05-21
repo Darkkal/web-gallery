@@ -86,6 +86,7 @@ export async function toggleTaskSchedule(id: number, enabled: boolean) {
 export async function runTaskNow(
   taskId: number,
   mode: "full" | "quick" = "full",
+  cursor?: string,
 ) {
   const task = await db.query.scrapingTasks.findFirst({
     where: eq(scrapingTasks.id, taskId),
@@ -121,6 +122,7 @@ export async function runTaskNow(
       mode: mode, // Use the provided mode
       taskId: task.id,
       limits: task.downloadOptions || undefined,
+      cursor: cursor,
     },
   );
 
@@ -153,6 +155,43 @@ export async function getScrapeHistory(limit = 50) {
       task: true,
     },
   });
+}
+
+export async function resumeFromHistory(historyId: number) {
+  const history = await db.query.scrapeHistory.findFirst({
+    where: eq(scrapeHistory.id, historyId),
+    with: {
+      source: true,
+      task: true,
+    },
+  });
+
+  if (!history) {
+    throw new Error("History record not found");
+  }
+
+  if (!history.cursor) {
+    throw new Error("No cursor available for this history record");
+  }
+
+  if (!history.source) {
+    throw new Error("Source not found");
+  }
+
+  const tool = "gallery-dl";
+
+  await scraperManager.startScrape(
+    history.sourceId,
+    tool,
+    history.source.url,
+    paths.downloads,
+    {
+      taskId: history.taskId ?? undefined,
+      cursor: history.cursor,
+    },
+  );
+
+  revalidatePath("/scrape");
 }
 
 // Helper to get all sources for the dropdown

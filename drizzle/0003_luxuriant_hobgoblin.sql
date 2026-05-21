@@ -1,0 +1,1 @@
+ALTER TABLE `scrape_history` ADD `cursor` text;

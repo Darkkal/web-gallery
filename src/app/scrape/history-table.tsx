@@ -1,10 +1,12 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
+import { RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import {
   getActiveScrapeStatuses,
   getScrapeHistory,
+  resumeFromHistory,
 } from "@/app/scrape/actions";
 import styles from "@/app/scrape/page.module.css";
 
@@ -18,6 +20,9 @@ interface HistoryItem {
   postsProcessed: number | null;
   bytesDownloaded: number | null;
   errorCount: number | null;
+  cursor: string | null;
+  sourceId: number;
+  taskId: number | null;
 }
 
 export default function ScrapeHistoryTable({
@@ -46,6 +51,9 @@ export default function ScrapeHistoryTable({
           postsProcessed: h.postsProcessed as number | null,
           bytesDownloaded: h.bytesDownloaded as number | null,
           errorCount: h.errorCount as number | null,
+          cursor: (h.cursor as string) || null,
+          sourceId: h.sourceId as number,
+          taskId: (h.taskId as number) || null,
         }),
       );
       setHistoryItems(mapped);
@@ -114,6 +122,15 @@ export default function ScrapeHistoryTable({
     return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
   };
 
+  const handleResume = async (historyId: number) => {
+    try {
+      await resumeFromHistory(historyId);
+    } catch (error) {
+      console.error("Failed to resume scrape:", error);
+      alert("Failed to resume scrape");
+    }
+  };
+
   return (
     <div className={styles.listContainer}>
       <table className={styles.table}>
@@ -127,6 +144,7 @@ export default function ScrapeHistoryTable({
             <th className={styles.thRight}>Skipped</th>
             <th className={styles.thRight}>Size</th>
             <th className={styles.thRight}>Errors</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -169,11 +187,23 @@ export default function ScrapeHistoryTable({
               >
                 {item.errorCount}
               </td>
+              <td>
+                {item.status === "failed" && item.cursor && (
+                  <button
+                    type="button"
+                    onClick={() => handleResume(item.id)}
+                    className={styles.iconButton}
+                    title={`Resume from cursor: ${item.cursor}`}
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                )}
+              </td>
             </tr>
           ))}
           {historyItems.length === 0 && (
             <tr>
-              <td colSpan={8} className={styles.emptyCell}>
+              <td colSpan={9} className={styles.emptyCell}>
                 No history available.
               </td>
             </tr>

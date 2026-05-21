@@ -20,6 +20,7 @@ export abstract class BaseScraperStrategy {
   public isRateLimited = false;
   public postsProcessed = 0;
   public intentionalStop = false;
+  public lastCursor: string | undefined;
 
   public processedFilesSet = new Set<string>();
   public processedFiles: string[] = [];
@@ -51,6 +52,11 @@ export abstract class BaseScraperStrategy {
     if (line.includes("[post-complete]")) {
       this.postsProcessed++;
     }
+    // Parse cursor hint from gallery-dl: "Use '-o cursor=XXXXX' to continue"
+    const cursorMatch = line.match(/Use '-o cursor=([^']+)' to continue/);
+    if (cursorMatch) {
+      this.lastCursor = cursorMatch[1];
+    }
   }
 
   protected triggerOnProgress(child: ChildProcess) {
@@ -65,6 +71,7 @@ export abstract class BaseScraperStrategy {
         postsProcessed: this.postsProcessed,
         isRateLimited: this.isRateLimited,
         isFinished: false,
+        cursor: this.lastCursor,
       });
 
       this.checkLimits(child);
@@ -129,6 +136,7 @@ export abstract class BaseScraperStrategy {
         postsProcessed: this.postsProcessed,
         isRateLimited: this.isRateLimited,
         isFinished: true,
+        cursor: this.lastCursor,
       });
     }
     return {
@@ -136,6 +144,7 @@ export abstract class BaseScraperStrategy {
       output: this.stdout,
       error: errorMsg,
       items: this.processedFiles,
+      cursor: this.lastCursor,
     };
   }
 }
