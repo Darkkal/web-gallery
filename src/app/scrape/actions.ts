@@ -1,5 +1,6 @@
 "use server";
 
+import fs from "node:fs";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { paths } from "@/lib/config";
@@ -157,6 +158,25 @@ export async function getScrapeHistory(limit = 50) {
   });
 }
 
+const CURSOR_RE = /Use '-o cursor=([^']+)' to continue/;
+
+/**
+ * Try to extract a gallery-dl resume cursor from a log file.
+ * Returns the last cursor found (most recent hint), or null.
+ */
+function extractCursorFromLog(logPath: string): string | null {
+  try {
+    if (!fs.existsSync(logPath)) return null;
+
+    const content = fs.readFileSync(logPath, "utf-8");
+    const matches = [...content.matchAll(new RegExp(CURSOR_RE.source, "g"))];
+    if (matches.length === 0) return null;
+    return matches[matches.length - 1][1];
+  } catch {
+    return null;
+  }
+}
+
 export async function resumeFromHistory(historyId: number) {
   const history = await db.query.scrapeHistory.findFirst({
     where: eq(scrapeHistory.id, historyId),
@@ -170,12 +190,25 @@ export async function resumeFromHistory(historyId: number) {
     throw new Error("History record not found");
   }
 
-  if (!history.cursor) {
-    throw new Error("No cursor available for this history record");
-  }
-
   if (!history.source) {
     throw new Error("Source not found");
+  }
+
+  // Use stored cursor, or fall back to extracting from the log file
+  let cursor = history.cursor;
+  if (!cursor && history.logPath) {
+    cursor = extractCursorFromLog(history.logPath);
+    if (cursor) {
+      // Backfill the DB so we don't need to re-read the log next time
+      await db
+        .update(scrapeHistory)
+        .set({ cursor })
+        .where(eq(scrapeHistory.id, historyId));
+    }
+  }
+
+  if (!cursor) {
+    throw new Error("No cursor available for this history record");
   }
 
   const tool = "gallery-dl";
@@ -187,7 +220,7 @@ export async function resumeFromHistory(historyId: number) {
     paths.downloads,
     {
       taskId: history.taskId ?? undefined,
-      cursor: history.cursor,
+      cursor,
     },
   );
 

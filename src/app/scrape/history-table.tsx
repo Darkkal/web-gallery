@@ -161,7 +161,7 @@ export default function ScrapeHistoryTable({
                     {Math.round(
                       (new Date(item.endTime).getTime() -
                         new Date(item.startTime).getTime()) /
-                        1000,
+                      1000,
                     )}
                     s
                   </span>
@@ -188,12 +188,16 @@ export default function ScrapeHistoryTable({
                 {item.errorCount}
               </td>
               <td>
-                {item.status === "failed" && item.cursor && (
+                {item.status === "failed" && (
                   <button
                     type="button"
                     onClick={() => handleResume(item.id)}
                     className={styles.iconButton}
-                    title={`Resume from cursor: ${item.cursor}`}
+                    title={
+                      item.cursor
+                        ? `Resume from cursor: ${item.cursor}`
+                        : "Try to resume from log file"
+                    }
                   >
                     <RotateCcw size={14} />
                   </button>
