@@ -1,4 +1,4 @@
-import { type Locator, expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 
 /**
  * Navigate to a page, wait for content to load, and dismiss the Next.js dev
