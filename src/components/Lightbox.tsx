@@ -44,6 +44,43 @@ export default function Lightbox({
   const [pixivTags, setPixivTags] = useState<{ name: string }[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Touch swipe handling
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartX.current = touch.clientX;
+    touchStartY.current = touch.clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const touch = e.changedTouches[0];
+    const diffX = touch.clientX - touchStartX.current;
+    const diffY = touch.clientY - touchStartY.current;
+
+    // Check if swipe is horizontal and exceeds threshold (50px)
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+      if (diffX > 0) {
+        if (onPrev) onPrev();
+      } else {
+        if (onNext) onNext();
+      }
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
+  // Lock body scroll on mount, restore on unmount
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
   // Fetch Pixiv Tags
   useEffect(() => {
     if (pixiv?.id) {
@@ -122,7 +159,11 @@ export default function Lightbox({
     : "Unknown Date";
 
   return (
-    <div className={styles.overlay}>
+    <div
+      className={styles.overlay}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Main Image Area */}
       {/* biome-ignore lint/a11y/useSemanticElements: Maintains current styling structure */}
       <div
@@ -269,6 +310,13 @@ export default function Lightbox({
       <div
         className={`${styles.sidebar} ${!showInfo ? styles.sidebarHidden : ""}`}
       >
+        <button
+          type="button"
+          className={styles.sidebarCloseMobile}
+          onClick={() => setShowInfo(false)}
+        >
+          ▾ Hide Info
+        </button>
         <div className={styles.sidebarHeader}>
           <h2 className={styles.sidebarTitle}>
             {tweet ? null : pixiv?.title || row.post?.title || "Untitled"}

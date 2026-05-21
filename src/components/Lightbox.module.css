@@ -337,3 +337,83 @@
   font-size: 12px;
   color: hsl(var(--muted-foreground));
 }
+
+/* Mobile overrides */
+@media (max-width: 767px) {
+  .overlay {
+    height: 100dvh;
+    flex-direction: column;
+  }
+
+  .mainArea {
+    padding: 10px;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: 50dvh;
+    max-height: 50dvh;
+    border-left: none;
+    border-top: 1px solid var(--glass-border);
+    padding: 16px;
+    transition:
+      height 0.3s ease,
+      padding 0.3s ease,
+      opacity 0.3s ease;
+  }
+
+  .sidebarHidden {
+    height: 0;
+    padding: 0;
+    opacity: 0;
+    overflow: hidden;
+    border-top: none;
+  }
+
+  .sidebarCloseMobile {
+    display: block;
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 12px;
+    background: hsl(var(--secondary));
+    border: 1px solid hsl(var(--border));
+    color: hsl(var(--foreground));
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+
+  .navButton {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+
+  .prevButton {
+    left: 10px;
+  }
+
+  .nextButton {
+    right: 10px;
+  }
+
+  .controls {
+    top: 10px;
+    right: 10px;
+    gap: 8px;
+  }
+
+  .iconButton {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+
+  .textContent {
+    font-size: 1.1rem;
+    padding: 1rem;
+    max-height: 60vh;
+  }
+}

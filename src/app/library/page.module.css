@@ -185,3 +185,44 @@
 .resultDeleted {
   color: hsl(var(--color-danger));
 }
+
+/* Mobile overrides */
+@media (max-width: 767px) {
+  .container {
+    padding: 1.5rem 1rem;
+  }
+
+  .title {
+    font-size: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .scanHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .scanHeader h2 {
+    font-size: 1.25rem;
+  }
+
+  .scanHeader button {
+    width: 100%;
+  }
+
+  .statsRow {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .dangerActions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .dangerButton {
+    width: 100%;
+  }
+}

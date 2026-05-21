@@ -18,27 +18,28 @@
 
 .controls {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .sortLink {
   padding: 8px 16px;
   border-radius: 20px;
-  background: var(--background-secondary);
-  color: var(--text-secondary);
+  background: hsl(var(--secondary));
+  color: hsl(var(--muted-foreground));
   text-decoration: none;
   font-size: 14px;
   transition: all 0.2s;
 }
 
 .sortLink:hover {
-  background: var(--background-hover);
-  color: var(--text-primary);
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
 }
 
 .sortLink[data-active="true"] {
-  background: var(--accent-color);
-  color: white;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
 }
 
 .grid {
@@ -48,8 +49,8 @@
 }
 
 .tagCard {
-  background: var(--card-background);
-  border: 1px solid var(--border-color);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 12px;
   padding: 16px;
   display: flex;
@@ -65,7 +66,7 @@
 .tagCard:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-color: var(--accent-color);
+  border-color: hsl(var(--primary));
 }
 
 .tagName {
@@ -76,7 +77,7 @@
 
 .tagMeta {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: hsl(var(--muted-foreground));
   display: flex;
   justify-content: space-between;
 }

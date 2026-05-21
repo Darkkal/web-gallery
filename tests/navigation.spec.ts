@@ -4,15 +4,18 @@ test("navigation sidebar works", async ({ page }) => {
   await page.goto("/timeline");
   await expect(page.getByTestId("loading-skeleton")).toBeHidden();
 
+  // Scope to the desktop sidebar nav to avoid matching mobile sub-sheet links
+  const sidebar = page.locator("nav");
+
   // Check main nav items exist using href to be robust against text hiding/icons
-  await expect(page.locator('a[href="/gallery"]')).toBeVisible();
-  await expect(page.locator('a[href="/timeline"]')).toBeVisible();
-  await expect(page.locator('a[href="/sources"]')).toBeVisible();
-  await expect(page.locator('a[href="/library"]')).toBeVisible();
-  await expect(page.locator('a[href="/tags"]')).toBeVisible();
+  await expect(sidebar.locator('a[href="/gallery"]')).toBeVisible();
+  await expect(sidebar.locator('a[href="/timeline"]')).toBeVisible();
+  await expect(sidebar.locator('a[href="/sources"]')).toBeVisible();
+  await expect(sidebar.locator('a[href="/library"]')).toBeVisible();
+  await expect(sidebar.locator('a[href="/tags"]')).toBeVisible();
 
   // Test navigation
-  await page.locator('a[href="/gallery"]').click();
+  await sidebar.locator('a[href="/gallery"]').click();
   await expect(page).toHaveURL(/.*\/gallery/);
 });
 

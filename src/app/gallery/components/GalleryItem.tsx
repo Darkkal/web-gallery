@@ -79,14 +79,7 @@ export default function GalleryItem({
           height={400}
           style={{ width: "100%", height: "auto" }}
           unoptimized
-          loading="lazy"
         />
-      )}
-      {row.twitter && (
-        <div className={styles.twitterOverlay}>
-          <span>❤️ {row.twitter.favoriteCount}</span>
-          {row.user && <span>@{row.user.nick}</span>}
-        </div>
       )}
     </div>
   );

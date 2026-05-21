@@ -59,8 +59,7 @@ export default function FilterBar({
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && onRefresh()}
-        className={styles.input}
-        style={{ flex: 2 }}
+        className={`${styles.input} ${styles.searchInput}`}
       />
       <select
         value={sortBy}

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/Navbar";
+import { DynamicNavbar } from "@/components/client/DynamicNavbar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
 // All pages query the database at runtime — skip static prerendering during build.
@@ -37,7 +37,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <div className="app-container">
           <ThemeProvider>
-            <Navbar />
+            <DynamicNavbar />
             <main className="main-content">{children}</main>
           </ThemeProvider>
         </div>
