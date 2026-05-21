@@ -101,7 +101,7 @@ test("timeline defaults to infinite scroll mode", async ({ page }) => {
   // The sentinel element should be present if there are enough posts
   const articles = page.locator("article");
   if ((await articles.count()) >= 20) {
-    const sentinel = page.locator('div[class*="sentinel"]');
+    const sentinel = page.locator('div[class*="sentinel"]').first();
     await expect(sentinel).toBeVisible();
   }
 });
@@ -121,7 +121,7 @@ test("timeline can switch to load more button mode", async ({ page }) => {
   }
 
   // Click the manual pagination toggle
-  await page.getByLabel("Paginate manually").click();
+  await page.getByLabel("Paginate manually").first().click();
 
   // Wait for React to re-render with the new scroll mode
   await page.waitForTimeout(500);

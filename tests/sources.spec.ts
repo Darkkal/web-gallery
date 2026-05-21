@@ -9,10 +9,10 @@ test("sources page loads", async ({ page }) => {
   await expect(page).toHaveURL(/.*\/sources/);
 
   // Check for "Add Source" form
-  await expect(page.getByRole("heading", { name: "Add Source" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Add Source" }).first()).toBeVisible();
   await expect(page.locator('input[type="url"]').first()).toBeVisible();
-  await expect(page.getByPlaceholder("Name (Optional)")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Add" })).toBeVisible();
+  await expect(page.getByPlaceholder("Name (Optional)").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add" }).first()).toBeVisible();
 });
 
 test("view toggle switches layout", async ({ page }) => {
@@ -21,8 +21,8 @@ test("view toggle switches layout", async ({ page }) => {
 
   // Default should be Card View (Grid)
   // We can check for a container or the buttons state
-  const cardViewBtn = page.getByTitle("Grid View");
-  const tableViewBtn = page.getByTitle("List View");
+  const cardViewBtn = page.getByTitle("Grid View").first();
+  const tableViewBtn = page.getByTitle("List View").first();
 
   // Initially Grid is active (class check difficult without class names, checking logic)
   // Let's assume default is grid, so table is not visible
@@ -66,9 +66,9 @@ test("add source interaction (mocked)", async ({ page }) => {
   await input.fill("https://twitter.com/test_user");
   await expect(input).toHaveValue("https://twitter.com/test_user");
 
-  await page.getByPlaceholder("Name (Optional)").fill("Test Source");
+  await page.getByPlaceholder("Name (Optional)").first().fill("Test Source");
 
   // Button state check
-  const addBtn = page.getByRole("button", { name: "Add" });
+  const addBtn = page.getByRole("button", { name: "Add" }).first();
   await expect(addBtn).toBeEnabled();
 });

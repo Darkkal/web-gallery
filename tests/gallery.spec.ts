@@ -79,7 +79,7 @@ test("gallery defaults to infinite scroll mode", async ({ page }) => {
   await expect(loadMoreButton).not.toBeVisible();
 
   // The sentinel element should be present since there are items
-  const sentinel = page.locator('div[class*="sentinel"]');
+  const sentinel = page.locator('div[class*="sentinel"]').first();
   await expect(sentinel).toBeVisible();
 });
 
@@ -98,7 +98,7 @@ test("gallery can switch to load more button mode", async ({ page }) => {
   }
 
   // Click the manual pagination toggle
-  await page.getByLabel("Paginate manually").click();
+  await page.getByLabel("Paginate manually").first().click();
 
   // Wait for React to re-render with the new scroll mode
   await page.waitForTimeout(500);
