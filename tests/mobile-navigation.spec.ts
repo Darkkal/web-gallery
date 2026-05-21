@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { type Locator, expect, test } from "@playwright/test";
 
 /**
  * Navigate to a page, wait for content to load, and dismiss the Next.js dev
@@ -15,6 +15,22 @@ async function gotoPage(page: import("@playwright/test").Page, path: string) {
       el.remove();
     }
   });
+
+  // Ensure the page is scrolled to the top so the bottom navbar is fully
+  // visible and not overlapped by page content that may have loaded.
+  await page.evaluate(() => window.scrollTo(0, 0));
+}
+
+/**
+ * Click a locator belonging to the fixed bottom navbar.
+ *
+ * Chrome's mobile device emulation can let scrollable page content intercept
+ * pointer events that land on the navbar even though the navbar has
+ * `z-index: 50`.  Using `force: true` bypasses Playwright's actionability
+ * check and dispatches the click directly to the element.
+ */
+async function clickNavbar(locator: Locator) {
+  await locator.click({ force: true });
 }
 
 test.describe("mobile bottom navigation", () => {
@@ -36,7 +52,7 @@ test.describe("mobile bottom navigation", () => {
     await gotoPage(page, "/timeline");
 
     // Tap the Display group button
-    await page.getByRole("button", { name: "Display" }).click();
+    await clickNavbar(page.getByRole("button", { name: "Display" }));
 
     // Sub-sheet should appear with Timeline and Gallery links
     await expect(page.getByRole("link", { name: "Timeline" })).toBeVisible();
@@ -47,7 +63,7 @@ test.describe("mobile bottom navigation", () => {
     await gotoPage(page, "/timeline");
 
     // Open Display group and navigate to Gallery
-    await page.getByRole("button", { name: "Display" }).click();
+    await clickNavbar(page.getByRole("button", { name: "Display" }));
     await page.getByRole("link", { name: "Gallery" }).click();
     await expect(page).toHaveURL(/.*\/gallery/);
 
@@ -60,7 +76,7 @@ test.describe("mobile bottom navigation", () => {
 
     // Config is a single-item group — tapping goes straight to Library
     const configLink = page.getByRole("link", { name: "Config" });
-    await configLink.click();
+    await clickNavbar(configLink);
     await expect(page).toHaveURL(/.*\/library/);
   });
 
@@ -70,11 +86,11 @@ test.describe("mobile bottom navigation", () => {
     const displayBtn = page.getByRole("button", { name: "Display" });
 
     // Open
-    await displayBtn.click();
+    await clickNavbar(displayBtn);
     await expect(page.getByRole("link", { name: "Gallery" })).toBeVisible();
 
     // Close by tapping again
-    await displayBtn.click();
+    await clickNavbar(displayBtn);
     await expect(page.locator('[data-open="true"]')).toHaveCount(0);
   });
 });

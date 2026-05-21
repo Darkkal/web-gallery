@@ -45,6 +45,11 @@
     justify-content: space-around;
     align-items: center;
     padding-bottom: env(safe-area-inset-bottom);
+    /* Force a dedicated compositing layer so the fixed navbar always
+     * receives pointer events above the page content.  Without this,
+     * Chrome's mobile emulation can let scrollable content intercept
+     * taps that land on the bottom bar. */
+    isolation: isolate;
   }
 
   .desktopItems {
@@ -199,6 +204,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -220,7 +226,8 @@
 }
 
 .groupSheet[data-open="true"] {
-  bottom: 60px; /* Heights of bottom navigation bar */
+  bottom: 60px;
+  /* Heights of bottom navigation bar */
 }
 
 .sheetHeader {

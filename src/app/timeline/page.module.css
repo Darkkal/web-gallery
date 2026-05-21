@@ -49,6 +49,15 @@
   min-height: 100vh;
 }
 
+@media (max-width: 767px) {
+  .feed {
+    /* Don't extend behind the fixed bottom navbar.
+     * Account for the container padding-top (2rem) so the feed's bottom
+     * edge doesn't overlap with the navbar area. */
+    min-height: calc(100vh - var(--nav-height, 60px) - 4rem);
+  }
+}
+
 .postCard {
   background: hsl(var(--card));
   border-bottom: 1px solid hsl(var(--border));

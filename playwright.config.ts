@@ -25,7 +25,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-test-options. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3002",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3001",
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
@@ -68,13 +68,13 @@ export default defineConfig({
   ],
 
   /* Connect to an existing server or start a production server.
-     Local default: debug container (3002) with hot-reloaded source.
+     Local default: test container (3001) with production build.
      CI: production build (3000) built in a prior workflow step.
-     Test container (3001): set PLAYWRIGHT_BASE_URL=http://localhost:3001
-     after rebuilding the image with `docker compose -f compose.test.yaml build`. */
+     Debug container (3002): set PLAYWRIGHT_BASE_URL=http://localhost:3002
+     when using the hot-reloaded debug container. */
   webServer: {
     command: "npm start",
-    url: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3002",
+    url: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3001",
     reuseExistingServer: true,
     timeout: 120 * 1000,
   },
