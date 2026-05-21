@@ -9,7 +9,9 @@ test("sources page loads", async ({ page }) => {
   await expect(page).toHaveURL(/.*\/sources/);
 
   // Check for "Add Source" form
-  await expect(page.getByRole("heading", { name: "Add Source" }).first()).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Add Source" }).first(),
+  ).toBeVisible();
   await expect(page.locator('input[type="url"]').first()).toBeVisible();
   await expect(page.getByPlaceholder("Name (Optional)").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Add" }).first()).toBeVisible();
