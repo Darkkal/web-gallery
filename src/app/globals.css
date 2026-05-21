@@ -45,6 +45,9 @@
   --color-danger: 0 84% 60%;
   --color-warning: 38 92% 50%;
   --color-muted-label: 215 16% 62%;
+
+  /* Navigation Height */
+  --nav-height: 60px;
 }
 
 [data-theme="light"] {
@@ -91,6 +94,11 @@
   box-sizing: border-box;
   padding: 0;
   margin: 0;
+}
+
+html,
+body {
+  overflow-x: hidden;
 }
 
 body {
@@ -156,7 +164,7 @@ h6 {
   }
 
   .main-content {
-    padding-bottom: 80px;
+    padding-bottom: calc(var(--nav-height) + 20px);
     /* 60px nav + 20px buffer */
   }
 }

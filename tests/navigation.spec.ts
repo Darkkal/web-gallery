@@ -1,32 +1,38 @@
 import { expect, test } from "@playwright/test";
 
-test("navigation sidebar works", async ({ page }) => {
-  await page.goto("/timeline");
-  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+test.describe("desktop sidebar navigation", () => {
+  // These tests assume a desktop viewport where the sidebar is visible
+  test.use({ viewport: { width: 1280, height: 720 } });
 
-  // Check main nav items exist using href to be robust against text hiding/icons
-  await expect(page.locator('a[href="/gallery"]')).toBeVisible();
-  await expect(page.locator('a[href="/timeline"]')).toBeVisible();
-  await expect(page.locator('a[href="/sources"]')).toBeVisible();
-  await expect(page.locator('a[href="/library"]')).toBeVisible();
-  await expect(page.locator('a[href="/tags"]')).toBeVisible();
+  test("navigation sidebar works", async ({ page }) => {
+    await page.goto("/timeline");
+    await expect(page.getByTestId("loading-skeleton")).toBeHidden();
 
-  // Test navigation
-  await page.locator('a[href="/gallery"]').click();
-  await expect(page).toHaveURL(/.*\/gallery/);
-});
+    // Use getByRole which respects visibility (mobile links are display:none on desktop;
+    // closed sub-sheet links are aria-hidden + inert)
+    await expect(page.getByRole("link", { name: "Gallery" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Timeline" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sources" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Library" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Tags" })).toBeVisible();
 
-test("theme toggle works", async ({ page }) => {
-  await page.goto("/timeline");
-  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+    // Test navigation
+    await page.getByRole("link", { name: "Gallery" }).click();
+    await expect(page).toHaveURL(/.*\/gallery/);
+  });
 
-  // Find theme toggle button
-  const themeButton = page.getByLabel("Toggle theme", { exact: false });
-  await expect(themeButton).toBeVisible();
+  test("theme toggle works", async ({ page }) => {
+    await page.goto("/timeline");
+    await expect(page.getByTestId("loading-skeleton")).toBeHidden();
 
-  // Click it
-  await themeButton.click();
+    // Find theme toggle button
+    const themeButton = page.getByLabel("Toggle theme", { exact: false });
+    await expect(themeButton).toBeVisible();
 
-  // Ideally check for class change on html or body, or local storage persistence
-  // For now, just ensure no error on click
+    // Click it
+    await themeButton.click();
+
+    // Ideally check for class change on html or body, or local storage persistence
+    // For now, just ensure no error on click
+  });
 });

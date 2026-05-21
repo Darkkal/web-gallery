@@ -1,13 +1,16 @@
 import { expect, test } from "@playwright/test";
 
 test("sources page loads", async ({ page }) => {
+  page.on("console", (msg) => {
+    console.log(`[BROWSER CONSOLE] [${msg.type()}] ${msg.text()}`);
+  });
   await page.goto("/sources");
   await expect(page.getByTestId("loading-skeleton")).toBeHidden();
   await expect(page).toHaveURL(/.*\/sources/);
 
   // Check for "Add Source" form
   await expect(page.getByRole("heading", { name: "Add Source" })).toBeVisible();
-  await expect(page.locator('input[type="url"]')).toBeVisible();
+  await expect(page.locator('input[type="url"]').first()).toBeVisible();
   await expect(page.getByPlaceholder("Name (Optional)")).toBeVisible();
   await expect(page.getByRole("button", { name: "Add" })).toBeVisible();
 });
@@ -57,7 +60,7 @@ test("add source interaction (mocked)", async ({ page }) => {
   await page.goto("/sources");
   await expect(page.getByTestId("loading-skeleton")).toBeHidden();
 
-  const input = page.locator('input[type="url"]');
+  const input = page.locator('input[type="url"]').first();
   await expect(input).toBeVisible();
 
   await input.fill("https://twitter.com/test_user");

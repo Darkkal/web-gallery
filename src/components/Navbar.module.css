@@ -47,12 +47,41 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 
-  .link {
+  .desktopItems {
+    display: none;
+  }
+
+  .mobileItems {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+  }
+
+  .mobileLink {
+    display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
+    color: hsl(var(--muted-foreground));
+    text-decoration: none;
+    background: transparent;
+    border: none;
+    padding: 0;
     gap: 4px;
     width: 100%;
     height: 100%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .mobileLink:hover {
+    color: hsl(var(--foreground));
+  }
+
+  .mobileLink[data-active="true"] {
+    color: hsl(var(--primary));
   }
 
   .icon {
@@ -79,11 +108,15 @@
     transition: width 0.3s ease;
   }
 
-  .navItems {
+  .desktopItems {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
     flex: 1;
+  }
+
+  .mobileItems {
+    display: none;
   }
 
   .footer {
@@ -145,14 +178,94 @@
   }
 }
 
-/* Hide collapse button on mobile */
+/* Hide collapse button and desktop menu on mobile */
 @media (max-width: 767px) {
   .collapseButton {
     display: none;
   }
+}
 
-  .navItems {
-    display: contents;
-    /* Let children participate in navbar grid/flex */
+/* Group Sub-sheets for Mobile */
+.sheetOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 48;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
   }
+  to {
+    opacity: 1;
+  }
+}
+
+.groupSheet {
+  position: fixed;
+  bottom: -300px;
+  left: 0;
+  right: 0;
+  background: var(--glass-background);
+  backdrop-filter: blur(var(--glass-blur));
+  border-top: 1px solid var(--glass-border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 1.25rem 1.5rem;
+  z-index: 49;
+  transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.groupSheet[data-open="true"] {
+  bottom: 60px; /* Heights of bottom navigation bar */
+}
+
+.sheetHeader {
+  margin-bottom: 1rem;
+  border-bottom: 1px solid hsl(var(--border));
+  padding-bottom: 0.5rem;
+}
+
+.sheetTitle {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(var(--muted-foreground));
+}
+
+.sheetItems {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sheetLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.sheetLink:hover {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+}
+
+.sheetLink[data-active="true"] {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--primary));
+}
+
+.sheetIcon {
+  width: 20px;
+  height: 20px;
 }

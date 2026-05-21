@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 export type ScrollMode = "infinite" | "button";
 
@@ -17,24 +23,23 @@ const ScrollModeContext = createContext<ScrollModeContextValue>({
   setScrollMode: () => {},
 });
 
-function getInitialScrollMode(): ScrollMode {
-  if (typeof window === "undefined") return DEFAULT;
-  const saved = localStorage.getItem(STORAGE_KEY) as ScrollMode | null;
-  if (saved === "infinite" || saved === "button") return saved;
-  return DEFAULT;
-}
-
 export function ScrollModeProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [scrollMode, setScrollModeState] =
-    useState<ScrollMode>(getInitialScrollMode);
+  const [scrollMode, setScrollModeState] = useState<ScrollMode>(DEFAULT);
 
   const setScrollMode = useCallback((mode: ScrollMode) => {
     setScrollModeState(mode);
     localStorage.setItem(STORAGE_KEY, mode);
+  }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY) as ScrollMode | null;
+    if (saved === "infinite" || saved === "button") {
+      setScrollModeState(saved);
+    }
   }, []);
 
   return (

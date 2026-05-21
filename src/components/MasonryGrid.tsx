@@ -21,12 +21,11 @@ export default function MasonryGrid<T>({
   renderItem,
   columnCount: userColumnCount,
 }: MasonryGridProps<T>) {
-  const [windowWidth, setWindowWidth] = useState<number | null>(() => {
-    if (typeof window === "undefined") return null;
-    return window.innerWidth;
-  });
+  const [windowWidth, setWindowWidth] = useState<number | null>(null);
 
   useEffect(() => {
+    setWindowWidth(window.innerWidth);
+
     if (userColumnCount) return;
 
     const handleResize = () => {
