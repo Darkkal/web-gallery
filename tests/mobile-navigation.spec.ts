@@ -22,12 +22,13 @@ async function gotoPage(page: import("@playwright/test").Page, path: string) {
 }
 
 /**
- * Click a locator belonging to the fixed bottom navbar.
+ * Click a locator belonging to the fixed bottom navbar or its sub-sheet.
  *
- * Chrome's mobile device emulation can let scrollable page content intercept
- * pointer events that land on the navbar even though the navbar has
- * `z-index: 50`.  Using `force: true` bypasses Playwright's actionability
- * check and dispatches the click directly to the element.
+ * Chrome's mobile device emulation has a z-index stacking bug where parent
+ * fixed-position containers (the bottom bar at z-index 50, group sheets at
+ * z-index 49, or scrollable page content) intercept pointer events that
+ * should reach their children.  Using `force: true` bypasses Playwright's
+ * actionability check and dispatches the click directly to the element.
  */
 async function clickNavbar(locator: Locator) {
   await locator.click({ force: true });
@@ -64,7 +65,16 @@ test.describe("mobile bottom navigation", () => {
 
     // Open Display group and navigate to Gallery
     await clickNavbar(page.getByRole("button", { name: "Display" }));
-    await page.getByRole("link", { name: "Gallery" }).click();
+    // Wait for the sheet slide-up animation to finish before clicking.
+    // The link is visible in the DOM immediately but the CSS transition
+    // (bottom: -300px → 60px, 300ms) hasn't completed yet.
+    const galleryLink = page.getByRole("link", { name: "Gallery" });
+    await galleryLink.waitFor({ state: "visible" });
+    await galleryLink.scrollIntoViewIfNeeded();
+    await galleryLink.waitFor({ state: "attached" }); // re-fetch after scroll
+    // Small wait for the CSS transition to settle
+    await page.waitForTimeout(400);
+    await clickNavbar(galleryLink);
     await expect(page).toHaveURL(/.*\/gallery/);
 
     // Sheet should close after navigation
