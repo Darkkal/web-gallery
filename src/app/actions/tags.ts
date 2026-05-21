@@ -21,12 +21,14 @@ export async function getTopTags(
     const results = await db
       .select({
         name: tags.name,
-        id: tags.id,
+        count: count(postTags.tagId),
       })
       .from(tags)
+      .leftJoin(postTags, eq(tags.id, postTags.tagId))
+      .groupBy(tags.id)
       .orderBy(desc(tags.id))
       .limit(100);
-    return results.map((r) => ({ name: r.name, count: 0 as number }));
+    return results;
   }
 
   if (sort === "recent") {
