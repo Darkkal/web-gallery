@@ -7,6 +7,7 @@ export interface ScrapeProgress {
   postsProcessed: number;
   isRateLimited: boolean;
   isFinished: boolean;
+  cursor?: string; // gallery-dl resume cursor (e.g. pixiv offset)
 }
 
 export interface ScrapeResult {
@@ -14,6 +15,7 @@ export interface ScrapeResult {
   output: string; // JSON or raw output
   error?: string;
   items: string[]; // List of absolute file paths processed/downloaded
+  cursor?: string; // Resume cursor from gallery-dl
 }
 
 // Legacy, keeping just in case
@@ -31,5 +33,6 @@ export interface ScraperOptions {
   downloadPath?: string;
   logPath?: string;
   mode?: "full" | "quick";
+  cursor?: string;
   onProgress?: (progress: ScrapeProgress) => void;
 }

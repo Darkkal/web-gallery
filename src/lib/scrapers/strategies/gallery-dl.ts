@@ -32,15 +32,24 @@ export class GalleryDlStrategy extends BaseScraperStrategy {
     // postprocessor in gallery-dl.conf for better reliability.
 
     // Override archive path so dedup DBs live in DATA_DIR regardless of CWD
-    args.push(
-      "-o",
-      `extractor.archive=${path.join(paths.galleryDl.archives, "gallery-dl-{category}-archive.sqlite3")}`,
-    );
+    // gallery-dl requires a list format for archive paths with format fields.
+    // Each element is a path component; the first starting with "/" is the root.
+    // {category} is expanded per-extractor by gallery-dl's format engine.
+    const archiveSegments = [
+      paths.galleryDl.archives,
+      "gallery-dl-{category}-archive.sqlite3",
+    ];
+    args.push("-o", `extractor.archive=${JSON.stringify(archiveSegments)}`);
 
     // Log file overrides
     if (this.options.logPath) {
       args.push("-o", `output.logfile.path=${this.options.logPath}`);
-      args.push("-o", "output.logfile.level=debug");
+      args.push("-o", "output.logfile.level=info");
+    }
+
+    // Resume cursor (e.g. pixiv offset for continuing failed scrapes)
+    if (this.options.cursor) {
+      args.push("-o", `cursor=${this.options.cursor}`);
     }
 
     args.push("--destination", this.basePath);

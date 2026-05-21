@@ -1,5 +1,6 @@
 "use server";
 
+import fs from "node:fs";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { paths } from "@/lib/config";
@@ -86,6 +87,7 @@ export async function toggleTaskSchedule(id: number, enabled: boolean) {
 export async function runTaskNow(
   taskId: number,
   mode: "full" | "quick" = "full",
+  cursor?: string,
 ) {
   const task = await db.query.scrapingTasks.findFirst({
     where: eq(scrapingTasks.id, taskId),
@@ -121,6 +123,7 @@ export async function runTaskNow(
       mode: mode, // Use the provided mode
       taskId: task.id,
       limits: task.downloadOptions || undefined,
+      cursor: cursor,
     },
   );
 
@@ -153,6 +156,75 @@ export async function getScrapeHistory(limit = 50) {
       task: true,
     },
   });
+}
+
+const CURSOR_RE = /Use '-o cursor=([^']+)' to continue/;
+
+/**
+ * Try to extract a gallery-dl resume cursor from a log file.
+ * Returns the last cursor found (most recent hint), or null.
+ */
+function extractCursorFromLog(logPath: string): string | null {
+  try {
+    if (!fs.existsSync(logPath)) return null;
+
+    const content = fs.readFileSync(logPath, "utf-8");
+    const matches = [...content.matchAll(new RegExp(CURSOR_RE.source, "g"))];
+    if (matches.length === 0) return null;
+    return matches[matches.length - 1][1];
+  } catch {
+    return null;
+  }
+}
+
+export async function resumeFromHistory(historyId: number) {
+  const history = await db.query.scrapeHistory.findFirst({
+    where: eq(scrapeHistory.id, historyId),
+    with: {
+      source: true,
+      task: true,
+    },
+  });
+
+  if (!history) {
+    throw new Error("History record not found");
+  }
+
+  if (!history.source) {
+    throw new Error("Source not found");
+  }
+
+  // Use stored cursor, or fall back to extracting from the log file
+  let cursor = history.cursor;
+  if (!cursor && history.logPath) {
+    cursor = extractCursorFromLog(history.logPath);
+    if (cursor) {
+      // Backfill the DB so we don't need to re-read the log next time
+      await db
+        .update(scrapeHistory)
+        .set({ cursor })
+        .where(eq(scrapeHistory.id, historyId));
+    }
+  }
+
+  if (!cursor) {
+    throw new Error("No cursor available for this history record");
+  }
+
+  const tool = "gallery-dl";
+
+  await scraperManager.startScrape(
+    history.sourceId,
+    tool,
+    history.source.url,
+    paths.downloads,
+    {
+      taskId: history.taskId ?? undefined,
+      cursor,
+    },
+  );
+
+  revalidatePath("/scrape");
 }
 
 // Helper to get all sources for the dropdown

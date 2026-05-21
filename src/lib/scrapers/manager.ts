@@ -19,6 +19,7 @@ export interface ScrapingStatus extends ScrapeProgress {
   taskId?: number;
   logPath?: string;
   lastDbUpdate?: number;
+  resumeCursor?: string;
 }
 
 class ScraperManager {
@@ -78,6 +79,7 @@ class ScraperManager {
       mode?: "full" | "quick";
       taskId?: number;
       limits?: ScrapeLimits;
+      cursor?: string;
     } = {},
   ) {
     console.log(
@@ -146,6 +148,7 @@ class ScraperManager {
       isRateLimited: false,
       isFinished: false,
       logPath,
+      resumeCursor: options.cursor,
     };
 
     const { promise, child, strategy } = runner.run(
@@ -154,6 +157,7 @@ class ScraperManager {
         url,
         logPath: logPath,
         mode: options.mode,
+        cursor: options.cursor,
         onProgress: (p) => {
           const current = this.activeScrapes.get(sourceId);
           if (current) {
@@ -272,6 +276,7 @@ class ScraperManager {
               averageSpeed,
               lastError:
                 result.error || (result.success ? null : result.output),
+              cursor: result.cursor || current.status.cursor || null,
             })
             .where(eq(scrapeHistory.id, historyId));
 

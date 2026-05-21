@@ -76,6 +76,7 @@ export const scrapeHistory = sqliteTable("scrape_history", {
   averageSpeed: integer("average_speed").default(0), // bytes per second
   lastError: text("last_error"),
   logPath: text("log_path"),
+  cursor: text("cursor"), // gallery-dl resume cursor for continuing failed scrapes
   taskId: integer("task_id").references(() => scrapingTasks.id, {
     onDelete: "set null",
   }),
