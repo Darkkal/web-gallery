@@ -157,14 +157,17 @@ export const metadata: Metadata = {
 
 Individual pages export their own `metadata` for custom titles (e.g., `export const metadata: Metadata = { title: "Gallery" }`).
 
-### 1.11 Security & Destructive Actions
-
-- **Rule**: Any server action that performs destructive operations MUST call `assertNonProduction()` (or equivalent guard) before proceeding:
+- **Rule**: Any server action that performs destructive operations MUST call `assertNonProduction()` before proceeding. The guard checks both the Node environment and the settings bypass state:
 
   ```ts
-  function assertNonProduction() {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Debug actions are disabled in production');
+  async function assertNonProduction() {
+    const { getAppSettings } = await import("@/lib/settings");
+    const settings = await getAppSettings();
+    if (
+      process.env.NODE_ENV === "production" &&
+      !settings.enableProductionDestructiveOps
+    ) {
+      throw new Error("Debug actions are disabled in production");
     }
   }
   ```
@@ -216,6 +219,10 @@ Not all inline `style={{}}` usage is equally bad. The migration priority is:
 2. **Static layout styles** (`style={{ display: 'flex', gap: '4px' }}`) → medium priority, migrate to CSS classes
 3. **Dynamic runtime values** (`style={{ backgroundImage: url }}`) → keep as inline, they depend on data
 
----
+### 3.5 Sequential E2E Playwright Runs for Shared State
 
-*Last updated after completion of the Repo Analysis project (Issues #10–#23, PRs #24–#39).*
+Playwright E2E tests for settings, scrapers, and purging interact with a single instance of the database and shared file config (`settings.json`). Running tests in parallel leads to severe file lock and database write race conditions (especially on test databases/archives).
+
+- **Rule**: E2E test runs (specifically those modifying system configuration or purging database records) must be executed sequentially. Ensure `--workers=1` or `npx playwright test --workers=1` is specified when running the E2E suites.
+
+---

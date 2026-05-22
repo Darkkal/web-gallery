@@ -17,6 +17,7 @@ For day-to-day coding conventions and established patterns, see [CONTRIBUTING.md
    - [3.4 Library Scanner](#34-library-scanner)
    - [3.5 Next.js Application Layer](#35-nextjs-application-layer)
    - [3.6 Avatar Proxy & Request Queue](#36-avatar-proxy--request-queue)
+   - [3.7 Settings & Configuration System](#37-settings--configuration-system)
 4. [Data Flow](#4-data-flow)
    - [4.1 Scrape → Scan → Display](#41-scrape--scan--display)
    - [4.2 Client-Side Data Fetching](#42-client-side-data-fetching)
@@ -83,6 +84,7 @@ web-gallery/
 │   │   │   ├── debug.ts            #   Destructive debug helpers (production-guarded)
 │   │   │   ├── gallery.ts          #   Gallery item mutations
 │   │   │   ├── scanning.ts         #   Library scan control (start/stop)
+│   │   │   ├── settings.ts         #   Settings updates & config sync
 │   │   │   ├── sources.ts          #   Source CRUD
 │   │   │   ├── tags.ts             #   Tag read/write
 │   │   │   └── timeline.ts         #   Timeline mutations
@@ -95,6 +97,7 @@ web-gallery/
 │   │   ├── gallery/                # Masonry gallery page
 │   │   ├── timeline/               # Chronological post feed page
 │   │   ├── sources/                # Source management page
+│   │   ├── settings/               # Settings configuration page
 │   │   ├── library/                # Library scan control page
 │   │   ├── scrape/                 # Scrape trigger page
 │   │   ├── tags/                   # Tag browser page
@@ -112,24 +115,24 @@ web-gallery/
 │   │   ├── Navbar.tsx              #   Top navigation bar + theme toggle
 │   │   ├── ThemeProvider.tsx       #   Dark/light theme via data-theme attribute
 │   │   ├── FormattedContent.tsx    #   Renders post body (links, hashtags, mentions)
-│   │   ├── InfiniteScrollSentinel.tsx # IntersectionObserver-based infinite scroll trigger
-│   │   └── ScrollModeToggle.tsx    #   Waterfall vs. standard scroll toggle
+│   │   └── InfiniteScrollSentinel.tsx # IntersectionObserver-based infinite scroll trigger
 │   ├── hooks/                      # Shared custom React hooks
 │   │   ├── useDebouncedValue.ts    #   Debounce for search/sort inputs
 │   │   ├── useInfiniteScroll.ts    #   Manages IntersectionObserver sentinel
 │   │   ├── useLightbox.ts          #   Lightbox open/close/navigate state
-│   │   ├── usePaginatedData.ts     #   Generic cursor-based pagination + fetch
-│   │   ├── useScrollMode.tsx       #   Scroll mode persistence (localStorage)
+│   │   └── usePaginatedData.ts     #   Generic cursor-based pagination + fetch
 │   │   └── useSelection.ts         #   Multi-item selection state
 │   ├── types/                      # Shared TypeScript interfaces
 │   │   ├── media.ts                #   MediaItem, GalleryGroup, GalleryRow
 │   │   ├── posts.ts                #   TimelinePost, post-related types
+│   │   ├── settings.ts             #   SystemSettings, AppSettings definitions
 │   │   ├── source.ts               #   Source, source-related types
 │   │   └── users.ts                #   TwitterUser, PixivUser
 │   ├── lib/                        # Server-only business logic
 │   │   ├── config.ts               #   Centralized path config (DATA_DIR / MEDIA_DIR)
 │   │   ├── metadata.ts             #   Shared metadata extraction helpers
 │   │   ├── request-queue.ts        #   Rate-limited avatar fetch queue (singleton)
+│   │   ├── settings.ts             #   Settings management (conf sync, log purger)
 │   │   ├── db/
 │   │   │   ├── index.ts            #   DB client init + custom migration runner
 │   │   │   ├── schema.ts           #   Drizzle table definitions + relations
@@ -300,6 +303,17 @@ Sub-components import the parent page's `page.module.css` to keep class name has
 
 External avatar URLs are proxied through the Next.js server to avoid CORS issues and to enable local caching. Requests are serialized through `RequestQueue`, a rate-limiting FIFO queue that fires at most 5 requests per second (200 ms interval). The queue is a singleton attached to `globalThis` to survive HMR.
 
+### 3.7 Settings & Configuration System
+
+**Location**: [`src/app/settings/`](./src/app/settings/), [`src/lib/settings.ts`](./src/lib/settings.ts)
+
+The settings system manages core application preferences and CLI scraper profiles with a unified, type-safe persistence layer:
+
+- **JSON Persistence**: All settings are serialized to `$DATA_DIR/settings.json`. At startup or if missing, it attempts to back-populate fields by loading any pre-existing `$DATA_DIR/scrapers/gallery-dl/gallery-dl.conf` before falling back to `DEFAULT_SETTINGS` defined in `src/types/settings.ts`.
+- **Dynamic Scraper Config Injection**: On settings updates and scraper executions, the system dynamically merges scraper settings (proxies, request throttling/sleep intervals, retries, cookie sources) into `$DATA_DIR/scrapers/gallery-dl/gallery-dl.conf` by reading and parsing the template config or modifying the existing file.
+- **Log Retention Purging**: Integrated directly with Next.js boot (`instrumentation.ts`), the settings layer automatically cleans up physical scraper logs and clear references in the `scrape_history` DB table that exceed the configured `scrapeLogRetentionDays` limit.
+- **Production Guarding**: Standardizes UI color schemes (`colorTheme`), pagination counts, scroll feed modes (`infinite` waterfall vs. explicit `button` loaders), and production environments' execution permissions (`enableProductionDestructiveOps`) to safeguard sqlite truncation or directory clears in deployment.
+
 ---
 
 ## 4. Data Flow
@@ -407,9 +421,10 @@ Resolved paths (see [`src/lib/config.ts`](./src/lib/config.ts)):
 ```
 DATA_DIR/
 ├── sqlite.db
+├── settings.json       # Centralized application settings config
 └── scrapers/
     └── gallery-dl/
-        ├── gallery-dl.conf     # Isolated scraper config
+        ├── gallery-dl.conf     # Dynamic/isolated scraper config
         ├── archives/           # gallery-dl URL archives (skip-already-downloaded)
         └── logs/               # Per-scrape log files (scrape_<historyId>.log)
 
