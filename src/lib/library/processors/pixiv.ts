@@ -118,6 +118,7 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
                   .join("/")
               : null,
             createdAt: new Date(),
+            deletedAt: meta.visible === false ? new Date() : null,
           })
           .returning({ id: posts.id });
 
@@ -152,11 +153,19 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
         });
       } else {
         postId = existingPosts.get(key) || null;
-        if (postId && internalSourceId) {
-          await tx
-            .update(posts)
-            .set({ internalSourceId })
-            .where(and(eq(posts.id, postId), isNull(posts.internalSourceId)));
+        if (postId) {
+          if (internalSourceId) {
+            await tx
+              .update(posts)
+              .set({ internalSourceId })
+              .where(and(eq(posts.id, postId), isNull(posts.internalSourceId)));
+          }
+          if (meta.visible === false) {
+            await tx
+              .update(posts)
+              .set({ deletedAt: new Date() })
+              .where(and(eq(posts.id, postId), isNull(posts.deletedAt)));
+          }
         }
       }
     }
