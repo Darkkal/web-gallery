@@ -210,7 +210,7 @@ export default function SettingsPageClient({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className={styles.settingsCard}>
+      <form onSubmit={handleSubmit} className={styles.settingsCard} noValidate>
         <nav className={styles.tabs} aria-label="Settings Categories">
           <button
             type="button"
@@ -387,6 +387,7 @@ export default function SettingsPageClient({
                 >
                   <input
                     id="enableProductionDestructiveOps"
+                    aria-label="Enable Destructive Operations in Production"
                     type="checkbox"
                     checked={settings.app.enableProductionDestructiveOps}
                     onChange={(e) =>
@@ -528,6 +529,7 @@ export default function SettingsPageClient({
                   </span>
                   <div className={styles.rowInputs}>
                     <input
+                      id="sleepMin"
                       type="number"
                       min="0"
                       max="3600"
@@ -543,6 +545,7 @@ export default function SettingsPageClient({
                       required
                     />
                     <input
+                      id="sleepMax"
                       type="number"
                       min="0"
                       max="3600"
@@ -570,6 +573,7 @@ export default function SettingsPageClient({
                   </span>
                   <div className={styles.rowInputs}>
                     <input
+                      id="sleepRequestMin"
                       type="number"
                       min="0"
                       max="3600"
@@ -585,6 +589,7 @@ export default function SettingsPageClient({
                       required
                     />
                     <input
+                      id="sleepRequestMax"
                       type="number"
                       min="0"
                       max="3600"
