@@ -42,7 +42,16 @@ export default function Lightbox({
   const { item } = row;
   const [showInfo, setShowInfo] = useState(true);
   const [pixivTags, setPixivTags] = useState<{ name: string }[]>([]);
+  const [isRecentlyMounted, setIsRecentlyMounted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Prevent mobile click-through/ghost click events on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsRecentlyMounted(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Touch swipe handling
   const touchStartX = useRef<number | null>(null);
@@ -172,7 +181,10 @@ export default function Lightbox({
           // If clicking the background (not the image), close?
           // Or maybe clicking image toggles sidebar?
           // Let's make clicking background close.
-          if (e.target === e.currentTarget) onClose();
+          if (e.target === e.currentTarget) {
+            if (isRecentlyMounted) return;
+            onClose();
+          }
         }}
         onKeyDown={handleKeyActivate(() => {
           if (typeof window !== "undefined") {
@@ -232,7 +244,10 @@ export default function Lightbox({
               className={styles.image}
               onClick={(e) => {
                 e.stopPropagation();
-                setShowInfo(!showInfo);
+                if (isRecentlyMounted) return;
+                if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                  setShowInfo(!showInfo);
+                }
               }}
               width={1200}
               height={800}
