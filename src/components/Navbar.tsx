@@ -58,6 +58,11 @@ const NAV_ITEMS = [
     href: "/tags",
     icon: Tag,
   },
+  {
+    label: "Settings",
+    href: "/settings",
+    icon: Settings,
+  },
 ];
 
 const MOBILE_GROUPS = [
@@ -96,7 +101,10 @@ const MOBILE_GROUPS = [
     label: "Config",
     href: "/library",
     icon: Settings,
-    items: [{ label: "Library", href: "/library", icon: Library }],
+    items: [
+      { label: "Library", href: "/library", icon: Library },
+      { label: "Settings", href: "/settings", icon: Settings },
+    ],
   },
 ];
 

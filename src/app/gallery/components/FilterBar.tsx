@@ -2,7 +2,6 @@
 
 import { CheckSquare, Square } from "lucide-react";
 import styles from "@/app/gallery/page.module.css";
-import ScrollModeToggle from "@/components/ScrollModeToggle";
 
 interface FilterBarProps {
   selectionMode: boolean;
@@ -89,8 +88,6 @@ export default function FilterBar({
           className={styles.slider}
         />
       </div>
-      <div className={styles.separator} />
-      <ScrollModeToggle />
     </div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import styles from "@/app/timeline/page.module.css";
-import ScrollModeToggle from "@/components/ScrollModeToggle";
 
 interface FilterBarProps {
   searchQuery: string;
@@ -39,8 +38,6 @@ export default function FilterBar({
           Relevance (Search Only)
         </option>
       </select>
-      <div className={styles.separator} />
-      <ScrollModeToggle />
     </div>
   );
 }

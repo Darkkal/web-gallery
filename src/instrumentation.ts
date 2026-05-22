@@ -12,6 +12,14 @@ export async function register() {
       // Scanner module may not be available during build
     }
 
+    // Clean up old scrape logs based on user retention policy
+    try {
+      const { cleanupOldScrapeLogs } = await import("@/lib/settings");
+      await cleanupOldScrapeLogs();
+    } catch (e) {
+      console.error("[Startup] Failed to cleanup old scrape logs:", e);
+    }
+
     // Process-level error handlers to ensure unexpected terminations
     // are logged with stack traces instead of dying silently.
     process.on("uncaughtException", (error) => {

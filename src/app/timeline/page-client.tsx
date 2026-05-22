@@ -8,7 +8,6 @@ import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 import Lightbox from "@/components/Lightbox";
 import { useLightbox } from "@/hooks/useLightbox";
 import { usePaginatedData } from "@/hooks/usePaginatedData";
-import { ScrollModeProvider, useScrollMode } from "@/hooks/useScrollMode";
 import type { UnifiedUserData } from "@/lib/metadata";
 import {
   mergeGelbooruv02Metadata,
@@ -23,21 +22,25 @@ export default function TimelinePageClient({
   initialNextCursor,
   initialSearch,
   initialSort,
+  pageSize,
+  scrollMode,
 }: {
   initialPosts: TimelinePost[];
   initialNextCursor: string | null;
   initialSearch: string;
   initialSort: string;
+  pageSize: number;
+  scrollMode: "infinite" | "button";
 }) {
   return (
-    <ScrollModeProvider>
-      <TimelinePageContent
-        initialPosts={initialPosts}
-        initialNextCursor={initialNextCursor}
-        initialSearch={initialSearch}
-        initialSort={initialSort}
-      />
-    </ScrollModeProvider>
+    <TimelinePageContent
+      initialPosts={initialPosts}
+      initialNextCursor={initialNextCursor}
+      initialSearch={initialSearch}
+      initialSort={initialSort}
+      pageSize={pageSize}
+      scrollMode={scrollMode}
+    />
   );
 }
 
@@ -46,11 +49,15 @@ function TimelinePageContent({
   initialNextCursor,
   initialSearch,
   initialSort,
+  pageSize,
+  scrollMode,
 }: {
   initialPosts: TimelinePost[];
   initialNextCursor: string | null;
   initialSearch: string;
   initialSort: string;
+  pageSize: number;
+  scrollMode: "infinite" | "button";
 }) {
   const {
     items: posts,
@@ -68,10 +75,8 @@ function TimelinePageContent({
     initialSort,
     fetchPath: "/api/timeline",
     dataKey: "posts",
-    pageSize: 20,
+    pageSize,
   });
-
-  const { scrollMode } = useScrollMode();
 
   const {
     selectedIndex,
