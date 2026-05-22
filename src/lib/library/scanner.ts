@@ -464,7 +464,15 @@ export async function syncLibrary() {
       const pathsToDelete: string[] = [];
       for (const p of existingMediaPaths) {
         if (!processedPaths.has(p)) {
-          pathsToDelete.push(p);
+          const cleanRelPath = p.replace(/^\//, "").split("/").join(path.sep);
+          const absPath = path.join(publicRoot, cleanRelPath);
+          if (!fs.existsSync(absPath)) {
+            pathsToDelete.push(p);
+          } else {
+            console.log(
+              `[Scanner] Keeping ${p} because it still exists on disk (likely skipped in directory listing)`,
+            );
+          }
         }
       }
 
