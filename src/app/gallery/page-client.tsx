@@ -11,7 +11,6 @@ import Lightbox from "@/components/Lightbox";
 import MasonryGrid from "@/components/MasonryGrid";
 import { useLightbox } from "@/hooks/useLightbox";
 import { usePaginatedData } from "@/hooks/usePaginatedData";
-import { ScrollModeProvider, useScrollMode } from "@/hooks/useScrollMode";
 import { useSelection } from "@/hooks/useSelection";
 import type { UnifiedUserData } from "@/lib/metadata";
 import { mergePixivMetadata, mergeTwitterMetadata } from "@/lib/metadata";
@@ -22,21 +21,25 @@ export default function GalleryPageClient({
   initialSearch,
   initialSort,
   initialNextCursor,
+  pageSize,
+  scrollMode,
 }: {
   initialItems: GalleryGroup[];
   initialSearch: string;
   initialSort: string;
   initialNextCursor: string | null;
+  pageSize: number;
+  scrollMode: "infinite" | "button";
 }) {
   return (
-    <ScrollModeProvider>
-      <GalleryPageContent
-        initialItems={initialItems}
-        initialSearch={initialSearch}
-        initialSort={initialSort}
-        initialNextCursor={initialNextCursor}
-      />
-    </ScrollModeProvider>
+    <GalleryPageContent
+      initialItems={initialItems}
+      initialSearch={initialSearch}
+      initialSort={initialSort}
+      initialNextCursor={initialNextCursor}
+      pageSize={pageSize}
+      scrollMode={scrollMode}
+    />
   );
 }
 
@@ -45,11 +48,15 @@ function GalleryPageContent({
   initialSearch,
   initialSort,
   initialNextCursor,
+  pageSize,
+  scrollMode,
 }: {
   initialItems: GalleryGroup[];
   initialSearch: string;
   initialSort: string;
   initialNextCursor: string | null;
+  pageSize: number;
+  scrollMode: "infinite" | "button";
 }) {
   const [columnCount, setColumnCount] = useState(4);
   const [deleting, setDeleting] = useState(false);
@@ -71,10 +78,8 @@ function GalleryPageContent({
     initialSort,
     fetchPath: "/api/gallery",
     dataKey: "items",
-    pageSize: 50,
+    pageSize,
   });
-
-  const { scrollMode } = useScrollMode();
 
   const {
     selectionMode,

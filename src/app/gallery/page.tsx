@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getMediaItems } from "@/app/actions/gallery";
 import GalleryPageClient from "@/app/gallery/page-client";
+import { getAppSettings } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "Gallery" };
 
@@ -13,8 +14,13 @@ export default async function GalleryPage({
   const search = (params.search as string) || "";
   const sortBy = (params.sortBy as string) || "created-desc";
 
-  // Initial data fetch on the server — reduced from 50 for faster first paint
-  const filters = { search, sortBy, limit: 50 };
+  // Read app settings
+  const settings = await getAppSettings();
+  const limit = settings.galleryPageSize || 50;
+  const scrollMode = settings.scrollMode || "infinite";
+
+  // Initial data fetch on the server — respecting configured page size
+  const filters = { search, sortBy, limit };
   const { items, nextCursor } = await getMediaItems(filters);
 
   // Ensure data is serializable
@@ -26,6 +32,8 @@ export default async function GalleryPage({
       initialSearch={search}
       initialSort={sortBy}
       initialNextCursor={nextCursor}
+      pageSize={limit}
+      scrollMode={scrollMode}
     />
   );
 }

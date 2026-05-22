@@ -11,11 +11,16 @@ import { stopScanning } from "@/lib/library/scanner";
 import { scraperManager } from "@/lib/scrapers/manager";
 
 /**
- * Throws if called in a production environment.
+ * Throws if called in a production environment, unless bypassed by settings.
  * All destructive debug actions must call this before proceeding.
  */
-function assertNonProduction() {
-  if (process.env.NODE_ENV === "production") {
+async function assertNonProduction() {
+  const { getAppSettings } = await import("@/lib/settings");
+  const settings = await getAppSettings();
+  if (
+    process.env.NODE_ENV === "production" &&
+    !settings.enableProductionDestructiveOps
+  ) {
     throw new Error("Debug actions are disabled in production");
   }
 }
@@ -47,7 +52,7 @@ async function stopAllActivities() {
 }
 
 export async function purgeDatabases() {
-  assertNonProduction();
+  await assertNonProduction();
 
   console.log("[purgeDatabases] STARTING PURGE...");
   await stopAllActivities();
@@ -100,7 +105,7 @@ export async function purgeDatabases() {
 }
 
 export async function purgeAvatars() {
-  assertNonProduction();
+  await assertNonProduction();
 
   console.log("[purgeAvatars] Starting...");
   await stopAllActivities();
@@ -120,7 +125,7 @@ export async function purgeAvatars() {
 }
 
 export async function purgeDownloads() {
-  assertNonProduction();
+  await assertNonProduction();
 
   console.log("[purgeDownloads] Starting...");
   await stopAllActivities();

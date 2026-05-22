@@ -71,15 +71,6 @@ test("timeline sorting interaction", async ({ page }) => {
   await expect(sortSelect).toHaveValue("created-asc");
 });
 
-test("timeline scroll mode toggle is visible", async ({ page }) => {
-  await page.goto("/timeline");
-  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
-
-  // The scroll mode toggle should be visible in the filter bar regardless of data
-  await expect(page.getByLabel("Use infinite scroll").first()).toBeVisible();
-  await expect(page.getByLabel("Paginate manually").first()).toBeVisible();
-});
-
 test("timeline defaults to infinite scroll mode", async ({ page }) => {
   await page.goto("/timeline");
   await expect(page.getByTestId("loading-skeleton")).toBeHidden();
@@ -103,34 +94,6 @@ test("timeline defaults to infinite scroll mode", async ({ page }) => {
   if ((await articles.count()) >= 20) {
     const sentinel = page.locator('div[class*="sentinel"]').first();
     await expect(sentinel).toBeVisible();
-  }
-});
-
-test("timeline can switch to load more button mode", async ({ page }) => {
-  await page.goto("/timeline");
-  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
-
-  // Wait for posts — skip if no data (CI has empty DB)
-  try {
-    await expect(page.locator("article").first()).toBeVisible({
-      timeout: 5000,
-    });
-  } catch {
-    test.skip(true, "No posts — cannot test scroll mode switching");
-    return;
-  }
-
-  // Click the manual pagination toggle
-  await page.getByLabel("Paginate manually").first().click();
-
-  // Wait for React to re-render with the new scroll mode
-  await page.waitForTimeout(500);
-
-  // The "Load More" button should now be visible if there are enough posts
-  const articles = page.locator("article");
-  if ((await articles.count()) >= 20) {
-    const loadMoreButton = page.getByRole("button", { name: "Load More" });
-    await expect(loadMoreButton).toBeVisible();
   }
 });
 

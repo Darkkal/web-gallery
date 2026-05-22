@@ -45,8 +45,8 @@ test.describe("mobile bottom navigation", () => {
     await expect(page.getByRole("button", { name: "Display" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Download" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Filter" })).toBeVisible();
-    // Config is a single-item group so it renders as a link, not a button
-    await expect(page.getByRole("link", { name: "Config" })).toBeVisible();
+    // Config now has Settings and Library, so it is a multi-item group rendering as a button
+    await expect(page.getByRole("button", { name: "Config" })).toBeVisible();
   });
 
   test("tapping a multi-item group opens the sub-sheet", async ({ page }) => {
@@ -81,12 +81,17 @@ test.describe("mobile bottom navigation", () => {
     await expect(page.locator('[data-open="true"]')).toHaveCount(0);
   });
 
-  test("single-item group navigates directly", async ({ page }) => {
+  test("multi-item group Config navigates to Library", async ({ page }) => {
     await gotoPage(page, "/timeline");
 
-    // Config is a single-item group — tapping goes straight to Library
-    const configLink = page.getByRole("link", { name: "Config" });
-    await clickNavbar(configLink);
+    // Config has multiple items — open its sub-sheet and tap Library
+    await clickNavbar(page.getByRole("button", { name: "Config" }));
+    const libraryLink = page.getByRole("link", { name: "Library" });
+    await libraryLink.waitFor({ state: "visible" });
+    await libraryLink.scrollIntoViewIfNeeded();
+    await libraryLink.waitFor({ state: "attached" });
+    await page.waitForTimeout(400);
+    await clickNavbar(libraryLink);
     await expect(page).toHaveURL(/.*\/library/);
   });
 
