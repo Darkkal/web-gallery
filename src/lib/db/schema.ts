@@ -145,6 +145,7 @@ export const posts = sqliteTable("posts", {
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
     () => new Date(),
   ),
+  deletedAt: integer("deleted_at", { mode: "timestamp" }),
 });
 
 export const postDetailsTwitter = sqliteTable("post_details_twitter", {

@@ -5,6 +5,7 @@ import {
   eq,
   gt,
   inArray,
+  isNull,
   lt,
   ne,
   or,
@@ -76,7 +77,7 @@ export async function getTimelinePosts(filters?: {
   const { cleanQuery, sourceFilter } = parseSearchQuery(search);
   const searchLower = cleanQuery.toLowerCase();
 
-  const whereConditions: SQL[] = [];
+  const whereConditions: SQL[] = [isNull(posts.deletedAt)];
 
   if (sourceFilter) {
     whereConditions.push(eq(posts.extractorType, sourceFilter));

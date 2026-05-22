@@ -1,6 +1,6 @@
 "use server";
 
-import { count, desc, eq, sql } from "drizzle-orm";
+import { count, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import * as postsRepo from "@/lib/db/repositories/posts";
 import { posts, postTags, tags } from "@/lib/db/schema";
@@ -25,6 +25,8 @@ export async function getTopTags(
       })
       .from(tags)
       .leftJoin(postTags, eq(tags.id, postTags.tagId))
+      .leftJoin(posts, eq(postTags.postId, posts.id))
+      .where(isNull(posts.deletedAt))
       .groupBy(tags.id)
       .orderBy(desc(tags.id))
       .limit(100);
@@ -41,6 +43,7 @@ export async function getTopTags(
       .from(tags)
       .innerJoin(postTags, eq(tags.id, postTags.tagId))
       .innerJoin(posts, eq(postTags.postId, posts.id))
+      .where(isNull(posts.deletedAt))
       .groupBy(tags.id)
       .orderBy(desc(sql`MAX(${posts.date})`))
       .limit(100);
@@ -55,6 +58,8 @@ export async function getTopTags(
     })
     .from(tags)
     .innerJoin(postTags, eq(tags.id, postTags.tagId))
+    .innerJoin(posts, eq(postTags.postId, posts.id))
+    .where(isNull(posts.deletedAt))
     .groupBy(tags.id)
     .orderBy(desc(count(postTags.tagId)))
     .limit(100);
