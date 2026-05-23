@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the high-level architecture of **Personal Web Gallery**: how the system is structured, how its major subsystems interact, and the key design decisions behind them.
+This document describes the high-level architecture of **Web Gallery**: how the system is structured, how its major subsystems interact, and the key design decisions behind them.
 
 For day-to-day coding conventions and established patterns, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
@@ -30,7 +30,7 @@ For day-to-day coding conventions and established patterns, see [CONTRIBUTING.md
 
 ## 1. System Overview
 
-Personal Web Gallery is a **self-hosted Next.js application** that:
+Web Gallery is a **self-hosted Next.js application** that:
 
 1. **Scrapes** media from external platforms (Twitter/X, Pixiv, Gelbooru, etc.) using the `gallery-dl` CLI tool.
 2. **Scans** the downloaded files, extracts platform metadata from co-located JSON files, and indexes everything into a local SQLite database.

@@ -1,6 +1,6 @@
 # Configuration Reference
 
-This document covers every configurable aspect of Personal Web Gallery: environment variables, the gallery-dl configuration file, and Docker volume layout.
+This document covers every configurable aspect of Web Gallery: environment variables, the gallery-dl configuration file, and Docker volume layout.
 
 ---
 

@@ -6,6 +6,20 @@ Websites go down, creators are banned, users lose access to their favorite conte
 
 By leveraging powerful scraping tools like `gallery-dl` and `yt-dlp`, this application allows you to create a local, permanent copy of the content you value. It provides a simple web interface to browse, search, and rediscover your favorite media, free from the risks of censorship or data lockout.
 
+## Table of Contents
+
+- [Project Status](#project-status)
+- [Features](#features)
+- [Getting Started](#getting-started)
+  - [Option A: Docker Compose (Recommended)](#option-a-docker-compose-recommended)
+  - [Option B: Direct Installation (Node.js/npm)](#option-b-direct-installation-nodejsnpm)
+  - [Usage](#usage)
+- [Technology Stack](#technology-stack)
+- [Development Mode](#development-mode)
+- [Documentation](#documentation)
+- [Disclaimer](#disclaimer)
+- [License](#license)
+
 ## Project Status
 
 > [!IMPORTANT]
@@ -21,13 +35,108 @@ By leveraging powerful scraping tools like `gallery-dl` and `yt-dlp`, this appli
 - **Multiple Viewing Modes**:
   - **Waterfall Gallery**: A modern masonry layout that preserves the original aspect ratio of your images and videos.
   - **Chronological Timeline**: View your collected items in the order they were originally posted or captured.
-  - **Collections**: Curate and organize media into logical groups, regardless of their source or type.
 - **Deep Metadata Integration**: Automatically extracts and stores rich metadata (e.g., Twitter user profiles, tweet details, timestamps) in a local SQLite database for advanced search.
-- **Smart Management**:
-  - Isolated scraper configurations to keep your system clean.
-  - Automatic synchronization between your local disk and the database.
-  - Support for continuing long-running backfills and historical data extraction.
+- **Background Scraping**: Support for continuing long-running backfills and historical data extraction.
 - **Privacy & Ownership**: Everything is stored locally on your machine. You own the data, the metadata, and the archive.
+
+## Getting Started
+
+We support two setup options: **Docker Compose** (recommended, as it bundles all dependencies) and **Node.js/npm** installation.
+
+---
+
+### Option A: Docker Compose (Recommended)
+
+Docker is the simplest way to deploy Web Gallery. The image bundles the Next.js standalone application along with all system dependencies needed by the scrapers (`python3`, `gallery-dl`, `yt-dlp`, and `ffmpeg`).
+
+#### 1. Clone the Repository
+```bash
+git clone https://github.com/yourusername/web-gallery.git
+cd web-gallery
+```
+
+#### 2. Configure Environment
+Copy the example environment configuration:
+```bash
+cp .env.example .env
+```
+*(Optional)* Open `.env` and adjust `WEBGALLERY_DATA_DIR` and `WEBGALLERY_MEDIA_DIR` to your preferred host paths. By default, they will save to `./webgallery-data` and `./webgallery-media` inside the project folder.
+
+> [!TIP]
+> For advanced configurations, including cookie-based authentication for websites requiring login, see [docs/configuration.md](./docs/configuration.md).
+
+#### 3. Launch the App
+Run the following command to build and launch the container in the background:
+```bash
+docker compose up -d --build
+```
+The database will automatically initialize and apply any pending migrations on startup. Open [http://localhost:3000](http://localhost:3000) in your browser to begin.
+
+---
+
+### Option B: Direct Installation (Node.js/npm)
+
+If you prefer to run the application directly on your host system without Docker, follow these steps.
+
+#### 1. System Prerequisites
+Ensure the following are installed and accessible in your system's `PATH`:
+- **Node.js** (LTS version recommended)
+- **Python 3** (required for scrapers)
+- **gallery-dl** (e.g. via `pip3 install gallery-dl` or your package manager)
+- **yt-dlp** (e.g. via `pip3 install yt-dlp` or your package manager)
+- **ffmpeg** (highly recommended for merging video and audio streams)
+
+#### 2. Clone and Install
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/web-gallery.git
+cd web-gallery
+
+# Install dependencies
+npm install
+```
+
+#### 3. Build and Start the Production Server
+```bash
+# Build the production-optimized Next.js app
+npm run build
+
+# Start the production server
+npm run start
+```
+The database migrations are applied automatically at startup when the application boots up. Open [http://localhost:3000](http://localhost:3000) to view the app.
+
+> [!NOTE]
+> For production deployment, you can configure custom data/media storage folders by setting the `DATA_DIR` and `MEDIA_DIR` environment variables before starting the server. See [docs/configuration.md](./docs/configuration.md) for full reference.
+
+### Usage
+
+To start populating your timeline and gallery views with posts, you need to scrape some posts from a source.
+
+#### 1. Add a source
+
+Go to the sources page and add a source. 
+
+Example Sources:
+
+- a link to a social media feed 
+  - user profile
+  - a search
+  - your likes feed (requires cookes)
+- a search on a gallery site like danbooru
+- any site supported by `gallery-dl` or `yt-dlp`
+> [!NOTE]
+> If you want to access content like your favorites or sources that require authentication, you will have to go to the settings page and choose which browser to use cookies from. Individual cookies/auth token support may come in a future release
+
+#### 2. Start a scrape task
+
+1. Go to the scrape page and create a scrape task. 
+  - The download limits can let you test to see if it works before trying to scrape the entire history. 
+2. When you create a scrape task, it will appear below in the task list. You can press the play button to start the scrape task, or use the lightning button for a quick update (stops after skipping 15 files already downloaded).
+3. You can view the scrape task in progress by switching to the history tab on the right.
+4. When the scrape task is stopped or finishes, it will trigger a library scan. After the library scan, your posts should appear in the timeline and gallery pages.
+
+---
 
 ## Technology Stack
 
@@ -38,41 +147,16 @@ By leveraging powerful scraping tools like `gallery-dl` and `yt-dlp`, this appli
 - **Icons**: [Lucide React](https://lucide.dev/)
 - **Testing**: [Playwright](https://playwright.dev/)
 
-## Getting Started
+## Development Mode
 
-### Prerequisites
+If you are looking to contribute or run the application in a development environment:
 
-- [Node.js](https://nodejs.org/) (LTS version recommended)
-- [gallery-dl](https://github.com/mikf/gallery-dl) installed and available in your PATH.
-
-### Installation
-
-1. Clone the repository:
-
+1. Follow steps 1-3 from **Option B: Direct Installation**.
+2. Start the hot-reloading development server:
    ```bash
-   git clone https://github.com/yourusername/web-gallery.git
-   cd web-gallery
+   npm run dev
    ```
-
-2. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-3. Apply database migrations:
-
-   ```bash
-   npm run db:migrate
-   ```
-
-### Running the Development Server
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Documentation
 
@@ -81,18 +165,11 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - [docs/adding-a-platform.md](./docs/adding-a-platform.md) — step-by-step guide for adding support for a new scraping platform
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — coding patterns and conventions for contributors
 
-## Roadmap
-
-- [ ] `yt-dlp` integration for video-heavy sources.
-- [ ] Scheduled scraping tasks for automated updates.
-- [ ] Advanced tagging and categorization for individual posts.
-- [ ] Rate limiting and proxy support for heavy scraping sessions.
-
 ## Disclaimer
 
-### Tool & AI Usage Disclaimer
+### Usage
 
-**Personal Web Gallery** is a tool intended for personal use and the archival of content for which you have legal access. The developers of this software are not responsible for how you use the tool, nor for any content you choose to scrape or store.
+**Web Gallery** is a tool intended for personal use and the archival of content for which you have legal access. The developers of this software are not responsible for how you use the tool, nor for any content you choose to scrape or store.
 
 Users are responsible for:
 
@@ -104,7 +181,7 @@ This software is provided "as is," without warranty of any kind.
 
 ### AI Assistance Notice
 
-Large portions of this codebase have been generated or assisted by AI models. While the author has provided oversight, manual verification, and architectural direction, please be aware that AI-generated code may contain bugs, security vulnerabilities, or suboptimal patterns that differ from human-written code. Use with appropriate caution.
+This codebase has been developed with AI assistance. Portions of the codebase has been generated, but all contents are manually validated for coding best practices by a software engineer with a professional background.
 
 ## License
 
