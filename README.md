@@ -1,12 +1,10 @@
-# Personal Web Gallery
+# Web Gallery
 
-A self-hosted web application designed to empower individuals to own and manage their local archive of social media and creator-driven media.
+A self-hosted web application designed to capture their favorites from various social media and gallery sites and manage them locally
 
-## The Vision
+Websites go down, creators are banned, users lose access to their favorite content more and more these days. **Web Gallery** aims to provide a safe haven for your media collection.
 
-In an era of digital volatility—where websites go down, creators are banned, and users lose access to their favorite content—**Personal Web Gallery** aims to provide a safe haven for your media collection.
-
-By leveraging powerful scraping tools like `gallery-dl` and `yt-dlp`, this application allows you to create a local, permanent copy of the content you value. It provides a beautiful, organized interface to browse, search, and discover your media, free from the risks of censorship or data lockout.
+By leveraging powerful scraping tools like `gallery-dl` and `yt-dlp`, this application allows you to create a local, permanent copy of the content you value. It provides a simple web interface to browse, search, and rediscover your favorite media, free from the risks of censorship or data lockout.
 
 ## Project Status
 
