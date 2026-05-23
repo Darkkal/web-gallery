@@ -60,6 +60,16 @@ test.describe
       await expect(scrollModeSelect).toBeAttached();
       await scrollModeSelect.selectOption("button");
 
+      // Verify and toggle "Loop Videos by Default" (should be true initially)
+      const loopVideosToggle = page.locator("#loopVideos").first();
+      await expect(loopVideosToggle).toBeAttached();
+      const initialLoopChecked = await loopVideosToggle.isChecked();
+      expect(initialLoopChecked).toBe(true);
+
+      const loopToggleLabel = page.locator("label[for='loopVideos']").first();
+      await loopToggleLabel.click();
+      expect(await loopVideosToggle.isChecked()).toBe(false);
+
       // Toggle Destructive Ops in Production by clicking its visible switch label wrapper
       const destructiveOpsToggle = page
         .locator("#enableProductionDestructiveOps")
@@ -94,6 +104,7 @@ test.describe
       // Verify values are preserved
       await expect(page.locator("#galleryPageSize").first()).toHaveValue("125");
       await expect(page.locator("#scrollMode").first()).toHaveValue("button");
+      expect(await page.locator("#loopVideos").first().isChecked()).toBe(false);
       expect(
         await page
           .locator("#enableProductionDestructiveOps")
@@ -224,6 +235,7 @@ test.describe
         "Reset settings in form. Click 'Save Changes' to commit.",
       );
       await expect(galleryPageSizeInput).toHaveValue("50"); // Default value
+      await expect(page.locator("#loopVideos").first()).toBeChecked(); // Reset to default true
 
       // Save Changes to actually persist the default reset
       await page.getByRole("button", { name: "Save Changes" }).first().click();
@@ -235,5 +247,6 @@ test.describe
       await page.reload();
       await expect(page.getByTestId("loading-skeleton")).toBeHidden();
       await expect(page.locator("#galleryPageSize").first()).toHaveValue("50");
+      await expect(page.locator("#loopVideos").first()).toBeChecked();
     });
   });

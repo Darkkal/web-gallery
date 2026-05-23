@@ -25,6 +25,7 @@ interface LightboxProps {
   onNext?: () => void;
   onPrev?: () => void;
   onDelete?: (id: number, deleteFile: boolean) => void;
+  loopVideos?: boolean;
 }
 
 export default function Lightbox({
@@ -38,6 +39,7 @@ export default function Lightbox({
   onNext,
   onPrev,
   onDelete,
+  loopVideos,
 }: LightboxProps) {
   const { item } = row;
   const [showInfo, setShowInfo] = useState(true);
@@ -217,6 +219,7 @@ export default function Lightbox({
               src={item.filePath}
               className={styles.video}
               controls
+              loop={loopVideos}
               onClick={(e) => e.stopPropagation()}
             />
           ) : item.mediaType === "text" ? (

@@ -23,6 +23,7 @@ export default function GalleryPageClient({
   initialNextCursor,
   pageSize,
   scrollMode,
+  loopVideos,
 }: {
   initialItems: GalleryGroup[];
   initialSearch: string;
@@ -30,6 +31,7 @@ export default function GalleryPageClient({
   initialNextCursor: string | null;
   pageSize: number;
   scrollMode: "infinite" | "button";
+  loopVideos: boolean;
 }) {
   return (
     <GalleryPageContent
@@ -39,6 +41,7 @@ export default function GalleryPageClient({
       initialNextCursor={initialNextCursor}
       pageSize={pageSize}
       scrollMode={scrollMode}
+      loopVideos={loopVideos}
     />
   );
 }
@@ -50,6 +53,7 @@ function GalleryPageContent({
   initialNextCursor,
   pageSize,
   scrollMode,
+  loopVideos,
 }: {
   initialItems: GalleryGroup[];
   initialSearch: string;
@@ -57,6 +61,7 @@ function GalleryPageContent({
   initialNextCursor: string | null;
   pageSize: number;
   scrollMode: "infinite" | "button";
+  loopVideos: boolean;
 }) {
   const [columnCount, setColumnCount] = useState(4);
   const [deleting, setDeleting] = useState(false);
@@ -253,6 +258,7 @@ function GalleryPageContent({
           onNext={nextLightbox}
           onPrev={prevLightbox}
           onDelete={handleDeleteItem}
+          loopVideos={loopVideos}
         />
       )}
     </div>
