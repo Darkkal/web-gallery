@@ -1,6 +1,6 @@
 # Web Gallery
 
-A self-hosted web application designed to capture their favorites from various social media and gallery sites and manage them locally
+A self-hosted web application designed to capture your favorites from various social media and gallery sites and manage them locally
 
 Websites go down, creators are banned, users lose access to their favorite content more and more these days. **Web Gallery** aims to provide a safe haven for your media collection.
 
