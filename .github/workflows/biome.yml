@@ -1,9 +1,23 @@
 name: Biome Lint
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - '.vscode/**'
+      - '.zed/**'
+      - 'LICENSE'
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - '.vscode/**'
+      - '.zed/**'
+      - 'LICENSE'
 
 permissions:
   contents: read
