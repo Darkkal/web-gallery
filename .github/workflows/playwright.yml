@@ -3,21 +3,17 @@ on:
   push:
     branches: [main, master]
     paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.gitignore'
-      - '.vscode/**'
-      - '.zed/**'
-      - 'LICENSE'
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
+      - "LICENSE"
   pull_request:
     branches: [main, master]
     paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.gitignore'
-      - '.vscode/**'
-      - '.zed/**'
-      - 'LICENSE'
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
+      - "LICENSE"
 permissions:
   contents: read
 jobs:
@@ -29,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: lts/*
-          cache: 'npm'
+          cache: "npm"
 
       - name: Cache Next.js build
         uses: actions/cache@v4
@@ -62,4 +58,3 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
-
