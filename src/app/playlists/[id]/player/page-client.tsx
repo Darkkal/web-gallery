@@ -74,19 +74,29 @@ export default function PlaylistPlayerPageClient({
 
   // Fisher-Yates Shuffle generator
   const enableShuffle = useCallback(
-    (startIndex: number) => {
+    (startIndex: number, isLoopTransition = false) => {
       const indices = Array.from({ length: items.length }, (_, i) => i);
       // Shuffle
       for (let i = indices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [indices[i], indices[j]] = [indices[j], indices[i]];
       }
-      // Put current index at the front so it doesn't change on click
-      const currentIdxInShuffled = indices.indexOf(startIndex);
-      if (currentIdxInShuffled !== -1) {
-        indices.splice(currentIdxInShuffled, 1);
-        indices.unshift(startIndex);
+
+      if (isLoopTransition) {
+        // Guarantee that the first item of the new shuffle is NOT the last played item
+        if (indices[0] === startIndex && indices.length > 1) {
+          const j = Math.floor(Math.random() * (indices.length - 1)) + 1;
+          [indices[0], indices[j]] = [indices[j], indices[0]];
+        }
+      } else {
+        // Put current index at the front so it doesn't change on click
+        const currentIdxInShuffled = indices.indexOf(startIndex);
+        if (currentIdxInShuffled !== -1) {
+          indices.splice(currentIdxInShuffled, 1);
+          indices.unshift(startIndex);
+        }
       }
+
       setShuffledIndices(indices);
       setShuffleCursor(0);
     },
@@ -120,7 +130,7 @@ export default function PlaylistPlayerPageClient({
         setShuffleCursor(nextCursor);
       } else if (repeat) {
         // Regenerate new shuffle order on loop
-        enableShuffle(shuffledIndices[shuffleCursor]);
+        enableShuffle(shuffledIndices[shuffleCursor], true);
       } else {
         setIsPlaying(false);
       }
