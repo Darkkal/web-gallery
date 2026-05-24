@@ -15,9 +15,9 @@ import {
 } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  collectionItems,
   mediaItems,
   pixivUsers,
+  playlistItems,
   postDetailsGelbooruV02,
   postDetailsPixiv,
   postDetailsTwitter,
@@ -300,9 +300,7 @@ export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
     }
   }
 
-  await db
-    .delete(collectionItems)
-    .where(inArray(collectionItems.mediaItemId, ids));
+  await db.delete(playlistItems).where(inArray(playlistItems.mediaItemId, ids));
   await db.delete(mediaItems).where(inArray(mediaItems.id, ids));
 
   return { success: true, count: ids.length };

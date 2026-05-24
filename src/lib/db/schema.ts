@@ -227,23 +227,28 @@ export const mediaItems = sqliteTable("media_items", {
   }),
 });
 
-export const collections = sqliteTable("collections", {
+export const playlists = sqliteTable("playlists", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   description: text("description"),
+  thumbnail: text("thumbnail"),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+    () => new Date(),
+  ),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(
     () => new Date(),
   ),
 });
 
-export const collectionItems = sqliteTable("collection_items", {
+export const playlistItems = sqliteTable("playlist_items", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  collectionId: integer("collection_id")
-    .references(() => collections.id)
+  playlistId: integer("playlist_id")
+    .references(() => playlists.id, { onDelete: "cascade" })
     .notNull(),
   mediaItemId: integer("media_item_id")
     .references(() => mediaItems.id, { onDelete: "cascade" })
     .notNull(),
+  position: integer("position").notNull().default(0),
   addedAt: integer("added_at", { mode: "timestamp" }).$defaultFn(
     () => new Date(),
   ),
@@ -379,26 +384,23 @@ export const mediaItemsRelations = relations(mediaItems, ({ one, many }) => ({
     fields: [mediaItems.postId],
     references: [posts.id],
   }),
-  collectionItems: many(collectionItems),
+  playlistItems: many(playlistItems),
 }));
 
-export const collectionsRelations = relations(collections, ({ many }) => ({
-  items: many(collectionItems),
+export const playlistsRelations = relations(playlists, ({ many }) => ({
+  items: many(playlistItems),
 }));
 
-export const collectionItemsRelations = relations(
-  collectionItems,
-  ({ one }) => ({
-    collection: one(collections, {
-      fields: [collectionItems.collectionId],
-      references: [collections.id],
-    }),
-    mediaItem: one(mediaItems, {
-      fields: [collectionItems.mediaItemId],
-      references: [mediaItems.id],
-    }),
+export const playlistItemsRelations = relations(playlistItems, ({ one }) => ({
+  playlist: one(playlists, {
+    fields: [playlistItems.playlistId],
+    references: [playlists.id],
   }),
-);
+  mediaItem: one(mediaItems, {
+    fields: [playlistItems.mediaItemId],
+    references: [mediaItems.id],
+  }),
+}));
 
 export const tagsRelations = relations(tags, ({ many }) => ({
   postTags: many(postTags),
