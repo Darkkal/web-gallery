@@ -35,6 +35,7 @@ export default function PlaylistPlayerPageClient({
   const [shuffledIndices, setShuffledIndices] = useState<number[]>([]);
   const [shuffleCursor, setShuffleCursor] = useState(0);
   const [showControls, setShowControls] = useState(true);
+  const [isHoveringControls, setIsHoveringControls] = useState(false);
   const [_viewMode, _setViewMode] = useState<"single" | "multi">("single"); // Stub for future multiview
   const [progress, setProgress] = useState(0);
 
@@ -46,12 +47,13 @@ export default function PlaylistPlayerPageClient({
   const resetControlsTimeout = useCallback(() => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying) {
+
+    if (!isHoveringControls) {
+      controlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
-      }
-    }, 3000);
-  }, [isPlaying]);
+      }, 3000);
+    }
+  }, [isHoveringControls]);
 
   useEffect(() => {
     window.addEventListener("mousemove", resetControlsTimeout);
@@ -63,6 +65,11 @@ export default function PlaylistPlayerPageClient({
       window.removeEventListener("touchstart", resetControlsTimeout);
       if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     };
+  }, [resetControlsTimeout]);
+
+  // Reset controls timeout when hovering state changes
+  useEffect(() => {
+    resetControlsTimeout();
   }, [resetControlsTimeout]);
 
   // Fisher-Yates Shuffle generator
@@ -100,6 +107,9 @@ export default function PlaylistPlayerPageClient({
     shuffle && shuffledIndices.length === items.length
       ? items[shuffledIndices[shuffleCursor]]
       : items[currentIndex];
+
+  const currentMedia = currentPlaylistItem?.mediaItem;
+  const isVideo = currentMedia?.mediaType === "video";
 
   const handleNext = useCallback(() => {
     if (items.length <= 1) return;
@@ -202,17 +212,35 @@ export default function PlaylistPlayerPageClient({
     };
   }, [isPlaying, currentPlaylistItem, handleNext]);
 
-  // Video autoplay helper
+  const isPlayingRef = useRef(isPlaying);
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.load();
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  // Sync HTML5 video play/pause with isPlaying state
+  useEffect(() => {
+    if (videoRef.current && isVideo) {
       if (isPlaying) {
+        videoRef.current.play().catch((err) => {
+          if (err.name !== "AbortError") console.error("Play failed:", err);
+        });
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  }, [isPlaying, isVideo]);
+
+  // Load video only when the active playlist item changes
+  useEffect(() => {
+    if (videoRef.current && isVideo && currentMedia) {
+      videoRef.current.load();
+      if (isPlayingRef.current) {
         videoRef.current.play().catch((err) => {
           if (err.name !== "AbortError") console.error("Autoplay failed:", err);
         });
       }
     }
-  }, [isPlaying]);
+  }, [currentMedia, isVideo]);
 
   const handleVideoTimeUpdate = () => {
     if (videoRef.current) {
@@ -264,10 +292,8 @@ export default function PlaylistPlayerPageClient({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
-  if (!currentPlaylistItem?.mediaItem) return null;
+  if (!currentMedia) return null;
 
-  const currentMedia = currentPlaylistItem.mediaItem;
-  const isVideo = currentMedia.mediaType === "video";
   const displayPosition = shuffle ? shuffleCursor + 1 : currentIndex + 1;
   const shouldShowControlsBar = showControls && !(isVideo && isPlaying);
 
@@ -276,8 +302,10 @@ export default function PlaylistPlayerPageClient({
       {/* Close button top-right */}
       <button
         type="button"
-        className={styles.closeButton}
+        className={`${styles.closeButton} ${!showControls ? styles.hidden : ""}`}
         onClick={() => router.push(`/playlists/${playlist.id}`)}
+        onMouseEnter={() => setIsHoveringControls(true)}
+        onMouseLeave={() => setIsHoveringControls(false)}
         title="Exit player (Esc)"
       >
         <X size={20} />
@@ -292,6 +320,8 @@ export default function PlaylistPlayerPageClient({
             src={currentMedia.filePath}
             className={styles.mediaVideo}
             controls
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
             onEnded={handleNext}
             onTimeUpdate={handleVideoTimeUpdate}
           />
@@ -309,6 +339,10 @@ export default function PlaylistPlayerPageClient({
       {/* Controls Bar Overlay */}
       <div
         className={`${styles.controlsBar} ${!shouldShowControlsBar ? styles.hidden : ""}`}
+        onMouseEnter={() => setIsHoveringControls(true)}
+        onMouseLeave={() => setIsHoveringControls(false)}
+        role="toolbar"
+        aria-label="Player controls"
       >
         {/* Sleek horizontal progress loader - images only */}
         {!isVideo && (
