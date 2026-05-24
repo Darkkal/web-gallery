@@ -36,6 +36,7 @@ export default function PlaylistPlayerPageClient({
   const [shuffleCursor, setShuffleCursor] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [_viewMode, _setViewMode] = useState<"single" | "multi">("single"); // Stub for future multiview
+  const [progress, setProgress] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -169,7 +170,9 @@ export default function PlaylistPlayerPageClient({
 
   // Autoplay handler for Mixed Media (images = 5s, videos = wait for end)
   useEffect(() => {
-    if (autoplayTimerRef.current) clearTimeout(autoplayTimerRef.current);
+    if (autoplayTimerRef.current) clearInterval(autoplayTimerRef.current);
+    setProgress(0);
+
     if (!isPlaying || !currentPlaylistItem?.mediaItem) return;
 
     const media = currentPlaylistItem.mediaItem;
@@ -179,13 +182,23 @@ export default function PlaylistPlayerPageClient({
       return;
     }
 
-    // Images auto-advance after 5s
-    autoplayTimerRef.current = setTimeout(() => {
-      handleNext();
-    }, 5000);
+    const IMAGE_DURATION = 5000;
+    const TICK_RATE = 50;
+    let elapsed = 0;
+
+    autoplayTimerRef.current = setInterval(() => {
+      elapsed += TICK_RATE;
+      const pct = Math.min((elapsed / IMAGE_DURATION) * 100, 100);
+      setProgress(pct);
+
+      if (elapsed >= IMAGE_DURATION) {
+        clearInterval(autoplayTimerRef.current as NodeJS.Timeout);
+        handleNext();
+      }
+    }, TICK_RATE);
 
     return () => {
-      if (autoplayTimerRef.current) clearTimeout(autoplayTimerRef.current);
+      if (autoplayTimerRef.current) clearInterval(autoplayTimerRef.current);
     };
   }, [isPlaying, currentPlaylistItem, handleNext]);
 
@@ -200,6 +213,16 @@ export default function PlaylistPlayerPageClient({
       }
     }
   }, [isPlaying]);
+
+  const handleVideoTimeUpdate = () => {
+    if (videoRef.current) {
+      const current = videoRef.current.currentTime;
+      const total = videoRef.current.duration;
+      if (total > 0) {
+        setProgress((current / total) * 100);
+      }
+    }
+  };
 
   // Key listeners
   const handleKeyDown = useCallback(
@@ -269,6 +292,7 @@ export default function PlaylistPlayerPageClient({
             className={styles.mediaVideo}
             controls
             onEnded={handleNext}
+            onTimeUpdate={handleVideoTimeUpdate}
           />
         ) : (
           <Image
@@ -285,6 +309,9 @@ export default function PlaylistPlayerPageClient({
       <div
         className={`${styles.controlsBar} ${!showControls ? styles.hidden : ""}`}
       >
+        {/* Sleek horizontal progress loader */}
+        <div className={styles.progressBar} style={{ width: `${progress}%` }} />
+
         {/* Navigation actions */}
         <div className={styles.controlGroup}>
           <button

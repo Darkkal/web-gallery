@@ -60,6 +60,16 @@
     opacity 0.3s ease,
     transform 0.3s ease;
   pointer-events: auto;
+  overflow: hidden;
+}
+
+.progressBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background-color: hsl(var(--primary));
+  transition: width 0.05s linear;
 }
 
 .controlsBar.hidden {
