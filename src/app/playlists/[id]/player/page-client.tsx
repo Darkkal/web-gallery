@@ -269,6 +269,7 @@ export default function PlaylistPlayerPageClient({
   const currentMedia = currentPlaylistItem.mediaItem;
   const isVideo = currentMedia.mediaType === "video";
   const displayPosition = shuffle ? shuffleCursor + 1 : currentIndex + 1;
+  const shouldShowControlsBar = showControls && !(isVideo && isPlaying);
 
   return (
     <div className={styles.playerContainer}>
@@ -307,10 +308,15 @@ export default function PlaylistPlayerPageClient({
 
       {/* Controls Bar Overlay */}
       <div
-        className={`${styles.controlsBar} ${!showControls ? styles.hidden : ""}`}
+        className={`${styles.controlsBar} ${!shouldShowControlsBar ? styles.hidden : ""}`}
       >
-        {/* Sleek horizontal progress loader */}
-        <div className={styles.progressBar} style={{ width: `${progress}%` }} />
+        {/* Sleek horizontal progress loader - images only */}
+        {!isVideo && (
+          <div
+            className={styles.progressBar}
+            style={{ width: `${progress}%` }}
+          />
+        )}
 
         {/* Navigation actions */}
         <div className={styles.controlGroup}>
