@@ -52,8 +52,9 @@ test.describe("Playlists feature E2E tests", () => {
     // Hover over the playlist card to reveal action controls or select edit button directly
     // Let's search for the edit button within the card or locator
     const playlistCard = page
-      .locator('div[class*="playlistCard"]')
-      .filter({ hasText: uniquePlaylistName });
+      .locator('div[class*="card"]')
+      .filter({ hasText: uniquePlaylistName })
+      .first();
     await expect(playlistCard).toBeVisible();
 
     const editBtn = playlistCard.getByRole("button", { name: "Edit" });
@@ -86,8 +87,9 @@ test.describe("Playlists feature E2E tests", () => {
     });
 
     const updatedCard = page
-      .locator('div[class*="playlistCard"]')
-      .filter({ hasText: updatedName });
+      .locator('div[class*="card"]')
+      .filter({ hasText: updatedName })
+      .first();
     await updatedCard.getByRole("button", { name: "Delete" }).click();
 
     // Verify it is removed
