@@ -19,15 +19,15 @@ export async function getPlaylists(filters?: {
       createdAt: playlists.createdAt,
       updatedAt: playlists.updatedAt,
       itemCount:
-        sql<number>`(SELECT count(*) FROM ${playlistItems} WHERE ${playlistItems.playlistId} = ${playlists.id})`.mapWith(
+        sql<number>`(SELECT count(*) FROM "playlist_items" WHERE "playlist_items"."playlist_id" = "playlists"."id")`.mapWith(
           Number,
         ),
       thumbnailPath: sql<string>`(
-        SELECT ${mediaItems.filePath} 
-        FROM ${playlistItems} 
-        JOIN ${mediaItems} ON ${playlistItems.mediaItemId} = ${mediaItems.id}
-        WHERE ${playlistItems.playlistId} = ${playlists.id}
-        ORDER BY ${playlistItems.position} ASC
+        SELECT "media_items"."file_path" 
+        FROM "playlist_items" 
+        JOIN "media_items" ON "playlist_items"."media_item_id" = "media_items"."id"
+        WHERE "playlist_items"."playlist_id" = "playlists"."id"
+        ORDER BY "playlist_items"."position" ASC
         LIMIT 1
       )`,
     })
