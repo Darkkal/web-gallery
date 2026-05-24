@@ -22,7 +22,14 @@ export async function getSettings(): Promise<SystemSettings> {
   try {
     if (existsSync(SETTINGS_FILE_PATH)) {
       const data = await fs.readFile(SETTINGS_FILE_PATH, "utf-8");
-      return JSON.parse(data) as SystemSettings;
+      const parsed = JSON.parse(data) as SystemSettings;
+
+      // Perform a shallow merge of settings groups to support schema evolution
+      const merged: SystemSettings = {
+        app: { ...DEFAULT_SETTINGS.app, ...parsed.app },
+        scraper: { ...DEFAULT_SETTINGS.scraper, ...parsed.scraper },
+      };
+      return merged;
     }
   } catch (error) {
     console.error("[Settings] Failed to read settings.json:", error);

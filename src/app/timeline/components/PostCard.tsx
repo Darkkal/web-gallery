@@ -15,12 +15,14 @@ interface PostCardProps {
     mediaIndex: number,
     e: React.MouseEvent,
   ) => void;
+  loopVideos?: boolean;
 }
 
 export default function PostCard({
   post,
   postIndex,
   onMediaClick,
+  loopVideos,
 }: PostCardProps) {
   return (
     <article className={styles.postCard}>
@@ -145,7 +147,12 @@ export default function PostCard({
               >
                 {media.type === "video" ? (
                   // biome-ignore lint/a11y/useMediaCaption: User generated content does not have captions
-                  <video src={media.url} controls className={styles.media} />
+                  <video
+                    src={media.url}
+                    controls
+                    loop={loopVideos}
+                    className={styles.media}
+                  />
                 ) : (
                   <Image
                     src={media.url}

@@ -5,6 +5,7 @@ export interface AppSettings {
   scrollMode: "infinite" | "button";
   scrapeLogRetentionDays: number;
   enableProductionDestructiveOps: boolean;
+  loopVideos: boolean;
 }
 
 export interface ScraperSettings {
@@ -38,6 +39,7 @@ export const DEFAULT_SETTINGS: SystemSettings = {
     scrollMode: "infinite",
     scrapeLogRetentionDays: 30,
     enableProductionDestructiveOps: false,
+    loopVideos: true,
   },
   scraper: {
     rateLimit: "5M",

@@ -37,6 +37,7 @@ export default async function TimelinePage({
       initialSort={sortBy}
       pageSize={limit}
       scrollMode={scrollMode}
+      loopVideos={settings.loopVideos}
     />
   );
 }

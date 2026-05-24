@@ -24,6 +24,7 @@ export default function TimelinePageClient({
   initialSort,
   pageSize,
   scrollMode,
+  loopVideos,
 }: {
   initialPosts: TimelinePost[];
   initialNextCursor: string | null;
@@ -31,6 +32,7 @@ export default function TimelinePageClient({
   initialSort: string;
   pageSize: number;
   scrollMode: "infinite" | "button";
+  loopVideos: boolean;
 }) {
   return (
     <TimelinePageContent
@@ -40,6 +42,7 @@ export default function TimelinePageClient({
       initialSort={initialSort}
       pageSize={pageSize}
       scrollMode={scrollMode}
+      loopVideos={loopVideos}
     />
   );
 }
@@ -51,6 +54,7 @@ function TimelinePageContent({
   initialSort,
   pageSize,
   scrollMode,
+  loopVideos,
 }: {
   initialPosts: TimelinePost[];
   initialNextCursor: string | null;
@@ -58,6 +62,7 @@ function TimelinePageContent({
   initialSort: string;
   pageSize: number;
   scrollMode: "infinite" | "button";
+  loopVideos: boolean;
 }) {
   const {
     items: posts,
@@ -216,6 +221,7 @@ function TimelinePageContent({
             post={post}
             postIndex={postIdx}
             onMediaClick={openLightbox}
+            loopVideos={loopVideos}
           />
         ))}
 
@@ -250,6 +256,7 @@ function TimelinePageContent({
           onNext={nextLightbox}
           onPrev={prevLightbox}
           onDelete={undefined}
+          loopVideos={loopVideos}
         />
       )}
     </div>

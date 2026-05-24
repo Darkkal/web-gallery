@@ -225,4 +225,15 @@ Playwright E2E tests for settings, scrapers, and purging interact with a single 
 
 - **Rule**: E2E test runs (specifically those modifying system configuration or purging database records) must be executed sequentially. Ensure `--workers=1` or `npx playwright test --workers=1` is specified when running the E2E suites.
 
+### 3.6 Docker Compose for Playwright E2E Tests
+
+When running E2E tests locally, Playwright targets the server hosted by the Docker test compose stack on port 3001 (configured in `compose.test.yaml`). Because Playwright connects to this pre-built production container, any changes made to the source code will not be reflected in E2E tests until the test container is rebuilt and restarted.
+
+- **Rule**: Before executing E2E tests to verify new or modified code, you MUST recompose the test stack:
+  ```bash
+  docker compose -f compose.test.yaml up --build -d
+  ```
+  Wait for the build to complete and the container to be healthy before running the E2E tests.
+
 ---
+

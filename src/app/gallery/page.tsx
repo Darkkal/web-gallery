@@ -34,6 +34,7 @@ export default async function GalleryPage({
       initialNextCursor={nextCursor}
       pageSize={limit}
       scrollMode={scrollMode}
+      loopVideos={settings.loopVideos}
     />
   );
 }

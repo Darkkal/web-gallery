@@ -4,6 +4,7 @@ import {
   AlertCircle,
   CheckCircle,
   Globe,
+  Play,
   RotateCcw,
   Save,
   Settings as SettingsIcon,
@@ -363,6 +364,38 @@ export default function SettingsPageClient({
                     Use 0 to disable cleanup.
                   </p>
                 </div>
+              </div>
+
+              <h2 className={styles.sectionTitle}>
+                <Play size={18} />
+                <span>Playback & Media</span>
+              </h2>
+
+              <div
+                className={styles.toggleContainer}
+                style={{ marginBottom: "2rem" }}
+              >
+                <div className={styles.toggleInfo}>
+                  <span className={styles.toggleTitle}>
+                    Loop Videos by Default
+                  </span>
+                  <span className={styles.toggleDescription}>
+                    Automatically loop video clips when playing them in the
+                    gallery lightbox and timeline.
+                  </span>
+                </div>
+                <label className={styles.switch} htmlFor="loopVideos">
+                  <input
+                    id="loopVideos"
+                    aria-label="Loop Videos by Default"
+                    type="checkbox"
+                    checked={settings.app.loopVideos}
+                    onChange={(e) =>
+                      handleAppChange("loopVideos", e.target.checked)
+                    }
+                  />
+                  <span className={styles.slider} />
+                </label>
               </div>
 
               <h2 className={styles.sectionTitle}>
