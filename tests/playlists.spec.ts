@@ -1,8 +1,6 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Playlists feature E2E tests", () => {
-  test.use({ viewport: { width: 1280, height: 720 } });
-
   test("playlists page loads and displays empty state/playlists", async ({
     page,
   }) => {
