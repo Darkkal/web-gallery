@@ -2,6 +2,7 @@
 
 import { Edit2, Play, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type React from "react";
 import styles from "@/app/playlists/page.module.css";
 import type { Playlist } from "@/types/playlist";
@@ -23,6 +24,7 @@ export default function PlaylistCard({
   onEdit,
   onDelete,
 }: PlaylistCardProps) {
+  const router = useRouter();
   const itemCount = playlist.itemCount ?? 0;
   const thumbnail = playlist.thumbnailPath || playlist.thumbnail;
 
@@ -31,10 +33,12 @@ export default function PlaylistCard({
     const target = e.target as HTMLElement;
     if (
       target.closest(`.${styles.checkboxOverlay}`) ||
-      target.closest(`.${styles.cardActions}`)
+      target.closest(`.${styles.cardActions}`) ||
+      target.closest("a")
     ) {
       return;
     }
+    router.push(`/playlists/${playlist.id}`);
   }
 
   return (
