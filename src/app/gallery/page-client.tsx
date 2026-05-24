@@ -25,6 +25,7 @@ export default function GalleryPageClient({
   pageSize,
   scrollMode,
   loopVideos,
+  playlistId,
 }: {
   initialItems: GalleryGroup[];
   initialSearch: string;
@@ -33,6 +34,7 @@ export default function GalleryPageClient({
   pageSize: number;
   scrollMode: "infinite" | "button";
   loopVideos: boolean;
+  playlistId?: number;
 }) {
   return (
     <GalleryPageContent
@@ -43,6 +45,7 @@ export default function GalleryPageClient({
       pageSize={pageSize}
       scrollMode={scrollMode}
       loopVideos={loopVideos}
+      playlistId={playlistId}
     />
   );
 }
@@ -55,6 +58,7 @@ function GalleryPageContent({
   pageSize,
   scrollMode,
   loopVideos,
+  playlistId,
 }: {
   initialItems: GalleryGroup[];
   initialSearch: string;
@@ -63,6 +67,7 @@ function GalleryPageContent({
   pageSize: number;
   scrollMode: "infinite" | "button";
   loopVideos: boolean;
+  playlistId?: number;
 }) {
   const [columnCount, setColumnCount] = useState(4);
   const [deleting, setDeleting] = useState(false);
@@ -86,6 +91,7 @@ function GalleryPageContent({
     fetchPath: "/api/gallery",
     dataKey: "items",
     pageSize,
+    playlistId,
   });
 
   const {
