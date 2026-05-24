@@ -71,3 +71,7 @@ export async function movePlaylistItem(
   revalidatePath(`/playlists/${playlistId}`);
   return { success: true };
 }
+
+export async function getPlaylistsForMediaItem(mediaItemId: number) {
+  return await playlistRepo.getPlaylistsForMediaItem(mediaItemId);
+}

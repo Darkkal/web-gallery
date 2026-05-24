@@ -1,0 +1,206 @@
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modalContent {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  width: 90%;
+  max-width: 440px;
+  padding: 1.5rem;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  animation: slideUp 0.2s ease-out;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+
+.modalTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  margin: 0;
+}
+
+.modalSubtitle {
+  font-size: 0.825rem;
+  color: hsl(var(--muted-foreground));
+  margin: 0.15rem 0 0 0;
+}
+
+.closeButton {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: hsl(var(--muted-foreground));
+  padding: 0.25rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.closeButton:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.searchForm {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.searchWrapper {
+  position: relative;
+  flex: 1;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: hsl(var(--muted-foreground));
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.55rem 1rem 0.55rem 2.25rem;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  color: hsl(var(--foreground));
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--ring));
+}
+
+.createBtn {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border: none;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  transition: opacity 0.2s;
+}
+
+.createBtn:hover {
+  opacity: 0.9;
+}
+
+.playlistList {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  max-height: 280px;
+  background: hsl(var(--background));
+}
+
+.playlistItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid hsl(var(--border));
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.playlistItem:last-child {
+  border-bottom: none;
+}
+
+.playlistItem:hover {
+  background: hsl(var(--muted) / 0.5);
+}
+
+.playlistItem.adding {
+  background: hsl(var(--muted) / 0.8);
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.playlistItemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.playlistName {
+  font-weight: 600;
+  font-size: 0.925rem;
+  color: hsl(var(--foreground));
+}
+
+.playlistCount {
+  font-size: 0.775rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.addingIndicator {
+  font-size: 0.8rem;
+  color: hsl(var(--primary));
+  font-weight: 600;
+}
+
+.emptyState {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

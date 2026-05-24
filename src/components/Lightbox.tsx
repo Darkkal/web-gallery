@@ -1,8 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getPlaylistsForMediaItem } from "@/app/actions/playlists";
 import { getPostTags } from "@/app/actions/tags";
+import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import FormattedContent from "@/components/FormattedContent";
 import styles from "@/components/Lightbox.module.css";
 import type {
@@ -16,6 +19,7 @@ import type { GalleryRow } from "@/types/media";
 
 interface LightboxProps {
   row: GalleryRow;
+  groupItems?: GalleryRow[];
   tweet?: UnifiedTwitterData;
   user?: UnifiedUserData;
   pixiv?: UnifiedPixivData;
@@ -30,6 +34,7 @@ interface LightboxProps {
 
 export default function Lightbox({
   row,
+  groupItems = [],
   tweet,
   user,
   pixiv,
@@ -46,6 +51,44 @@ export default function Lightbox({
   const [pixivTags, setPixivTags] = useState<{ name: string }[]>([]);
   const [isRecentlyMounted, setIsRecentlyMounted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Playlists State
+  const [associatedPlaylists, setAssociatedPlaylists] = useState<
+    { id: number; name: string }[]
+  >([]);
+  const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
+  const [addToPlaylistIds, setAddToPlaylistIds] = useState<number[]>([]);
+
+  // Load playlists that this item belongs to
+  useEffect(() => {
+    let active = true;
+    async function loadPlaylists() {
+      try {
+        const data = await getPlaylistsForMediaItem(item.id);
+        if (active) {
+          setAssociatedPlaylists(data);
+        }
+      } catch (err) {
+        console.error("Failed to load associated playlists:", err);
+      }
+    }
+    loadPlaylists();
+    return () => {
+      active = false;
+    };
+  }, [item.id]);
+
+  function handleOpenAddToPlaylist(ids: number[]) {
+    setAddToPlaylistIds(ids);
+    setIsAddToPlaylistOpen(true);
+  }
+
+  function handleCloseAddToPlaylist() {
+    setIsAddToPlaylistOpen(false);
+    getPlaylistsForMediaItem(item.id)
+      .then(setAssociatedPlaylists)
+      .catch(console.error);
+  }
 
   // Prevent mobile click-through/ghost click events on mount
   useEffect(() => {
@@ -398,6 +441,48 @@ export default function Lightbox({
           <div className={styles.sectionContent}>{formattedDate}</div>
         </div>
 
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>Playlists</h3>
+          <div className={styles.sectionContent}>
+            {associatedPlaylists.length > 0 ? (
+              <div className={styles.playlistChips}>
+                {associatedPlaylists.map((p) => (
+                  <Link
+                    key={p.id}
+                    href={`/playlists/${p.id}`}
+                    className={styles.playlistChip}
+                  >
+                    {p.name}
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className={styles.mutedText}>Not in any playlists.</div>
+            )}
+
+            <div className={styles.playlistActionButtons}>
+              <button
+                type="button"
+                className={styles.sidebarActionBtn}
+                onClick={() => handleOpenAddToPlaylist([item.id])}
+              >
+                + Add Item
+              </button>
+              {groupItems.length > 1 && (
+                <button
+                  type="button"
+                  className={styles.sidebarActionBtn}
+                  onClick={() =>
+                    handleOpenAddToPlaylist(groupItems.map((gi) => gi.item.id))
+                  }
+                >
+                  + Add Post Items ({groupItems.length})
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
         {tweet && (
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Twitter Stats</h3>
@@ -540,6 +625,12 @@ export default function Lightbox({
           </div>
         )}
       </div>
+
+      <AddToPlaylistModal
+        isOpen={isAddToPlaylistOpen}
+        onClose={handleCloseAddToPlaylist}
+        mediaItemIds={addToPlaylistIds}
+      />
     </div>
   );
 }
