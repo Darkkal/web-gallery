@@ -186,6 +186,15 @@
   object-fit: cover;
 }
 
+.thumbVideo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .videoBadge {
   position: absolute;
   top: 2px;
