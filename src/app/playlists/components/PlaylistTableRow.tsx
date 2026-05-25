@@ -15,6 +15,13 @@ interface PlaylistTableRowProps {
   onDelete: () => void;
 }
 
+function isVideoFile(path: string | undefined): boolean {
+  if (!path) return false;
+  const cleanPath = path.split("?")[0].split("#")[0].toLowerCase();
+  const ext = cleanPath.split(".").pop();
+  return ["mp4", "webm", "mov", "m4v", "ogv", "3gp"].includes(ext ?? "");
+}
+
 export default function PlaylistTableRow({
   playlist,
   isSelected,
@@ -40,14 +47,23 @@ export default function PlaylistTableRow({
 
       <td className={styles.thThumb}>
         {thumbnail ? (
-          <Image
-            src={thumbnail}
-            alt=""
-            className={styles.thumbnail}
-            width={44}
-            height={44}
-            unoptimized
-          />
+          isVideoFile(thumbnail) ? (
+            <video
+              src={`${thumbnail}#t=0.1`}
+              className={styles.thumbnail}
+              muted
+              preload="metadata"
+            />
+          ) : (
+            <Image
+              src={thumbnail}
+              alt=""
+              className={styles.thumbnail}
+              width={44}
+              height={44}
+              unoptimized
+            />
+          )
         ) : (
           <div className={styles.placeholderThumb}>Empty</div>
         )}

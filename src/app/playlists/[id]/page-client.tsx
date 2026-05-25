@@ -232,13 +232,22 @@ export default function PlaylistDetailPageClient({
 
                 {/* Thumbnail Preview */}
                 <div className={styles.thumbWrapper}>
-                  <Image
-                    src={media.filePath}
-                    alt=""
-                    fill
-                    className={styles.thumb}
-                    unoptimized
-                  />
+                  {media.mediaType === "video" ? (
+                    <video
+                      src={`${media.filePath}#t=0.1`}
+                      className={styles.thumbVideo}
+                      muted
+                      preload="metadata"
+                    />
+                  ) : (
+                    <Image
+                      src={media.filePath}
+                      alt=""
+                      fill
+                      className={styles.thumb}
+                      unoptimized
+                    />
+                  )}
                   {!isImage && (
                     <div className={styles.videoBadge}>{media.mediaType}</div>
                   )}

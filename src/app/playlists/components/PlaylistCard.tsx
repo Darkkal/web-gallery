@@ -16,6 +16,13 @@ interface PlaylistCardProps {
   onDelete: () => void;
 }
 
+function isVideoFile(path: string | undefined): boolean {
+  if (!path) return false;
+  const cleanPath = path.split("?")[0].split("#")[0].toLowerCase();
+  const ext = cleanPath.split(".").pop();
+  return ["mp4", "webm", "mov", "m4v", "ogv", "3gp"].includes(ext ?? "");
+}
+
 export default function PlaylistCard({
   playlist,
   isSelected,
@@ -53,10 +60,19 @@ export default function PlaylistCard({
       }}
     >
       {thumbnail ? (
-        <div
-          className={styles.cardBg}
-          style={{ backgroundImage: `url("${thumbnail}")` }}
-        />
+        isVideoFile(thumbnail) ? (
+          <video
+            src={`${thumbnail}#t=0.1`}
+            className={styles.cardBgVideo}
+            muted
+            preload="metadata"
+          />
+        ) : (
+          <div
+            className={styles.cardBg}
+            style={{ backgroundImage: `url("${thumbnail}")` }}
+          />
+        )
       ) : (
         <div className={styles.placeholderCardBg}>
           <span>Empty Playlist</span>

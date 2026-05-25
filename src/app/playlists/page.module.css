@@ -181,6 +181,17 @@
   background-color: hsl(var(--muted) / 0.5);
 }
 
+.cardBgVideo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s;
+  z-index: -1;
+  background-color: hsl(var(--muted) / 0.5);
+}
+
 .placeholderCardBg {
   position: absolute;
   inset: 0;
@@ -196,7 +207,8 @@
   color: hsl(var(--muted-foreground));
 }
 
-.card:hover .cardBg {
+.card:hover .cardBg,
+.card:hover .cardBgVideo {
   transform: scale(1.05);
 }
 
