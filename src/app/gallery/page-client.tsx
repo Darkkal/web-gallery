@@ -6,6 +6,7 @@ import BulkActionBar from "@/app/gallery/components/BulkActionBar";
 import FilterBar from "@/app/gallery/components/FilterBar";
 import GalleryItem from "@/app/gallery/components/GalleryItem";
 import styles from "@/app/gallery/page.module.css";
+import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 import Lightbox from "@/components/Lightbox";
 import MasonryGrid from "@/components/MasonryGrid";
@@ -24,6 +25,7 @@ export default function GalleryPageClient({
   pageSize,
   scrollMode,
   loopVideos,
+  playlistId,
 }: {
   initialItems: GalleryGroup[];
   initialSearch: string;
@@ -32,6 +34,7 @@ export default function GalleryPageClient({
   pageSize: number;
   scrollMode: "infinite" | "button";
   loopVideos: boolean;
+  playlistId?: number;
 }) {
   return (
     <GalleryPageContent
@@ -42,6 +45,7 @@ export default function GalleryPageClient({
       pageSize={pageSize}
       scrollMode={scrollMode}
       loopVideos={loopVideos}
+      playlistId={playlistId}
     />
   );
 }
@@ -54,6 +58,7 @@ function GalleryPageContent({
   pageSize,
   scrollMode,
   loopVideos,
+  playlistId,
 }: {
   initialItems: GalleryGroup[];
   initialSearch: string;
@@ -62,9 +67,11 @@ function GalleryPageContent({
   pageSize: number;
   scrollMode: "infinite" | "button";
   loopVideos: boolean;
+  playlistId?: number;
 }) {
   const [columnCount, setColumnCount] = useState(4);
   const [deleting, setDeleting] = useState(false);
+  const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
 
   const {
     items,
@@ -84,6 +91,7 @@ function GalleryPageContent({
     fetchPath: "/api/gallery",
     dataKey: "items",
     pageSize,
+    playlistId,
   });
 
   const {
@@ -151,6 +159,7 @@ function GalleryPageContent({
         <BulkActionBar
           selectedCount={selectedCount}
           onBulkDelete={handleBulkDelete}
+          onAddToPlaylist={() => setIsAddToPlaylistOpen(true)}
           deleting={deleting}
         />
       )}
@@ -231,6 +240,7 @@ function GalleryPageContent({
       {currentGroup && currentItemRow && (
         <Lightbox
           row={currentItemRow}
+          groupItems={currentGroup.groupItems}
           tweet={
             currentItemRow.post?.extractorType === "twitter"
               ? mergeTwitterMetadata(
@@ -261,6 +271,15 @@ function GalleryPageContent({
           loopVideos={loopVideos}
         />
       )}
+
+      <AddToPlaylistModal
+        isOpen={isAddToPlaylistOpen}
+        onClose={() => {
+          setIsAddToPlaylistOpen(false);
+          clearSelection();
+        }}
+        mediaItemIds={Array.from(selectedIds)}
+      />
     </div>
   );
 }

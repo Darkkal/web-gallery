@@ -8,7 +8,18 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get("limit") || "50", 10);
   const cursor = searchParams.get("cursor") || undefined;
 
-  const filters = { search, sortBy, limit, cursor };
+  const playlistParam =
+    searchParams.get("playlist") || searchParams.get("playlistId");
+  const playlistId = playlistParam ? parseInt(playlistParam, 10) : undefined;
+
+  const filters = {
+    search,
+    sortBy,
+    limit,
+    cursor,
+    playlistId:
+      playlistId && !Number.isNaN(playlistId) ? playlistId : undefined,
+  };
   const result = await mediaRepo.getMediaItems(filters);
 
   return NextResponse.json(result);

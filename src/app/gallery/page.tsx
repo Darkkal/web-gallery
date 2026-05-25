@@ -13,6 +13,9 @@ export default async function GalleryPage({
   const params = await searchParams;
   const search = (params.search as string) || "";
   const sortBy = (params.sortBy as string) || "created-desc";
+  const playlistParam =
+    (params.playlist as string) || (params.playlistId as string) || "";
+  const playlistId = playlistParam ? parseInt(playlistParam, 10) : undefined;
 
   // Read app settings
   const settings = await getAppSettings();
@@ -20,7 +23,13 @@ export default async function GalleryPage({
   const scrollMode = settings.scrollMode || "infinite";
 
   // Initial data fetch on the server — respecting configured page size
-  const filters = { search, sortBy, limit };
+  const filters = {
+    search,
+    sortBy,
+    limit,
+    playlistId:
+      playlistId && !Number.isNaN(playlistId) ? playlistId : undefined,
+  };
   const { items, nextCursor } = await getMediaItems(filters);
 
   // Ensure data is serializable
@@ -35,6 +44,9 @@ export default async function GalleryPage({
       pageSize={limit}
       scrollMode={scrollMode}
       loopVideos={settings.loopVideos}
+      playlistId={
+        playlistId && !Number.isNaN(playlistId) ? playlistId : undefined
+      }
     />
   );
 }

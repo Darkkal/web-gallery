@@ -15,9 +15,9 @@ import {
 } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  collectionItems,
   mediaItems,
   pixivUsers,
+  playlistItems,
   postDetailsGelbooruV02,
   postDetailsPixiv,
   postDetailsTwitter,
@@ -32,6 +32,7 @@ export async function getMediaItems(filters?: {
   sortBy?: string;
   limit?: number;
   cursor?: string;
+  playlistId?: number;
 }) {
   const limit = filters?.limit ?? 50;
   const search = filters?.search ?? "";
@@ -44,6 +45,14 @@ export async function getMediaItems(filters?: {
 
   if (sourceFilter) {
     whereConditions.push(eq(posts.extractorType, sourceFilter));
+  }
+
+  if (filters?.playlistId) {
+    const playlistItemSubquery = db
+      .select({ mediaItemId: playlistItems.mediaItemId })
+      .from(playlistItems)
+      .where(eq(playlistItems.playlistId, filters.playlistId));
+    whereConditions.push(inArray(mediaItems.id, playlistItemSubquery));
   }
 
   const searchSubquery = searchLower
@@ -300,9 +309,7 @@ export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
     }
   }
 
-  await db
-    .delete(collectionItems)
-    .where(inArray(collectionItems.mediaItemId, ids));
+  await db.delete(playlistItems).where(inArray(playlistItems.mediaItemId, ids));
   await db.delete(mediaItems).where(inArray(mediaItems.id, ids));
 
   return { success: true, count: ids.length };

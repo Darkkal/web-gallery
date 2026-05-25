@@ -315,3 +315,23 @@
     max-width: 200px;
   }
 }
+
+.playlistButton {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+  transition: opacity 0.2s;
+}
+
+.playlistButton:hover {
+  opacity: 0.9;
+}
+
+.playlistButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

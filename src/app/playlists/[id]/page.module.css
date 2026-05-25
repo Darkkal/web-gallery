@@ -1,0 +1,307 @@
+.container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+  border-bottom: 1px solid hsl(var(--border));
+  padding-bottom: 1.5rem;
+}
+
+.headerInfo {
+  flex: 1;
+}
+
+.titleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: hsl(var(--foreground));
+  margin: 0;
+}
+
+.badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  border: 1px solid hsl(var(--border));
+}
+
+.description {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem 0;
+  max-width: 700px;
+  line-height: 1.5;
+}
+
+.meta {
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.headerActions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.25rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid hsl(var(--border));
+  font-family: inherit;
+}
+
+.btnPrimary {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
+}
+
+.btnPrimary:hover {
+  opacity: 0.9;
+}
+
+.btnSecondary {
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+}
+
+.btnSecondary:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
+.btnDestructive {
+  background: transparent;
+  color: hsl(var(--destructive));
+  border-color: hsl(var(--destructive) / 0.3);
+}
+
+.btnDestructive:hover {
+  background: hsl(var(--destructive) / 0.1);
+}
+
+/* Playlist Items List */
+.itemList {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: hsl(var(--card));
+}
+
+.itemRow {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid hsl(var(--border));
+  transition:
+    background 0.2s,
+    transform 0.2s;
+  background: hsl(var(--card));
+  gap: 1.25rem;
+}
+
+.itemRow:last-child {
+  border-bottom: none;
+}
+
+/* Drag states */
+.itemRow.dragging {
+  opacity: 0.4;
+  background: hsl(var(--muted) / 0.5);
+}
+
+.itemRow.dragOver {
+  border-top: 2px solid hsl(var(--primary));
+  background: hsl(var(--muted) / 0.2);
+}
+
+.dragHandle {
+  cursor: grab;
+  color: hsl(var(--muted-foreground));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.dragHandle:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.position {
+  font-size: 0.85rem;
+  color: hsl(var(--muted-foreground));
+  font-weight: 600;
+  width: 24px;
+  text-align: center;
+}
+
+.thumbWrapper {
+  width: 50px;
+  height: 50px;
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  background: hsl(var(--muted));
+  flex-shrink: 0;
+}
+
+.thumb {
+  object-fit: cover;
+}
+
+.videoBadge {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.itemDetails {
+  flex: 1;
+  min-width: 0;
+}
+
+.fileName {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itemMeta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.775rem;
+  color: hsl(var(--muted-foreground));
+  margin-top: 0.15rem;
+}
+
+.itemActions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.actionBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: var(--radius);
+  color: hsl(var(--muted-foreground));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.actionBtn:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.actionBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.actionBtn.destructive:hover {
+  background: hsl(var(--destructive) / 0.1);
+  color: hsl(var(--destructive));
+}
+
+.emptyState {
+  padding: 5rem 2rem;
+  text-align: center;
+  border: 1px dashed hsl(var(--border));
+  border-radius: var(--radius);
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--card));
+  font-size: 1.1rem;
+}
+
+.emptyStateActions {
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 767px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.25rem;
+    padding-bottom: 1.25rem;
+  }
+
+  .headerActions {
+    width: 100%;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 0.65rem;
+    font-size: 0.85rem;
+  }
+
+  .itemRow {
+    padding: 0.75rem;
+    gap: 0.75rem;
+  }
+
+  .dragHandle {
+    display: none; /* Hide drag reordering on mobile, use up/down buttons instead */
+  }
+
+  .position {
+    width: 16px;
+    font-size: 0.8rem;
+  }
+
+  .itemMeta {
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+}

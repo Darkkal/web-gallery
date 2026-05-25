@@ -13,6 +13,7 @@ interface UsePaginatedDataOptions<T> {
   dataKey: string;
   pageSize?: number;
   debounceMs?: number;
+  playlistId?: number;
 }
 
 export function usePaginatedData<T>({
@@ -24,6 +25,7 @@ export function usePaginatedData<T>({
   dataKey,
   pageSize = 20,
   debounceMs = 1000,
+  playlistId,
 }: UsePaginatedDataOptions<T>) {
   const [items, setItems] = useState<T[]>(initialItems);
   const [searchQuery, setSearchQuery] = useState(initialSearch);
@@ -50,6 +52,9 @@ export function usePaginatedData<T>({
         sortBy: debouncedSort,
         limit: String(pageSize),
       });
+      if (playlistId) {
+        params.set("playlist", String(playlistId));
+      }
 
       const res = await fetch(`${fetchPath}?${params.toString()}`);
       if (res.ok) {
@@ -60,7 +65,14 @@ export function usePaginatedData<T>({
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedSearch, debouncedSort, fetchPath, dataKey, pageSize]);
+  }, [
+    debouncedSearch,
+    debouncedSort,
+    fetchPath,
+    dataKey,
+    pageSize,
+    playlistId,
+  ]);
 
   // Append the next page using the current cursor
   const loadMore = useCallback(async () => {
@@ -75,6 +87,9 @@ export function usePaginatedData<T>({
         limit: String(pageSize),
         cursor,
       });
+      if (playlistId) {
+        params.set("playlist", String(playlistId));
+      }
 
       const res = await fetch(`${fetchPath}?${params.toString()}`);
       if (res.ok) {
@@ -85,7 +100,14 @@ export function usePaginatedData<T>({
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedSearch, debouncedSort, fetchPath, dataKey, pageSize]);
+  }, [
+    debouncedSearch,
+    debouncedSort,
+    fetchPath,
+    dataKey,
+    pageSize,
+    playlistId,
+  ]);
 
   // Reset and re-fetch when search/sort changes
   const isFirstRender = useRef(true);

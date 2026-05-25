@@ -94,10 +94,12 @@ async function applyMigrations(): Promise<void> {
         await client.execute(stmt);
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
-        // Tolerate "already exists" errors from prior push usage
+        // Tolerate "already exists", duplicate column, or already-renamed table/column errors
         if (
           msg.includes("already exists") ||
-          msg.includes("duplicate column name")
+          msg.includes("duplicate column name") ||
+          msg.includes("no such table") ||
+          msg.includes("no such column")
         ) {
           console.log(
             `[DB] Skipping already-applied statement: ${stmt.substring(0, 80)}…`,
