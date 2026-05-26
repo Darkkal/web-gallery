@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckSquare, Square } from "lucide-react";
+import { CheckSquare, Minus, Plus, Square } from "lucide-react";
 import styles from "@/app/gallery/page.module.css";
 
 interface FilterBarProps {
@@ -74,19 +74,30 @@ export default function FilterBar({
         </option>
       </select>
       <div className={styles.separator} />
-      <div className={styles.sliderContainer}>
-        <label htmlFor="columns" className={styles.label}>
-          Columns: {columnCount}
-        </label>
-        <input
-          id="columns"
-          type="range"
-          min="1"
-          max="10"
-          value={columnCount}
-          onChange={(e) => setColumnCount(parseInt(e.target.value, 10))}
-          className={styles.slider}
-        />
+      <div className={styles.columnControl}>
+        <span className={styles.label}>Columns: {columnCount}</span>
+        <div className={styles.buttonGroup}>
+          <button
+            type="button"
+            className={styles.iconButton}
+            onClick={() => setColumnCount(Math.max(1, columnCount - 1))}
+            disabled={columnCount <= 1}
+            title="Decrease Columns"
+            aria-label="Decrease columns count"
+          >
+            <Minus size={16} />
+          </button>
+          <button
+            type="button"
+            className={styles.iconButton}
+            onClick={() => setColumnCount(Math.min(10, columnCount + 1))}
+            disabled={columnCount >= 10}
+            title="Increase Columns"
+            aria-label="Increase columns count"
+          >
+            <Plus size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );
