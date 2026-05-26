@@ -33,6 +33,12 @@ export default function SettingsPageClient({
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Set hydration status on mount
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   // Auto-dismiss notification after 4 seconds
   useEffect(() => {
@@ -200,7 +206,7 @@ export default function SettingsPageClient({
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} data-hydrated={isHydrated}>
       <header className={styles.header}>
         <h1 className={styles.title}>System Settings</h1>
       </header>

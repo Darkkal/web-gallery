@@ -6,6 +6,9 @@ test.describe
       const page = await browser.newPage();
       await page.goto("/settings");
       await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+      await expect(
+        page.locator("[data-hydrated='true']").first(),
+      ).toBeVisible();
       page.once("dialog", async (dialog) => {
         await dialog.accept();
       });
@@ -27,6 +30,9 @@ test.describe
       // Navigate to settings page before each test
       await page.goto("/settings");
       await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+      await expect(
+        page.locator("[data-hydrated='true']").first(),
+      ).toBeVisible();
     });
 
     test("loads settings page and switches tabs", async ({ page }) => {
@@ -121,6 +127,9 @@ test.describe
       // Reload the page and verify persistence
       await page.reload();
       await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+      await expect(
+        page.locator("[data-hydrated='true']").first(),
+      ).toBeVisible();
 
       // Verify values are preserved
       await expect(page.locator("#galleryPageSize").first()).toHaveValue("125");
@@ -172,6 +181,9 @@ test.describe
       // Reload the page and verify persistence
       await page.reload();
       await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+      await expect(
+        page.locator("[data-hydrated='true']").first(),
+      ).toBeVisible();
 
       // The reload defaults to "app" tab. Switch to "scraper" tab to check
       await page
@@ -267,6 +279,9 @@ test.describe
       // Reload and check it's still default
       await page.reload();
       await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+      await expect(
+        page.locator("[data-hydrated='true']").first(),
+      ).toBeVisible();
       await expect(page.locator("#galleryPageSize").first()).toHaveValue("50");
       await expect(page.locator("#loopVideos").first()).toBeChecked();
     });

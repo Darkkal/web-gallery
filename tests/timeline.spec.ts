@@ -4,6 +4,7 @@ test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage();
   await page.goto("/settings");
   await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+  await expect(page.locator("[data-hydrated='true']").first()).toBeVisible();
   page.once("dialog", async (dialog) => {
     await dialog.accept();
   });
@@ -159,6 +160,7 @@ test("timeline post condensing settings and toggle interaction", async ({
   // 1. Go to settings page
   await page.goto("/settings");
   await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+  await expect(page.locator("[data-hydrated='true']").first()).toBeVisible();
 
   // 2. Toggle "Condense Long Timeline Posts" and set a short limit to ensure triggering
   const condenseToggle = page.locator("#condensePostText").first();
