@@ -115,6 +115,18 @@ export default function SettingsPageClient({
     }
 
     if (
+      settings.app.condensePostLength < 1 ||
+      settings.app.condensePostLength > 1000
+    ) {
+      setNotification({
+        type: "error",
+        message: "Condense post length must be between 1 and 1000 characters.",
+      });
+      setIsSaving(false);
+      return;
+    }
+
+    if (
       settings.scraper.sleepMin < 0 ||
       settings.scraper.sleepMax < 0 ||
       settings.scraper.sleepMin > settings.scraper.sleepMax
@@ -364,6 +376,67 @@ export default function SettingsPageClient({
                     Use 0 to disable cleanup.
                   </p>
                 </div>
+              </div>
+
+              <h2 className={styles.sectionTitle}>
+                <Sliders size={18} />
+                <span>Timeline Feed Customization</span>
+              </h2>
+
+              <div
+                className={styles.toggleContainer}
+                style={{ marginBottom: "1.5rem" }}
+              >
+                <div className={styles.toggleInfo}>
+                  <span className={styles.toggleTitle}>
+                    Condense Long Timeline Posts
+                  </span>
+                  <span className={styles.toggleDescription}>
+                    Automatically limit post text to a specified character limit
+                    and show a "Show More" button.
+                  </span>
+                </div>
+                <label className={styles.switch} htmlFor="condensePostText">
+                  <input
+                    id="condensePostText"
+                    aria-label="Condense Long Timeline Posts"
+                    type="checkbox"
+                    checked={settings.app.condensePostText}
+                    onChange={(e) =>
+                      handleAppChange("condensePostText", e.target.checked)
+                    }
+                  />
+                  <span className={styles.slider} />
+                </label>
+              </div>
+
+              <div
+                className={styles.formGroup}
+                style={{ marginBottom: "2rem" }}
+              >
+                <label htmlFor="condensePostLength" className={styles.label}>
+                  Condense Length Threshold (Characters)
+                </label>
+                <input
+                  id="condensePostLength"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={settings.app.condensePostLength}
+                  onChange={(e) =>
+                    handleAppChange(
+                      "condensePostLength",
+                      parseInt(e.target.value, 10) || 120,
+                    )
+                  }
+                  className={styles.input}
+                  disabled={!settings.app.condensePostText}
+                  required
+                />
+                <p className={styles.helperText}>
+                  Maximum number of characters to show before condensing the
+                  post.
+                </p>
               </div>
 
               <h2 className={styles.sectionTitle}>

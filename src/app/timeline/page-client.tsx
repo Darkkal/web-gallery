@@ -25,6 +25,8 @@ export default function TimelinePageClient({
   pageSize,
   scrollMode,
   loopVideos,
+  condensePostText,
+  condensePostLength,
 }: {
   initialPosts: TimelinePost[];
   initialNextCursor: string | null;
@@ -33,6 +35,8 @@ export default function TimelinePageClient({
   pageSize: number;
   scrollMode: "infinite" | "button";
   loopVideos: boolean;
+  condensePostText: boolean;
+  condensePostLength: number;
 }) {
   return (
     <TimelinePageContent
@@ -43,6 +47,8 @@ export default function TimelinePageClient({
       pageSize={pageSize}
       scrollMode={scrollMode}
       loopVideos={loopVideos}
+      condensePostText={condensePostText}
+      condensePostLength={condensePostLength}
     />
   );
 }
@@ -55,6 +61,8 @@ function TimelinePageContent({
   pageSize,
   scrollMode,
   loopVideos,
+  condensePostText,
+  condensePostLength,
 }: {
   initialPosts: TimelinePost[];
   initialNextCursor: string | null;
@@ -63,6 +71,8 @@ function TimelinePageContent({
   pageSize: number;
   scrollMode: "infinite" | "button";
   loopVideos: boolean;
+  condensePostText: boolean;
+  condensePostLength: number;
 }) {
   const {
     items: posts,
@@ -222,6 +232,8 @@ function TimelinePageContent({
             postIndex={postIdx}
             onMediaClick={openLightbox}
             loopVideos={loopVideos}
+            condensePostText={condensePostText}
+            condensePostLength={condensePostLength}
           />
         ))}
 

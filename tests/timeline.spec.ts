@@ -133,3 +133,67 @@ test("timeline infinite scroll loads more posts", async ({ page }) => {
     console.log("No additional posts loaded (may be at end of data)");
   }
 });
+
+test("timeline post condensing settings and toggle interaction", async ({
+  page,
+}) => {
+  // 1. Go to settings page
+  await page.goto("/settings");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+
+  // 2. Toggle "Condense Long Timeline Posts" and set a short limit to ensure triggering
+  const condenseToggle = page.locator("#condensePostText").first();
+  await expect(condenseToggle).toBeAttached();
+
+  const isInitiallyChecked = await condenseToggle.isChecked();
+  if (!isInitiallyChecked) {
+    const toggleLabel = page.locator("label[for='condensePostText']").first();
+    await toggleLabel.click();
+  }
+
+  const lengthInput = page.locator("#condensePostLength").first();
+  await expect(lengthInput).toBeAttached();
+  await lengthInput.fill("50");
+
+  // Save changes
+  const saveButton = page.getByRole("button", { name: "Save Changes" }).first();
+  await saveButton.click();
+
+  // Expect success banner
+  const alert = page.locator("[class*='notification']").first();
+  await expect(alert).toBeVisible();
+  await expect(alert).toContainText("Settings saved and updated successfully!");
+
+  // 3. Go to timeline
+  await page.goto("/timeline");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+
+  // Skip test if no posts found
+  try {
+    await expect(page.locator("article").first()).toBeVisible({
+      timeout: 5000,
+    });
+  } catch {
+    test.skip(true, "No posts found to test condensing");
+    return;
+  }
+
+  // Find a post that has the "Show More" button (condensed text)
+  const showMoreBtn = page.locator('button[class*="toggleTextButton"]').first();
+  // Check if any "Show More" button is visible
+  if ((await showMoreBtn.count()) === 0) {
+    test.skip(true, "No posts met the 50-character limit to show 'Show More'");
+    return;
+  }
+
+  await expect(showMoreBtn).toBeVisible();
+  await expect(showMoreBtn).toHaveText("Show More");
+
+  // Click Show More
+  await showMoreBtn.click();
+  await expect(showMoreBtn).toHaveText("Show Less");
+
+  // Click Show Less
+  await showMoreBtn.click();
+  await expect(showMoreBtn).toHaveText("Show More");
+});

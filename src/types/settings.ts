@@ -6,6 +6,8 @@ export interface AppSettings {
   scrapeLogRetentionDays: number;
   enableProductionDestructiveOps: boolean;
   loopVideos: boolean;
+  condensePostText: boolean;
+  condensePostLength: number;
 }
 
 export interface ScraperSettings {
@@ -40,6 +42,8 @@ export const DEFAULT_SETTINGS: SystemSettings = {
     scrapeLogRetentionDays: 30,
     enableProductionDestructiveOps: false,
     loopVideos: true,
+    condensePostText: true,
+    condensePostLength: 120,
   },
   scraper: {
     rateLimit: "5M",
