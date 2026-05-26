@@ -38,6 +38,8 @@ export default async function TimelinePage({
       pageSize={limit}
       scrollMode={scrollMode}
       loopVideos={settings.loopVideos}
+      condensePostText={settings.condensePostText ?? true}
+      condensePostLines={settings.condensePostLines ?? 2}
     />
   );
 }

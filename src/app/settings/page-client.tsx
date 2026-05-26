@@ -33,6 +33,12 @@ export default function SettingsPageClient({
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Set hydration status on mount
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   // Auto-dismiss notification after 4 seconds
   useEffect(() => {
@@ -115,6 +121,18 @@ export default function SettingsPageClient({
     }
 
     if (
+      settings.app.condensePostLines < 1 ||
+      settings.app.condensePostLines > 20
+    ) {
+      setNotification({
+        type: "error",
+        message: "Condense post lines must be between 1 and 20 lines.",
+      });
+      setIsSaving(false);
+      return;
+    }
+
+    if (
       settings.scraper.sleepMin < 0 ||
       settings.scraper.sleepMax < 0 ||
       settings.scraper.sleepMin > settings.scraper.sleepMax
@@ -188,7 +206,7 @@ export default function SettingsPageClient({
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} data-hydrated={isHydrated}>
       <header className={styles.header}>
         <h1 className={styles.title}>System Settings</h1>
       </header>
@@ -364,6 +382,67 @@ export default function SettingsPageClient({
                     Use 0 to disable cleanup.
                   </p>
                 </div>
+              </div>
+
+              <h2 className={styles.sectionTitle}>
+                <Sliders size={18} />
+                <span>Timeline Feed Customization</span>
+              </h2>
+
+              <div
+                className={styles.toggleContainer}
+                style={{ marginBottom: "1.5rem" }}
+              >
+                <div className={styles.toggleInfo}>
+                  <span className={styles.toggleTitle}>
+                    Condense Long Timeline Posts
+                  </span>
+                  <span className={styles.toggleDescription}>
+                    Automatically limit post text to a specified character limit
+                    and show a "Show More" button.
+                  </span>
+                </div>
+                <label className={styles.switch} htmlFor="condensePostText">
+                  <input
+                    id="condensePostText"
+                    aria-label="Condense Long Timeline Posts"
+                    type="checkbox"
+                    checked={settings.app.condensePostText}
+                    onChange={(e) =>
+                      handleAppChange("condensePostText", e.target.checked)
+                    }
+                  />
+                  <span className={styles.slider} />
+                </label>
+              </div>
+
+              <div
+                className={styles.formGroup}
+                style={{ marginBottom: "2rem" }}
+              >
+                <label htmlFor="condensePostLines" className={styles.label}>
+                  Condense Lines Threshold
+                </label>
+                <input
+                  id="condensePostLines"
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={settings.app.condensePostLines}
+                  onChange={(e) =>
+                    handleAppChange(
+                      "condensePostLines",
+                      parseInt(e.target.value, 10) || 2,
+                    )
+                  }
+                  className={styles.input}
+                  disabled={!settings.app.condensePostText}
+                  required
+                />
+                <p className={styles.helperText}>
+                  Maximum number of lines of text to show before condensing the
+                  post.
+                </p>
               </div>
 
               <h2 className={styles.sectionTitle}>

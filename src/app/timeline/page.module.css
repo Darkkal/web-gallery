@@ -311,3 +311,38 @@
   justify-content: center;
   padding: 2rem 0;
 }
+
+.toggleTextButton {
+  background: none;
+  border: none;
+  color: hsl(var(--primary));
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0;
+  margin-top: -0.25rem;
+  margin-bottom: 0.25rem;
+  margin-left: 3.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+  width: fit-content;
+}
+
+.toggleTextButton:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.toggleTextButton:active {
+  transform: scale(0.98);
+}
+
+.postContentClamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

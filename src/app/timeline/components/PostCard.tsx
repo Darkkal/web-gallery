@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "@/app/timeline/page.module.css";
 import FormattedContent from "@/components/FormattedContent";
 import { handleKeyActivate } from "@/lib/utils/a11y";
@@ -16,6 +17,8 @@ interface PostCardProps {
     e: React.MouseEvent,
   ) => void;
   loopVideos?: boolean;
+  condensePostText?: boolean;
+  condensePostLines?: number;
 }
 
 export default function PostCard({
@@ -23,7 +26,37 @@ export default function PostCard({
   postIndex,
   onMediaClick,
   loopVideos,
+  condensePostText = true,
+  condensePostLines = 2,
 }: PostCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [hasOverflow, setHasOverflow] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!condensePostText) {
+      setHasOverflow(false);
+      return;
+    }
+
+    const checkOverflow = () => {
+      if (contentRef.current) {
+        const { scrollHeight, clientHeight } = contentRef.current;
+        setHasOverflow(scrollHeight > clientHeight);
+      }
+    };
+
+    // Run initial check
+    checkOverflow();
+
+    const element = contentRef.current;
+    if (!element) return;
+
+    const observer = new ResizeObserver(checkOverflow);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [condensePostText]);
+
   return (
     <article className={styles.postCard}>
       {/* Header: Avatar, Name, Date */}
@@ -73,53 +106,72 @@ export default function PostCard({
 
       {/* Content: Text */}
       {post.content && (
-        // biome-ignore lint/a11y/noStaticElementInteractions: Click handler is conditional and handled via key listener when active
-        <div
-          className={styles.postContent}
-          onClick={
-            post.mediaItems.some((m) => m.type === "text")
-              ? (e) => {
-                  // Don't trigger media click if we're clicking a link in the HTML
-                  if ((e.target as HTMLElement).tagName === "A") return;
+        <>
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: Click handler is conditional and handled via key listener when active */}
+          <div
+            ref={contentRef}
+            className={`${styles.postContent} ${
+              condensePostText && !isExpanded ? styles.postContentClamped : ""
+            }`}
+            onClick={
+              post.mediaItems.some((m) => m.type === "text")
+                ? (e) => {
+                    // Don't trigger media click if we're clicking a link in the HTML
+                    if ((e.target as HTMLElement).tagName === "A") return;
 
-                  const textMediaIndex = post.mediaItems.findIndex(
-                    (m) => m.type === "text",
-                  );
-                  if (textMediaIndex !== -1) {
-                    onMediaClick(postIndex, textMediaIndex, e);
+                    const textMediaIndex = post.mediaItems.findIndex(
+                      (m) => m.type === "text",
+                    );
+                    if (textMediaIndex !== -1) {
+                      onMediaClick(postIndex, textMediaIndex, e);
+                    }
                   }
-                }
-              : undefined
-          }
-          onKeyDown={handleKeyActivate(() => {
-            const textMediaIndex = post.mediaItems.findIndex(
-              (m) => m.type === "text",
-            );
-            if (textMediaIndex !== -1) {
-              // Note: passing null for event as we're just triggering the action
-              onMediaClick(
-                postIndex,
-                textMediaIndex,
-                null as unknown as React.MouseEvent,
-              );
+                : undefined
             }
-          })}
-          role={
-            post.mediaItems.some((m) => m.type === "text")
-              ? "button"
-              : undefined
-          }
-          tabIndex={
-            post.mediaItems.some((m) => m.type === "text") ? 0 : undefined
-          }
-          style={{
-            cursor: post.mediaItems.some((m) => m.type === "text")
-              ? "pointer"
-              : "default",
-          }}
-        >
-          <FormattedContent content={post.content} />
-        </div>
+            onKeyDown={handleKeyActivate(() => {
+              const textMediaIndex = post.mediaItems.findIndex(
+                (m) => m.type === "text",
+              );
+              if (textMediaIndex !== -1) {
+                // Note: passing null for event as we're just triggering the action
+                onMediaClick(
+                  postIndex,
+                  textMediaIndex,
+                  null as unknown as React.MouseEvent,
+                );
+              }
+            })}
+            role={
+              post.mediaItems.some((m) => m.type === "text")
+                ? "button"
+                : undefined
+            }
+            tabIndex={
+              post.mediaItems.some((m) => m.type === "text") ? 0 : undefined
+            }
+            style={{
+              WebkitLineClamp:
+                condensePostText && !isExpanded ? condensePostLines : undefined,
+              cursor: post.mediaItems.some((m) => m.type === "text")
+                ? "pointer"
+                : "default",
+            }}
+          >
+            <FormattedContent content={post.content} />
+          </div>
+          {(isExpanded || hasOverflow) && (
+            <button
+              type="button"
+              className={styles.toggleTextButton}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded((prev) => !prev);
+              }}
+            >
+              {isExpanded ? "Show Less" : "Show More"}
+            </button>
+          )}
+        </>
       )}
 
       {/* Media Grid */}
