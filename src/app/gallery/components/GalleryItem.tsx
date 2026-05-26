@@ -13,6 +13,7 @@ interface GalleryItemProps {
   autoplayVideos: boolean;
   muteAutoplayVideos: boolean;
   onClick: () => void;
+  id?: string;
 }
 
 export default function GalleryItem({
@@ -22,6 +23,7 @@ export default function GalleryItem({
   autoplayVideos,
   muteAutoplayVideos,
   onClick,
+  id,
 }: GalleryItemProps) {
   const item = row.item;
   const count = row.groupCount || 1;
@@ -44,6 +46,7 @@ export default function GalleryItem({
   return (
     // biome-ignore lint/a11y/useSemanticElements: Maintains current styling structure
     <div
+      id={id}
       className={`${styles.item} ${isSelected ? styles.selectedItem : ""}`}
       onClick={onClick}
       onKeyDown={handleKeyActivate(onClick)}

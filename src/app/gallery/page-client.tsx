@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { deleteMediaItems } from "@/app/actions/gallery";
 import BulkActionBar from "@/app/gallery/components/BulkActionBar";
 import FilterBar from "@/app/gallery/components/FilterBar";
@@ -127,7 +127,23 @@ function GalleryPageContent({
     next: nextLightbox,
     prev: prevLightbox,
     setSelectedIndex,
-  } = useLightbox(items.length, (idx) => items[idx].groupItems.length);
+    isPageLoading,
+  } = useLightbox(items.length, (idx) => items[idx].groupItems.length, {
+    onLoadMore: loadMore,
+    hasMore,
+    isLoading,
+    preloadBuffer: 3,
+  });
+
+  // Keep background feed scroll in sync with lightbox active item
+  useEffect(() => {
+    if (selectedIndex !== null) {
+      const element = document.getElementById(`gallery-item-${selectedIndex}`);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }
+  }, [selectedIndex]);
 
   async function handleBulkDelete(deleteFiles: boolean) {
     if (selectedCount === 0) return;
@@ -206,6 +222,7 @@ function GalleryPageContent({
           <GalleryItem
             key={row.item.id}
             row={row}
+            id={`gallery-item-${index}`}
             isSelected={row.groupItems.some((i) => selectedIds.has(i.item.id))}
             selectionMode={selectionMode}
             autoplayVideos={autoplayVideos}
@@ -287,6 +304,7 @@ function GalleryPageContent({
           onPrev={prevLightbox}
           onDelete={handleDeleteItem}
           loopVideos={loopVideos}
+          isPageLoading={isPageLoading}
         />
       )}
 

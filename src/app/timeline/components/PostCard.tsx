@@ -22,6 +22,7 @@ interface PostCardProps {
   muteAutoplayVideos?: boolean;
   condensePostText?: boolean;
   condensePostLines?: number;
+  id?: string;
 }
 
 export default function PostCard({
@@ -33,6 +34,7 @@ export default function PostCard({
   muteAutoplayVideos = true,
   condensePostText = true,
   condensePostLines = 2,
+  id,
 }: PostCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasOverflow, setHasOverflow] = useState(false);
@@ -63,7 +65,7 @@ export default function PostCard({
   }, [condensePostText]);
 
   return (
-    <article className={styles.postCard}>
+    <article id={id} className={styles.postCard}>
       {/* Header: Avatar, Name, Date */}
       <div className={styles.postHeader}>
         {post.author?.avatar ? (

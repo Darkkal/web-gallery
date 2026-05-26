@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import FilterBar from "@/app/timeline/components/FilterBar";
 import PostCard from "@/app/timeline/components/PostCard";
 import styles from "@/app/timeline/page.module.css";
@@ -115,7 +115,23 @@ function TimelinePageContent({
     close: closeLightbox,
     next: nextLightbox,
     prev: prevLightbox,
-  } = useLightbox(posts.length, (idx) => posts[idx].mediaItems.length);
+    isPageLoading,
+  } = useLightbox(posts.length, (idx) => posts[idx].mediaItems.length, {
+    onLoadMore: loadMore,
+    hasMore,
+    isLoading,
+    preloadBuffer: 3,
+  });
+
+  // Keep background feed scroll in sync with lightbox active item
+  useEffect(() => {
+    if (selectedIndex !== null) {
+      const element = document.getElementById(`timeline-post-${selectedIndex}`);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }
+  }, [selectedIndex]);
 
   // Prepare Lightbox Data from current selection
   const lightboxProps = useMemo(() => {
@@ -245,6 +261,7 @@ function TimelinePageContent({
             key={post.id}
             post={post}
             postIndex={postIdx}
+            id={`timeline-post-${postIdx}`}
             onMediaClick={openLightbox}
             loopVideos={loopVideos}
             autoplayVideos={autoplayVideos}
@@ -287,6 +304,7 @@ function TimelinePageContent({
           onPrev={prevLightbox}
           onDelete={undefined}
           loopVideos={loopVideos}
+          isPageLoading={isPageLoading}
         />
       )}
     </div>
