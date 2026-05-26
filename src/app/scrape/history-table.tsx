@@ -9,6 +9,7 @@ import {
   resumeFromHistory,
 } from "@/app/scrape/actions";
 import styles from "@/app/scrape/page.module.css";
+import { formatDuration } from "@/lib/utils/format";
 
 interface HistoryItem {
   id: number;
@@ -23,6 +24,50 @@ interface HistoryItem {
   cursor: string | null;
   sourceId: number;
   taskId: number | null;
+}
+
+function DurationTimer({
+  startTime,
+  endTime,
+  status,
+}: {
+  startTime: Date | string;
+  endTime: Date | string | null;
+  status: "running" | "completed" | "stopped" | "failed";
+}) {
+  const [currentDuration, setCurrentDuration] = useState<number>(0);
+
+  useEffect(() => {
+    const calculateDuration = () => {
+      const start = new Date(startTime).getTime();
+      const end = endTime ? new Date(endTime).getTime() : Date.now();
+      return Math.max(0, (end - start) / 1000);
+    };
+
+    setCurrentDuration(calculateDuration());
+
+    if (status !== "running" || endTime) return;
+
+    const interval = setInterval(() => {
+      setCurrentDuration(calculateDuration());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [startTime, endTime, status]);
+
+  if (status === "running") {
+    return (
+      <span className={styles.runningPulse}>
+        {formatDuration(currentDuration)}
+      </span>
+    );
+  }
+
+  if (endTime) {
+    return <span>{formatDuration(currentDuration)}</span>;
+  }
+
+  return <span>-</span>;
 }
 
 export default function ScrapeHistoryTable({
@@ -156,20 +201,11 @@ export default function ScrapeHistoryTable({
                 })}
               </td>
               <td>
-                {item.endTime ? (
-                  <span>
-                    {Math.round(
-                      (new Date(item.endTime).getTime() -
-                        new Date(item.startTime).getTime()) /
-                        1000,
-                    )}
-                    s
-                  </span>
-                ) : item.status === "running" ? (
-                  <span className={styles.runningPulse}>Running...</span>
-                ) : (
-                  <span>-</span>
-                )}
+                <DurationTimer
+                  startTime={item.startTime}
+                  endTime={item.endTime}
+                  status={item.status}
+                />
               </td>
               <td>
                 <span className={styles.badge} data-status={item.status}>
