@@ -5,6 +5,7 @@ import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import styles from "@/app/timeline/page.module.css";
 import FormattedContent from "@/components/FormattedContent";
+import { useAutoplayVideo } from "@/hooks/useAutoplayVideo";
 import { handleKeyActivate } from "@/lib/utils/a11y";
 import type { TimelinePost } from "@/types/posts";
 
@@ -17,6 +18,8 @@ interface PostCardProps {
     e: React.MouseEvent,
   ) => void;
   loopVideos?: boolean;
+  autoplayVideos?: boolean;
+  muteAutoplayVideos?: boolean;
   condensePostText?: boolean;
   condensePostLines?: number;
 }
@@ -26,6 +29,8 @@ export default function PostCard({
   postIndex,
   onMediaClick,
   loopVideos,
+  autoplayVideos = false,
+  muteAutoplayVideos = true,
   condensePostText = true,
   condensePostLines = 2,
 }: PostCardProps) {
@@ -198,12 +203,11 @@ export default function PostCard({
                 tabIndex={0}
               >
                 {media.type === "video" ? (
-                  // biome-ignore lint/a11y/useMediaCaption: User generated content does not have captions
-                  <video
+                  <PostVideo
                     src={media.url}
-                    controls
-                    loop={loopVideos}
-                    className={styles.media}
+                    loop={!!loopVideos}
+                    autoplayEnabled={!!autoplayVideos}
+                    muteEnabled={!!muteAutoplayVideos}
                   />
                 ) : (
                   <Image
@@ -231,5 +235,32 @@ export default function PostCard({
         </div>
       )}
     </article>
+  );
+}
+
+interface PostVideoProps {
+  src: string;
+  loop: boolean;
+  autoplayEnabled: boolean;
+  muteEnabled: boolean;
+}
+
+function PostVideo({
+  src,
+  loop,
+  autoplayEnabled,
+  muteEnabled,
+}: PostVideoProps) {
+  const videoRef = useAutoplayVideo(autoplayEnabled, muteEnabled);
+
+  return (
+    // biome-ignore lint/a11y/useMediaCaption: User generated content does not have captions
+    <video
+      ref={videoRef}
+      src={src}
+      controls
+      loop={loop}
+      className={styles.media}
+    />
   );
 }
