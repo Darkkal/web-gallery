@@ -25,6 +25,8 @@ export default function TimelinePageClient({
   pageSize,
   scrollMode,
   loopVideos,
+  autoplayVideos,
+  muteAutoplayVideos,
   condensePostText,
   condensePostLines,
 }: {
@@ -35,6 +37,8 @@ export default function TimelinePageClient({
   pageSize: number;
   scrollMode: "infinite" | "button";
   loopVideos: boolean;
+  autoplayVideos: boolean;
+  muteAutoplayVideos: boolean;
   condensePostText: boolean;
   condensePostLines: number;
 }) {
@@ -47,6 +51,8 @@ export default function TimelinePageClient({
       pageSize={pageSize}
       scrollMode={scrollMode}
       loopVideos={loopVideos}
+      autoplayVideos={autoplayVideos}
+      muteAutoplayVideos={muteAutoplayVideos}
       condensePostText={condensePostText}
       condensePostLines={condensePostLines}
     />
@@ -61,6 +67,8 @@ function TimelinePageContent({
   pageSize,
   scrollMode,
   loopVideos,
+  autoplayVideos,
+  muteAutoplayVideos,
   condensePostText,
   condensePostLines,
 }: {
@@ -71,6 +79,8 @@ function TimelinePageContent({
   pageSize: number;
   scrollMode: "infinite" | "button";
   loopVideos: boolean;
+  autoplayVideos: boolean;
+  muteAutoplayVideos: boolean;
   condensePostText: boolean;
   condensePostLines: number;
 }) {
@@ -232,6 +242,8 @@ function TimelinePageContent({
             postIndex={postIdx}
             onMediaClick={openLightbox}
             loopVideos={loopVideos}
+            autoplayVideos={autoplayVideos}
+            muteAutoplayVideos={muteAutoplayVideos}
             condensePostText={condensePostText}
             condensePostLines={condensePostLines}
           />

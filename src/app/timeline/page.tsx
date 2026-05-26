@@ -18,6 +18,8 @@ export default async function TimelinePage({
   const settings = await getAppSettings();
   const limit = settings.timelinePageSize || 20;
   const scrollMode = settings.scrollMode || "infinite";
+  const autoplayVideos = settings.autoplayVideos ?? false;
+  const muteAutoplayVideos = settings.muteAutoplayVideos ?? true;
 
   // Initial data fetch — respecting configured page size
   const { posts, nextCursor } = await getTimelinePosts({
@@ -38,6 +40,8 @@ export default async function TimelinePage({
       pageSize={limit}
       scrollMode={scrollMode}
       loopVideos={settings.loopVideos}
+      autoplayVideos={autoplayVideos}
+      muteAutoplayVideos={muteAutoplayVideos}
       condensePostText={settings.condensePostText ?? true}
       condensePostLines={settings.condensePostLines ?? 2}
     />

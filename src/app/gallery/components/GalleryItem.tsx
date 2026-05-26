@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import styles from "@/app/gallery/page.module.css";
+import { useAutoplayVideo } from "@/hooks/useAutoplayVideo";
 import { handleKeyActivate } from "@/lib/utils/a11y";
 import type { GalleryGroup } from "@/types/media";
 
@@ -9,6 +10,8 @@ interface GalleryItemProps {
   row: GalleryGroup;
   isSelected: boolean;
   selectionMode: boolean;
+  autoplayVideos: boolean;
+  muteAutoplayVideos: boolean;
   onClick: () => void;
 }
 
@@ -16,10 +19,13 @@ export default function GalleryItem({
   row,
   isSelected,
   selectionMode,
+  autoplayVideos,
+  muteAutoplayVideos,
   onClick,
 }: GalleryItemProps) {
   const item = row.item;
   const count = row.groupCount || 1;
+  const videoRef = useAutoplayVideo(autoplayVideos, muteAutoplayVideos);
 
   const handleVideoPlay = async (target: HTMLVideoElement) => {
     try {
@@ -58,15 +64,20 @@ export default function GalleryItem({
       {item.mediaType === "video" ? (
         <>
           <video
+            ref={videoRef}
             src={item.filePath}
             className={styles.media}
             muted
             loop
             tabIndex={0}
-            onMouseOver={(e) => handleVideoPlay(e.currentTarget)}
-            onMouseOut={(e) => handleVideoPause(e.currentTarget)}
-            onFocus={(e) => handleVideoPlay(e.currentTarget)}
-            onBlur={(e) => handleVideoPause(e.currentTarget)}
+            onMouseOver={(e) =>
+              !autoplayVideos && handleVideoPlay(e.currentTarget)
+            }
+            onMouseOut={(e) =>
+              !autoplayVideos && handleVideoPause(e.currentTarget)
+            }
+            onFocus={(e) => !autoplayVideos && handleVideoPlay(e.currentTarget)}
+            onBlur={(e) => !autoplayVideos && handleVideoPause(e.currentTarget)}
           />
           <div className={styles.videoBadge}>VIDEO</div>
         </>

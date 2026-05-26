@@ -452,7 +452,7 @@ export default function SettingsPageClient({
 
               <div
                 className={styles.toggleContainer}
-                style={{ marginBottom: "2rem" }}
+                style={{ marginBottom: "1.5rem" }}
               >
                 <div className={styles.toggleInfo}>
                   <span className={styles.toggleTitle}>
@@ -471,6 +471,67 @@ export default function SettingsPageClient({
                     checked={settings.app.loopVideos}
                     onChange={(e) =>
                       handleAppChange("loopVideos", e.target.checked)
+                    }
+                  />
+                  <span className={styles.slider} />
+                </label>
+              </div>
+
+              <div
+                className={styles.toggleContainer}
+                style={{ marginBottom: "1.5rem" }}
+              >
+                <div className={styles.toggleInfo}>
+                  <span className={styles.toggleTitle}>
+                    Autoplay Videos on Scroll
+                  </span>
+                  <span className={styles.toggleDescription}>
+                    Automatically play video clips when they are scrolled into
+                    view in the gallery grid and timeline.
+                  </span>
+                </div>
+                <label className={styles.switch} htmlFor="autoplayVideos">
+                  <input
+                    id="autoplayVideos"
+                    aria-label="Autoplay Videos on Scroll"
+                    type="checkbox"
+                    checked={settings.app.autoplayVideos}
+                    onChange={(e) =>
+                      handleAppChange("autoplayVideos", e.target.checked)
+                    }
+                  />
+                  <span className={styles.slider} />
+                </label>
+              </div>
+
+              <div
+                className={styles.toggleContainer}
+                style={{
+                  marginBottom: "2rem",
+                  opacity: settings.app.autoplayVideos ? 1 : 0.5,
+                  transition: "opacity 0.2s ease-in-out",
+                  pointerEvents: settings.app.autoplayVideos ? "auto" : "none",
+                }}
+              >
+                <div className={styles.toggleInfo}>
+                  <span className={styles.toggleTitle}>
+                    Mute Autoplayed Videos
+                  </span>
+                  <span className={styles.toggleDescription}>
+                    Mute videos when autoplaying to avoid overlapping audio
+                    sources. Turning this off may be blocked by browser autoplay
+                    policies.
+                  </span>
+                </div>
+                <label className={styles.switch} htmlFor="muteAutoplayVideos">
+                  <input
+                    id="muteAutoplayVideos"
+                    aria-label="Mute Autoplayed Videos"
+                    type="checkbox"
+                    checked={settings.app.muteAutoplayVideos}
+                    disabled={!settings.app.autoplayVideos}
+                    onChange={(e) =>
+                      handleAppChange("muteAutoplayVideos", e.target.checked)
                     }
                   />
                   <span className={styles.slider} />
