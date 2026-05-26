@@ -220,6 +220,8 @@ export const mediaItems = sqliteTable("media_items", {
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
     () => new Date(),
   ),
+  width: integer("width"),
+  height: integer("height"),
 
   // Relationship
   postId: integer("post_id").references(() => posts.id, {

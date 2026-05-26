@@ -43,6 +43,13 @@
       "when": 1779632901857,
       "tag": "0005_rename_collections_to_playlists",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1779834387840,
+      "tag": "0006_add_media_dimensions",
+      "breakpoints": true
     }
   ]
 }

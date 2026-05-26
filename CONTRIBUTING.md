@@ -231,9 +231,9 @@ Not all inline `style={{}}` usage is equally bad. The migration priority is:
 
 ### 3.5 Sequential E2E Playwright Runs for Shared State
 
-Playwright E2E tests for settings, scrapers, and purging interact with a single instance of the database and shared file config (`settings.json`). Running tests in parallel leads to severe file lock and database write race conditions (especially on test databases/archives).
+Playwright E2E tests for settings, scrapers, and purging interact with a single instance of the database and shared file config (`settings.json`). Running these tests in parallel leads to file lock and database write race conditions.
 
-- **Rule**: E2E test runs (specifically those modifying system configuration or purging database records) must be executed sequentially. Ensure `--workers=1` or `npx playwright test --workers=1` is specified when running the E2E suites.
+- **Rule**: E2E tests modifying system state must run sequentially. This is handled by the custom project structure in [playwright.config.ts](./playwright.config.ts), which partitions tests based on the developer-defined `SERIAL_TESTS` glob array. If you add a new state-modifying test (e.g. settings, scrapers, purging records), you MUST append its path pattern to `SERIAL_TESTS` in [playwright.config.ts](./playwright.config.ts) to ensure it is executed in the sequential serial projects using a single worker, rather than having to manually force `--workers=1` on the command line.
 
 ### 3.6 Docker Compose for Playwright E2E Tests
 
