@@ -177,6 +177,6 @@ npm run start        # Start the production server
 npm run db:generate  # Generate SQL migrations from schema.ts changes
 npm run db:migrate   # Apply pending migrations to sqlite.db
 
-npm run lint         # Run Biome linter
-npm run test:e2e     # Run Playwright E2E tests
+npm run lint         # Run Next.js linter (Biome linter/formatter runs automatically via git pre-commit hooks)
+npm run test:e2e     # Run Playwright E2E tests (run sequentially with --workers=1)
 ```

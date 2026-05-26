@@ -86,9 +86,12 @@ Common UI logic is extracted into `src/hooks/`:
 
 | Hook | Purpose | Used By |
 |------|---------|---------|
-| `useSelection` | Selection state (toggle, select-all, clear, group selection) | Gallery, Sources |
+| `useAutoplayVideo` | IntersectionObserver-based video autoplay with mute controls | Gallery, Timeline |
 | `useDebouncedValue` | Debounced search/sort input | Gallery, Timeline |
+| `useInfiniteScroll` | Manages IntersectionObserver sentinel for paginated feeds | Gallery, Timeline |
 | `useLightbox` | Lightbox open/close/navigate state | Gallery, Timeline |
+| `usePaginatedData` | Generic cursor-based pagination + fetch | Gallery, Timeline, Playlists |
+| `useSelection` | Selection state (toggle, select-all, clear, group selection) | Gallery, Sources |
 
 - **Rule**: When building a new page with selection, search, or lightbox behavior, consume these hooks rather than reimplementing the logic inline.
 
@@ -99,7 +102,9 @@ Frontend types are in `src/types/`:
 | File | Contains |
 |------|----------|
 | `media.ts` | `MediaItem`, `GalleryGroup`, `GalleryRow` |
+| `playlist.ts` | `Playlist`, playlist-related types |
 | `posts.ts` | `TimelinePost`, post-related types |
+| `settings.ts` | `SystemSettings`, `AppSettings` definitions |
 | `source.ts` | `Source`, source-related types |
 | `users.ts` | `TwitterUser`, `PixivUser` |
 
@@ -131,7 +136,9 @@ Server Actions are organized into `src/app/actions/` by domain:
 src/app/actions/
 ├── debug.ts      # Destructive debug actions (guarded)
 ├── gallery.ts    # Gallery mutations
+├── playlists.ts  # Playlist CRUD mutations
 ├── scanning.ts   # Library scan control
+├── settings.ts   # Settings updates & config sync
 ├── sources.ts    # Source CRUD
 ├── tags.ts       # Tag queries
 └── timeline.ts   # Timeline mutations
@@ -156,6 +163,8 @@ export const metadata: Metadata = {
 ```
 
 Individual pages export their own `metadata` for custom titles (e.g., `export const metadata: Metadata = { title: "Gallery" }`).
+
+### 1.11 Security and Guidelines
 
 - **Rule**: Any server action that performs destructive operations MUST call `assertNonProduction()` before proceeding. The guard checks both the Node environment and the settings bypass state:
 
@@ -192,6 +201,7 @@ Individual pages export their own `metadata` for custom titles (e.g., `export co
 5. **Async by default**: All database operations are async. The `@libsql/client` driver does not support synchronous calls.
 6. **Utility deduplication**: Shared utility functions (e.g., `parseSizeToBytes`, `formatBytes`) live in `src/lib/utils/`. Do not duplicate them across files.
 7. **Per-page metadata**: Each route should export its own `metadata` object for proper tab titles.
+8. **Conventional Commit Messages**: This project uses `release-please` to manage version releases and auto-populate `CHANGELOG.md` in CI/CD. All commit messages must follow the [Conventional Commits specification](https://www.conventionalcommits.org/) (e.g., `feat(playlists): ...`, `fix(config): ...`, `chore(biome): ...`).
 
 ---
 

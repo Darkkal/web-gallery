@@ -83,6 +83,7 @@ web-gallery/
 │   │   ├── actions/                # Server Actions (mutations, domain-split)
 │   │   │   ├── debug.ts            #   Destructive debug helpers (production-guarded)
 │   │   │   ├── gallery.ts          #   Gallery item mutations
+│   │   │   ├── playlists.ts        #   Playlist CRUD mutations
 │   │   │   ├── scanning.ts         #   Library scan control (start/stop)
 │   │   │   ├── settings.ts         #   Settings updates & config sync
 │   │   │   ├── sources.ts          #   Source CRUD
@@ -92,6 +93,7 @@ web-gallery/
 │   │   │   ├── avatar/             #   Avatar proxy + caching
 │   │   │   ├── gallery/            #   Gallery item list (paginated)
 │   │   │   ├── library/            #   Library scan status
+│   │   │   ├── playlists/          #   Playlist read/write (REST)
 │   │   │   ├── sources/            #   Source list + scrape status
 │   │   │   └── timeline/           #   Timeline post list (paginated)
 │   │   ├── gallery/                # Masonry gallery page
@@ -102,8 +104,8 @@ web-gallery/
 │   │   ├── scrape/                 # Scrape trigger page
 │   │   ├── tags/                   # Tag browser page
 │   │   ├── playlists/              # Playlist / collection management
-│   │   ├── downloads/              # Download management page
-│   │   ├── avatars/                # Avatar image route
+│   │   ├── downloads/              # Local file serving handler
+│   │   ├── avatars/                # Avatar image route handler
 │   │   ├── globals.css             # Design tokens (HSL variables, dark/light themes)
 │   │   ├── layout.tsx              # Root layout + metadata template
 │   │   ├── loading.tsx             # Root loading skeleton
@@ -115,15 +117,18 @@ web-gallery/
 │   │   ├── Navbar.tsx              #   Top navigation bar + theme toggle
 │   │   ├── ThemeProvider.tsx       #   Dark/light theme via data-theme attribute
 │   │   ├── FormattedContent.tsx    #   Renders post body (links, hashtags, mentions)
-│   │   └── InfiniteScrollSentinel.tsx # IntersectionObserver-based infinite scroll trigger
+│   │   ├── InfiniteScrollSentinel.tsx # IntersectionObserver-based infinite scroll trigger
+│   │   └── AddToPlaylistModal.tsx  #   Modal to add media items to a playlist
 │   ├── hooks/                      # Shared custom React hooks
+│   │   ├── useAutoplayVideo.ts     #   IntersectionObserver-based video autoplay
 │   │   ├── useDebouncedValue.ts    #   Debounce for search/sort inputs
 │   │   ├── useInfiniteScroll.ts    #   Manages IntersectionObserver sentinel
 │   │   ├── useLightbox.ts          #   Lightbox open/close/navigate state
-│   │   └── usePaginatedData.ts     #   Generic cursor-based pagination + fetch
+│   │   ├── usePaginatedData.ts     #   Generic cursor-based pagination + fetch
 │   │   └── useSelection.ts         #   Multi-item selection state
 │   ├── types/                      # Shared TypeScript interfaces
 │   │   ├── media.ts                #   MediaItem, GalleryGroup, GalleryRow
+│   │   ├── playlist.ts             #   Playlist, playlist-related types
 │   │   ├── posts.ts                #   TimelinePost, post-related types
 │   │   ├── settings.ts             #   SystemSettings, AppSettings definitions
 │   │   ├── source.ts               #   Source, source-related types
@@ -385,9 +390,9 @@ gallerydl_extractor_types   (id: 'twitter' | 'pixiv' | 'gelbooruv02' | ...)
                            │
                            └──< media_items (filePath, mediaType, capturedAt)
                                     │
-                                    └──< collection_items
+                                    └──< playlist_items (position, addedAt)
                                               │
-                                              └──> collections
+                                              └──> playlists (name, description, thumbnail)
 
 tags ──< post_tags >──< posts
 
@@ -401,7 +406,7 @@ scraper_download_logs  (sourceId → filePath mapping for source attribution)
 **Key relationships**:
 - `posts.internalSourceId → sources.id` (which Source URL produced this post)
 - `media_items.postId → posts.id` (`SET NULL` on delete — media survives post deletion)
-- `collection_items` is the many-to-many join between `media_items` and `collections`
+- `playlist_items` is the many-to-many join between `media_items` and `playlists` (maintaining order position)
 - `post_tags` is the many-to-many join between `posts` and `tags`
 - Platform detail tables (`post_details_*`) are one-to-one with `posts`
 
@@ -436,11 +441,9 @@ MEDIA_DIR/
 └── avatars/                    # Cached avatar images
 ```
 
-**Docker serving**: In the Docker image, `docker-entrypoint.sh` creates symlinks:
-- `public/downloads → $MEDIA_DIR/downloads`
-- `public/avatars → $MEDIA_DIR/avatars`
+**Docker serving**: Downloads and avatars are served dynamically by Next.js Route Handlers (`src/app/downloads/[[...path]]/route.ts` and `src/app/avatars/[[...path]]/route.ts`) which read directly from `$MEDIA_DIR/downloads` and `$MEDIA_DIR/avatars`.
 
-This lets Next.js's static file serving work unchanged while media lives on a separate volume.
+This ensures that Next.js successfully serves static files even when bulk media resides on a separate volume, without requiring complex symlinking or hosting overrides.
 
 ---
 

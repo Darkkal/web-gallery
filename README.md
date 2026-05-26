@@ -35,6 +35,7 @@ By leveraging powerful scraping tools like `gallery-dl` and `yt-dlp`, this appli
 - **Multiple Viewing Modes**:
   - **Waterfall Gallery**: A modern masonry layout that preserves the original aspect ratio of your images and videos.
   - **Chronological Timeline**: View your collected items in the order they were originally posted or captured.
+- **Playlists**: Organize media into custom playlists, customize item ordering, and view/play them seamlessly.
 - **Deep Metadata Integration**: Automatically extracts and stores rich metadata (e.g., Twitter user profiles, tweet details, timestamps) in a local SQLite database for advanced search.
 - **Background Scraping**: Support for continuing long-running backfills and historical data extraction.
 - **Privacy & Ownership**: Everything is stored locally on your machine. You own the data, the metadata, and the archive.
@@ -51,7 +52,7 @@ Docker is the simplest way to deploy Web Gallery. The image bundles the Next.js 
 
 #### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/web-gallery.git
+git clone https://github.com/Darkkal/web-gallery.git
 cd web-gallery
 ```
 
@@ -89,7 +90,7 @@ Ensure the following are installed and accessible in your system's `PATH`:
 #### 2. Clone and Install
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/web-gallery.git
+git clone https://github.com/Darkkal/web-gallery.git
 cd web-gallery
 
 # Install dependencies
