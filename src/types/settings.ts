@@ -8,6 +8,8 @@ export interface AppSettings {
   loopVideos: boolean;
   condensePostText: boolean;
   condensePostLines: number;
+  autoplayVideos: boolean;
+  muteAutoplayVideos: boolean;
 }
 
 export interface ScraperSettings {
@@ -44,6 +46,8 @@ export const DEFAULT_SETTINGS: SystemSettings = {
     loopVideos: true,
     condensePostText: true,
     condensePostLines: 2,
+    autoplayVideos: false,
+    muteAutoplayVideos: true,
   },
   scraper: {
     rateLimit: "5M",
