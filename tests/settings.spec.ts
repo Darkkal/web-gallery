@@ -111,6 +111,13 @@ test.describe
 
       expect(await destructiveOpsToggle.isChecked()).toBe(!initialChecked);
 
+      // Modify Infinite Scroll Buffer
+      const infiniteScrollBufferInput = page
+        .locator("#infiniteScrollBuffer")
+        .first();
+      await expect(infiniteScrollBufferInput).toBeAttached();
+      await infiniteScrollBufferInput.fill("450");
+
       // Save Changes
       const saveButton = page
         .getByRole("button", { name: "Save Changes" })
@@ -141,6 +148,9 @@ test.describe
           .first()
           .isChecked(),
       ).toBe(!initialChecked);
+      await expect(page.locator("#infiniteScrollBuffer").first()).toHaveValue(
+        "450",
+      );
     });
 
     test("can modify and save Scraper settings, and persists after reload", async ({
@@ -218,6 +228,30 @@ test.describe
       await expect(alert).toBeVisible({ timeout: 15000 });
       await expect(alert).toContainText(
         "Gallery page size must be between 1 and 500.",
+      );
+    });
+
+    test("validates App scroll buffer", async ({ page }) => {
+      const infiniteScrollBufferInput = page
+        .locator("#infiniteScrollBuffer")
+        .first();
+      await expect(infiniteScrollBufferInput).toBeAttached();
+
+      // Set invalid scroll buffer (below 0)
+      await infiniteScrollBufferInput.fill("-50");
+      await page.getByRole("button", { name: "Save Changes" }).first().click();
+      const alert = page.locator("[class*='notification']").first();
+      await expect(alert).toBeVisible({ timeout: 15000 });
+      await expect(alert).toContainText(
+        "Infinite scroll buffer must be between 0 and 2000 pixels.",
+      );
+
+      // Set invalid scroll buffer too large (above 2000)
+      await infiniteScrollBufferInput.fill("2050");
+      await page.getByRole("button", { name: "Save Changes" }).first().click();
+      await expect(alert).toBeVisible({ timeout: 15000 });
+      await expect(alert).toContainText(
+        "Infinite scroll buffer must be between 0 and 2000 pixels.",
       );
     });
 

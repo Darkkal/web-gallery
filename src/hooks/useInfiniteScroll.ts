@@ -4,6 +4,7 @@ interface UseInfiniteScrollOptions {
   loadMore: () => void;
   hasMore: boolean;
   isLoading: boolean;
+  rootMargin?: string;
 }
 
 /**
@@ -16,6 +17,7 @@ export function useInfiniteScroll({
   loadMore,
   hasMore,
   isLoading,
+  rootMargin,
 }: UseInfiniteScrollOptions) {
   const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -36,12 +38,12 @@ export function useInfiniteScroll({
             loadMore();
           }
         },
-        { rootMargin: "200px" },
+        { rootMargin: rootMargin || "200px" },
       );
 
       observerRef.current.observe(node);
     },
-    [loadMore, hasMore, isLoading],
+    [loadMore, hasMore, isLoading, rootMargin],
   );
 
   // Cleanup on unmount

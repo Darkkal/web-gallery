@@ -43,6 +43,7 @@ export default async function GalleryPage({
       initialNextCursor={nextCursor}
       pageSize={limit}
       scrollMode={scrollMode}
+      infiniteScrollBuffer={settings.infiniteScrollBuffer ?? 300}
       loopVideos={settings.loopVideos}
       autoplayVideos={settings.autoplayVideos ?? false}
       muteAutoplayVideos={settings.muteAutoplayVideos ?? true}
