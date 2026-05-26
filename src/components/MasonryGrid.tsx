@@ -40,14 +40,25 @@ export default function MasonryGrid<T>({
     userColumnCount ?? (windowWidth !== null ? getColumnCount(windowWidth) : 3);
 
   const columns = useMemo(() => {
-    const newColumns: T[][] = Array.from(
+    const newColumns: { item: T; originalIndex: number }[][] = Array.from(
       { length: currentColumnCount },
       () => [],
     );
+    const columnHeights = new Array(currentColumnCount).fill(0);
+
     items.forEach((item, index) => {
-      const columnIndex = index % currentColumnCount;
-      newColumns[columnIndex].push(item);
+      let minColIndex = 0;
+      let minColHeight = columnHeights[0];
+      for (let i = 1; i < currentColumnCount; i++) {
+        if (columnHeights[i] < minColHeight) {
+          minColHeight = columnHeights[i];
+          minColIndex = i;
+        }
+      }
+      newColumns[minColIndex].push({ item, originalIndex: index });
+      columnHeights[minColIndex] += getItemHeightFactor(item);
     });
+
     return newColumns;
   }, [items, currentColumnCount]);
 
@@ -59,8 +70,7 @@ export default function MasonryGrid<T>({
           key={colIndex}
           className={styles.column}
         >
-          {col.map((item, itemIndex) => {
-            const originalIndex = itemIndex * currentColumnCount + colIndex;
+          {col.map(({ item, originalIndex }, itemIndex) => {
             return (
               <React.Fragment
                 // biome-ignore lint/suspicious/noArrayIndexKey: Computed grid position
@@ -74,4 +84,32 @@ export default function MasonryGrid<T>({
       ))}
     </div>
   );
+}
+
+function getItemHeightFactor(item: any): number {
+  if (!item) return 1.0;
+
+  // 1. Direct preprocessed dimensions from DB
+  if (item.item && item.item.width && item.item.height) {
+    const factor = item.item.height / item.item.width;
+    if (factor > 0) return factor;
+  }
+
+  // 2. Fallbacks for platform-specific details (in case they are not scanned/backfilled yet)
+  if (item.pixiv?.width && item.pixiv?.height) {
+    const factor = item.pixiv.height / item.pixiv.width;
+    if (factor > 0) return factor;
+  }
+  if (item.gelbooru?.width && item.gelbooru?.height) {
+    const factor = item.gelbooru.height / item.gelbooru.width;
+    if (factor > 0) return factor;
+  }
+
+  // 3. Fallback for video files
+  if (item.item?.mediaType === "video") {
+    return 0.75;
+  }
+
+  // 4. Default square fallback
+  return 1.0;
 }

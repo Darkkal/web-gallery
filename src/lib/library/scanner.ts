@@ -21,6 +21,7 @@ import type {
   TagCache,
   UserCache,
 } from "@/lib/library/types";
+import { getMediaDimensions } from "@/lib/utils/media-dimensions";
 
 const DOWNLOAD_DIR = paths.downloads;
 // Global control flags for this module process
@@ -556,6 +557,7 @@ interface PrepareResult {
   meta: PlatformMetadata | null;
   stat: fs.Stats | null;
   mediaType: "image" | "video" | "audio" | "text";
+  dimensions: { width: number; height: number } | null;
 }
 
 async function prepareTask(task: ProcessTask): Promise<PrepareResult> {
@@ -583,7 +585,12 @@ async function prepareTask(task: ProcessTask): Promise<PrepareResult> {
     if ([".mp3", ".wav", ".m4a"].includes(ext)) type = "audio";
   }
 
-  return { task, meta, stat, mediaType: type };
+  let dimensions = null;
+  if (type === "image" || type === "video") {
+    dimensions = await getMediaDimensions(task.fsPath);
+  }
+
+  return { task, meta, stat, mediaType: type, dimensions };
 }
 
 /**
@@ -638,7 +645,7 @@ async function processItem(
   sourceMap: Map<string, number>,
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
 ) {
-  const { task, meta, stat, mediaType } = prepared;
+  const { task, meta, stat, mediaType, dimensions } = prepared;
   let postId: number | null = null;
   let extractorType: string | null = null;
 
@@ -705,15 +712,21 @@ async function processItem(
       mediaType,
       capturedAt,
       postId: postId,
+      width: dimensions?.width ?? null,
+      height: dimensions?.height ?? null,
     });
     existingMediaPaths.add(task.dbFilePath);
   } else if (mediaType !== "text") {
-    if (postId) {
+    const updateObj: any = {};
+    if (postId) updateObj.postId = postId;
+    if (dimensions) {
+      updateObj.width = dimensions.width;
+      updateObj.height = dimensions.height;
+    }
+    if (Object.keys(updateObj).length > 0) {
       await tx
         .update(mediaItems)
-        .set({
-          postId,
-        })
+        .set(updateObj)
         .where(eq(mediaItems.filePath, task.dbFilePath));
     }
   }
