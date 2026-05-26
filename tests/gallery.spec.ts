@@ -120,3 +120,38 @@ test("gallery infinite scroll loads more items", async ({ page }) => {
     console.log("No additional items loaded (may be at end of data)");
   }
 });
+
+test("gallery column controls change column counts", async ({ page }) => {
+  await page.goto("/gallery");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+
+  // Find the column count label
+  const label = page.locator("span", { hasText: /Columns:/ });
+  await expect(label).toBeVisible();
+
+  // Find and click "Decrease Columns" button
+  const decreaseBtn = page.getByRole("button", { name: "Decrease Columns" });
+  const increaseBtn = page.getByRole("button", { name: "Increase Columns" });
+
+  await expect(decreaseBtn).toBeVisible();
+  await expect(increaseBtn).toBeVisible();
+
+  // Check initial columns count (default is 4)
+  await expect(label).toHaveText("Columns: 4");
+
+  // Click decrease columns
+  await decreaseBtn.click();
+  await expect(label).toHaveText("Columns: 3");
+
+  // Click decrease columns twice more
+  await decreaseBtn.click();
+  await decreaseBtn.click();
+  await expect(label).toHaveText("Columns: 1");
+  await expect(decreaseBtn).toBeDisabled();
+
+  // Click increase columns twice
+  await increaseBtn.click();
+  await increaseBtn.click();
+  await expect(label).toHaveText("Columns: 3");
+  await expect(decreaseBtn).toBeEnabled();
+});
