@@ -25,6 +25,8 @@ export default function GalleryPageClient({
   pageSize,
   scrollMode,
   loopVideos,
+  autoplayVideos,
+  muteAutoplayVideos,
   playlistId,
 }: {
   initialItems: GalleryGroup[];
@@ -34,6 +36,8 @@ export default function GalleryPageClient({
   pageSize: number;
   scrollMode: "infinite" | "button";
   loopVideos: boolean;
+  autoplayVideos: boolean;
+  muteAutoplayVideos: boolean;
   playlistId?: number;
 }) {
   return (
@@ -45,6 +49,8 @@ export default function GalleryPageClient({
       pageSize={pageSize}
       scrollMode={scrollMode}
       loopVideos={loopVideos}
+      autoplayVideos={autoplayVideos}
+      muteAutoplayVideos={muteAutoplayVideos}
       playlistId={playlistId}
     />
   );
@@ -58,6 +64,8 @@ function GalleryPageContent({
   pageSize,
   scrollMode,
   loopVideos,
+  autoplayVideos,
+  muteAutoplayVideos,
   playlistId,
 }: {
   initialItems: GalleryGroup[];
@@ -67,6 +75,8 @@ function GalleryPageContent({
   pageSize: number;
   scrollMode: "infinite" | "button";
   loopVideos: boolean;
+  autoplayVideos: boolean;
+  muteAutoplayVideos: boolean;
   playlistId?: number;
 }) {
   const [columnCount, setColumnCount] = useState(4);
@@ -193,6 +203,8 @@ function GalleryPageContent({
             row={row}
             isSelected={row.groupItems.some((i) => selectedIds.has(i.item.id))}
             selectionMode={selectionMode}
+            autoplayVideos={autoplayVideos}
+            muteAutoplayVideos={muteAutoplayVideos}
             onClick={() => {
               if (selectionMode) {
                 toggleGroupSelection(

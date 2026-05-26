@@ -44,6 +44,8 @@ export default async function GalleryPage({
       pageSize={limit}
       scrollMode={scrollMode}
       loopVideos={settings.loopVideos}
+      autoplayVideos={settings.autoplayVideos ?? false}
+      muteAutoplayVideos={settings.muteAutoplayVideos ?? true}
       playlistId={
         playlistId && !Number.isNaN(playlistId) ? playlistId : undefined
       }
