@@ -30,6 +30,7 @@ interface LightboxProps {
   onPrev?: () => void;
   onDelete?: (id: number, deleteFile: boolean) => void;
   loopVideos?: boolean;
+  isPageLoading?: boolean;
 }
 
 export default function Lightbox({
@@ -45,6 +46,7 @@ export default function Lightbox({
   onPrev,
   onDelete,
   loopVideos,
+  isPageLoading = false,
 }: LightboxProps) {
   const { item } = row;
   const [showInfo, setShowInfo] = useState(true);
@@ -119,7 +121,7 @@ export default function Lightbox({
       if (diffX > 0) {
         if (onPrev) onPrev();
       } else {
-        if (onNext) onNext();
+        if (onNext && !isPageLoading) onNext();
       }
     }
     touchStartX.current = null;
@@ -185,10 +187,10 @@ export default function Lightbox({
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight" && onNext) onNext();
+      if (e.key === "ArrowRight" && onNext && !isPageLoading) onNext();
       if (e.key === "ArrowLeft" && onPrev) onPrev();
     },
-    [onClose, onNext, onPrev],
+    [onClose, onNext, onPrev, isPageLoading],
   );
 
   useEffect(() => {
@@ -305,13 +307,16 @@ export default function Lightbox({
         {onNext && (
           <button
             type="button"
-            className={`${styles.navButton} ${styles.nextButton}`}
+            className={`${styles.navButton} ${styles.nextButton} ${isPageLoading ? styles.loadingButton : ""}`}
             onClick={(e) => {
               e.stopPropagation();
+              if (isPageLoading) return;
               onNext();
             }}
+            disabled={isPageLoading}
+            title={isPageLoading ? "Loading next page..." : "Next"}
           >
-            ›
+            {isPageLoading ? <span className={styles.spinner} /> : "›"}
           </button>
         )}
 
