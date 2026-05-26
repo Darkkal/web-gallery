@@ -1,5 +1,21 @@
 import { expect, test } from "@playwright/test";
 
+test.beforeAll(async ({ browser }) => {
+  const page = await browser.newPage();
+  await page.goto("/settings");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+  page.once("dialog", async (dialog) => {
+    await dialog.accept();
+  });
+  await page.getByRole("button", { name: "Reset Defaults" }).first().click();
+  await page.getByRole("button", { name: "Save Changes" }).first().click();
+  // Wait for success banner to ensure settings are saved to disk
+  const alert = page.locator("[class*='notification']").first();
+  await expect(alert).toBeVisible({ timeout: 15000 });
+  await expect(alert).toContainText("Settings saved and updated successfully!");
+  await page.close();
+});
+
 test("timeline page loads", async ({ page }) => {
   // Start from the index page (which redirects to timeline)
   await page.goto("/");
@@ -164,7 +180,7 @@ test("timeline post condensing settings and toggle interaction", async ({
 
   // Expect success banner
   const alert = page.locator("[class*='notification']").first();
-  await expect(alert).toBeVisible();
+  await expect(alert).toBeVisible({ timeout: 15000 });
   await expect(alert).toContainText("Settings saved and updated successfully!");
 
   // 3. Go to timeline

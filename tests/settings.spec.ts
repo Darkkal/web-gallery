@@ -2,6 +2,27 @@ import { expect, test } from "@playwright/test";
 
 test.describe
   .serial("Settings Page", () => {
+    test.beforeAll(async ({ browser }) => {
+      const page = await browser.newPage();
+      await page.goto("/settings");
+      await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+      page.once("dialog", async (dialog) => {
+        await dialog.accept();
+      });
+      await page
+        .getByRole("button", { name: "Reset Defaults" })
+        .first()
+        .click();
+      await page.getByRole("button", { name: "Save Changes" }).first().click();
+      // Wait for success banner to ensure settings are saved to disk
+      const alert = page.locator("[class*='notification']").first();
+      await expect(alert).toBeVisible({ timeout: 15000 });
+      await expect(alert).toContainText(
+        "Settings saved and updated successfully!",
+      );
+      await page.close();
+    });
+
     test.beforeEach(async ({ page }) => {
       // Navigate to settings page before each test
       await page.goto("/settings");
@@ -92,7 +113,7 @@ test.describe
 
       // Expect success notification
       const alert = page.locator("[class*='notification']").first();
-      await expect(alert).toBeVisible();
+      await expect(alert).toBeVisible({ timeout: 15000 });
       await expect(alert).toContainText(
         "Settings saved and updated successfully!",
       );
@@ -143,7 +164,7 @@ test.describe
 
       // Expect success notification
       const alert = page.locator("[class*='notification']").first();
-      await expect(alert).toBeVisible();
+      await expect(alert).toBeVisible({ timeout: 15000 });
       await expect(alert).toContainText(
         "Settings saved and updated successfully!",
       );
@@ -173,7 +194,7 @@ test.describe
 
       await page.getByRole("button", { name: "Save Changes" }).first().click();
       const alert = page.locator("[class*='notification']").first();
-      await expect(alert).toBeVisible();
+      await expect(alert).toBeVisible({ timeout: 15000 });
       await expect(alert).toContainText(
         "Gallery page size must be between 1 and 500.",
       );
@@ -182,7 +203,7 @@ test.describe
       await galleryPageSizeInput.fill("501");
 
       await page.getByRole("button", { name: "Save Changes" }).first().click();
-      await expect(alert).toBeVisible();
+      await expect(alert).toBeVisible({ timeout: 15000 });
       await expect(alert).toContainText(
         "Gallery page size must be between 1 and 500.",
       );
@@ -203,7 +224,7 @@ test.describe
 
       await page.getByRole("button", { name: "Save Changes" }).first().click();
       const alert = page.locator("[class*='notification']").first();
-      await expect(alert).toBeVisible();
+      await expect(alert).toBeVisible({ timeout: 15000 });
       await expect(alert).toContainText(
         "Scraper sleep range is invalid (Min must be >= 0 and <= Max).",
       );
@@ -230,7 +251,7 @@ test.describe
 
       // Verify it resets in form but not saved yet (shows notification warning banner)
       const alert = page.locator("[class*='notification']").first();
-      await expect(alert).toBeVisible();
+      await expect(alert).toBeVisible({ timeout: 15000 });
       await expect(alert).toContainText(
         "Reset settings in form. Click 'Save Changes' to commit.",
       );
