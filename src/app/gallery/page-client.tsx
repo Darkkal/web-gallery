@@ -24,6 +24,7 @@ export default function GalleryPageClient({
   initialNextCursor,
   pageSize,
   scrollMode,
+  infiniteScrollBuffer,
   loopVideos,
   autoplayVideos,
   muteAutoplayVideos,
@@ -35,6 +36,7 @@ export default function GalleryPageClient({
   initialNextCursor: string | null;
   pageSize: number;
   scrollMode: "infinite" | "button";
+  infiniteScrollBuffer: number;
   loopVideos: boolean;
   autoplayVideos: boolean;
   muteAutoplayVideos: boolean;
@@ -48,6 +50,7 @@ export default function GalleryPageClient({
       initialNextCursor={initialNextCursor}
       pageSize={pageSize}
       scrollMode={scrollMode}
+      infiniteScrollBuffer={infiniteScrollBuffer}
       loopVideos={loopVideos}
       autoplayVideos={autoplayVideos}
       muteAutoplayVideos={muteAutoplayVideos}
@@ -63,6 +66,7 @@ function GalleryPageContent({
   initialNextCursor,
   pageSize,
   scrollMode,
+  infiniteScrollBuffer,
   loopVideos,
   autoplayVideos,
   muteAutoplayVideos,
@@ -74,6 +78,7 @@ function GalleryPageContent({
   initialNextCursor: string | null;
   pageSize: number;
   scrollMode: "infinite" | "button";
+  infiniteScrollBuffer: number;
   loopVideos: boolean;
   autoplayVideos: boolean;
   muteAutoplayVideos: boolean;
@@ -224,6 +229,7 @@ function GalleryPageContent({
           loadMore={loadMore}
           hasMore={hasMore}
           isLoading={isLoading}
+          rootMargin={`${infiniteScrollBuffer}px`}
         />
       )}
 

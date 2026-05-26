@@ -39,6 +39,7 @@ export default async function TimelinePage({
       initialSort={sortBy}
       pageSize={limit}
       scrollMode={scrollMode}
+      infiniteScrollBuffer={settings.infiniteScrollBuffer ?? 300}
       loopVideos={settings.loopVideos}
       autoplayVideos={autoplayVideos}
       muteAutoplayVideos={muteAutoplayVideos}

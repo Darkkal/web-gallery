@@ -10,6 +10,7 @@ export interface AppSettings {
   condensePostLines: number;
   autoplayVideos: boolean;
   muteAutoplayVideos: boolean;
+  infiniteScrollBuffer: number;
 }
 
 export interface ScraperSettings {
@@ -48,6 +49,7 @@ export const DEFAULT_SETTINGS: SystemSettings = {
     condensePostLines: 2,
     autoplayVideos: false,
     muteAutoplayVideos: true,
+    infiniteScrollBuffer: 300,
   },
   scraper: {
     rateLimit: "5M",

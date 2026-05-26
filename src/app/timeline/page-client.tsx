@@ -24,6 +24,7 @@ export default function TimelinePageClient({
   initialSort,
   pageSize,
   scrollMode,
+  infiniteScrollBuffer,
   loopVideos,
   autoplayVideos,
   muteAutoplayVideos,
@@ -36,6 +37,7 @@ export default function TimelinePageClient({
   initialSort: string;
   pageSize: number;
   scrollMode: "infinite" | "button";
+  infiniteScrollBuffer: number;
   loopVideos: boolean;
   autoplayVideos: boolean;
   muteAutoplayVideos: boolean;
@@ -50,6 +52,7 @@ export default function TimelinePageClient({
       initialSort={initialSort}
       pageSize={pageSize}
       scrollMode={scrollMode}
+      infiniteScrollBuffer={infiniteScrollBuffer}
       loopVideos={loopVideos}
       autoplayVideos={autoplayVideos}
       muteAutoplayVideos={muteAutoplayVideos}
@@ -66,6 +69,7 @@ function TimelinePageContent({
   initialSort,
   pageSize,
   scrollMode,
+  infiniteScrollBuffer,
   loopVideos,
   autoplayVideos,
   muteAutoplayVideos,
@@ -78,6 +82,7 @@ function TimelinePageContent({
   initialSort: string;
   pageSize: number;
   scrollMode: "infinite" | "button";
+  infiniteScrollBuffer: number;
   loopVideos: boolean;
   autoplayVideos: boolean;
   muteAutoplayVideos: boolean;
@@ -257,6 +262,7 @@ function TimelinePageContent({
           loadMore={loadMore}
           hasMore={hasMore}
           isLoading={isLoading}
+          rootMargin={`${infiniteScrollBuffer}px`}
         />
       )}
 

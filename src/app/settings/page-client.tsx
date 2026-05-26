@@ -109,6 +109,18 @@ export default function SettingsPageClient({
     }
 
     if (
+      settings.app.infiniteScrollBuffer < 0 ||
+      settings.app.infiniteScrollBuffer > 2000
+    ) {
+      setNotification({
+        type: "error",
+        message: "Infinite scroll buffer must be between 0 and 2000 pixels.",
+      });
+      setIsSaving(false);
+      return;
+    }
+
+    if (
       settings.app.timelinePageSize < 1 ||
       settings.app.timelinePageSize > 500
     ) {
@@ -352,6 +364,34 @@ export default function SettingsPageClient({
                   />
                   <p className={styles.helperText}>
                     Number of posts rendered per page in timeline feed (1-500).
+                  </p>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label
+                    htmlFor="infiniteScrollBuffer"
+                    className={styles.label}
+                  >
+                    Infinite Scroll Buffer (px)
+                  </label>
+                  <input
+                    id="infiniteScrollBuffer"
+                    type="number"
+                    min="0"
+                    max="2000"
+                    value={settings.app.infiniteScrollBuffer}
+                    onChange={(e) =>
+                      handleAppChange(
+                        "infiniteScrollBuffer",
+                        parseInt(e.target.value, 10) || 300,
+                      )
+                    }
+                    className={styles.input}
+                    required
+                  />
+                  <p className={styles.helperText}>
+                    Distance in pixels off-screen to trigger loading next page
+                    (0-2000).
                   </p>
                 </div>
 
