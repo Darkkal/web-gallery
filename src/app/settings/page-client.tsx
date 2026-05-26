@@ -115,12 +115,12 @@ export default function SettingsPageClient({
     }
 
     if (
-      settings.app.condensePostLength < 1 ||
-      settings.app.condensePostLength > 1000
+      settings.app.condensePostLines < 1 ||
+      settings.app.condensePostLines > 20
     ) {
       setNotification({
         type: "error",
-        message: "Condense post length must be between 1 and 1000 characters.",
+        message: "Condense post lines must be between 1 and 20 lines.",
       });
       setIsSaving(false);
       return;
@@ -414,19 +414,19 @@ export default function SettingsPageClient({
                 className={styles.formGroup}
                 style={{ marginBottom: "2rem" }}
               >
-                <label htmlFor="condensePostLength" className={styles.label}>
-                  Condense Length Threshold (Characters)
+                <label htmlFor="condensePostLines" className={styles.label}>
+                  Condense Lines Threshold
                 </label>
                 <input
-                  id="condensePostLength"
+                  id="condensePostLines"
                   type="number"
                   min="1"
-                  max="1000"
-                  value={settings.app.condensePostLength}
+                  max="20"
+                  value={settings.app.condensePostLines}
                   onChange={(e) =>
                     handleAppChange(
-                      "condensePostLength",
-                      parseInt(e.target.value, 10) || 120,
+                      "condensePostLines",
+                      parseInt(e.target.value, 10) || 2,
                     )
                   }
                   className={styles.input}
@@ -434,7 +434,7 @@ export default function SettingsPageClient({
                   required
                 />
                 <p className={styles.helperText}>
-                  Maximum number of characters to show before condensing the
+                  Maximum number of lines of text to show before condensing the
                   post.
                 </p>
               </div>

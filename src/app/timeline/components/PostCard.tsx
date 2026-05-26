@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "@/app/timeline/page.module.css";
 import FormattedContent from "@/components/FormattedContent";
 import { handleKeyActivate } from "@/lib/utils/a11y";
@@ -18,7 +18,7 @@ interface PostCardProps {
   ) => void;
   loopVideos?: boolean;
   condensePostText?: boolean;
-  condensePostLength?: number;
+  condensePostLines?: number;
 }
 
 export default function PostCard({
@@ -27,20 +27,35 @@ export default function PostCard({
   onMediaClick,
   loopVideos,
   condensePostText = true,
-  condensePostLength = 120,
+  condensePostLines = 2,
 }: PostCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [hasOverflow, setHasOverflow] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
-  // Strip HTML tags for clean text character counting and plain-text display in collapsed state
-  const cleanText = post.content
-    ? post.content.replace(/<[^>]*>/g, "").trim()
-    : "";
-  const isTooLong = condensePostText && cleanText.length > condensePostLength;
+  useEffect(() => {
+    if (!condensePostText) {
+      setHasOverflow(false);
+      return;
+    }
 
-  const displayedContent =
-    isTooLong && !isExpanded
-      ? `${cleanText.slice(0, condensePostLength)}...`
-      : post.content;
+    const checkOverflow = () => {
+      if (contentRef.current) {
+        const { scrollHeight, clientHeight } = contentRef.current;
+        setHasOverflow(scrollHeight > clientHeight);
+      }
+    };
+
+    // Run initial check
+    checkOverflow();
+
+    const element = contentRef.current;
+    if (!element) return;
+
+    const observer = new ResizeObserver(checkOverflow);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [condensePostText]);
 
   return (
     <article className={styles.postCard}>
@@ -94,7 +109,10 @@ export default function PostCard({
         <>
           {/* biome-ignore lint/a11y/noStaticElementInteractions: Click handler is conditional and handled via key listener when active */}
           <div
-            className={styles.postContent}
+            ref={contentRef}
+            className={`${styles.postContent} ${
+              condensePostText && !isExpanded ? styles.postContentClamped : ""
+            }`}
             onClick={
               post.mediaItems.some((m) => m.type === "text")
                 ? (e) => {
@@ -132,14 +150,16 @@ export default function PostCard({
               post.mediaItems.some((m) => m.type === "text") ? 0 : undefined
             }
             style={{
+              WebkitLineClamp:
+                condensePostText && !isExpanded ? condensePostLines : undefined,
               cursor: post.mediaItems.some((m) => m.type === "text")
                 ? "pointer"
                 : "default",
             }}
           >
-            <FormattedContent content={displayedContent} />
+            <FormattedContent content={post.content} />
           </div>
-          {isTooLong && (
+          {(isExpanded || hasOverflow) && (
             <button
               type="button"
               className={styles.toggleTextButton}

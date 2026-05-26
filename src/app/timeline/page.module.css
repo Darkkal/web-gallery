@@ -340,3 +340,9 @@
 .toggleTextButton:active {
   transform: scale(0.98);
 }
+
+.postContentClamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

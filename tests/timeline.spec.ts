@@ -151,9 +151,9 @@ test("timeline post condensing settings and toggle interaction", async ({
     await toggleLabel.click();
   }
 
-  const lengthInput = page.locator("#condensePostLength").first();
+  const lengthInput = page.locator("#condensePostLines").first();
   await expect(lengthInput).toBeAttached();
-  await lengthInput.fill("50");
+  await lengthInput.fill("1");
 
   // Save changes
   const saveButton = page.getByRole("button", { name: "Save Changes" }).first();
@@ -180,13 +180,14 @@ test("timeline post condensing settings and toggle interaction", async ({
 
   // Find a post that has the "Show More" button (condensed text)
   const showMoreBtn = page.locator('button[class*="toggleTextButton"]').first();
-  // Check if any "Show More" button is visible
-  if ((await showMoreBtn.count()) === 0) {
-    test.skip(true, "No posts met the 50-character limit to show 'Show More'");
+
+  // Wait for the button to become visible (ResizeObserver runs asynchronously after layout)
+  try {
+    await showMoreBtn.waitFor({ state: "visible", timeout: 5000 });
+  } catch {
+    test.skip(true, "No posts met the 1-line limit to show 'Show More'");
     return;
   }
-
-  await expect(showMoreBtn).toBeVisible();
   await expect(showMoreBtn).toHaveText("Show More");
 
   // Click Show More

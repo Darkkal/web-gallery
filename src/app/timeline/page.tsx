@@ -39,7 +39,7 @@ export default async function TimelinePage({
       scrollMode={scrollMode}
       loopVideos={settings.loopVideos}
       condensePostText={settings.condensePostText ?? true}
-      condensePostLength={settings.condensePostLength ?? 120}
+      condensePostLines={settings.condensePostLines ?? 2}
     />
   );
 }

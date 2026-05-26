@@ -7,7 +7,7 @@ export interface AppSettings {
   enableProductionDestructiveOps: boolean;
   loopVideos: boolean;
   condensePostText: boolean;
-  condensePostLength: number;
+  condensePostLines: number;
 }
 
 export interface ScraperSettings {
@@ -43,7 +43,7 @@ export const DEFAULT_SETTINGS: SystemSettings = {
     enableProductionDestructiveOps: false,
     loopVideos: true,
     condensePostText: true,
-    condensePostLength: 120,
+    condensePostLines: 2,
   },
   scraper: {
     rateLimit: "5M",
