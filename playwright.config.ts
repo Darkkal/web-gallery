@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// List of tests that modify global settings or system state and must run sequentially
+const SERIAL_TESTS = ["**/settings.spec.ts", "**/timeline.spec.ts"];
+
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
@@ -33,14 +36,17 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    /* Parallel-safe Projects (run first concurrently using multiple workers) */
     {
-      name: "chromium",
+      name: "chromium-parallel",
       use: { ...devices["Desktop Chrome"] },
+      testIgnore: SERIAL_TESTS,
     },
 
     {
-      name: "firefox",
+      name: "firefox-parallel",
       use: { ...devices["Desktop Firefox"] },
+      testIgnore: SERIAL_TESTS,
     },
 
     /* Disable webkit test locally since it doesnt work with fedora out of the box
@@ -52,8 +58,41 @@ export default defineConfig({
 
     /* Test against mobile viewports. */
     {
-      name: "Mobile Chrome",
+      name: "Mobile Chrome-parallel",
       use: { ...devices["Pixel 5"] },
+      testIgnore: SERIAL_TESTS,
+    },
+
+    /* State-modifying Serial Projects (run sequentially using exactly 1 worker) */
+    {
+      name: "chromium-serial",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: SERIAL_TESTS,
+      dependencies: [
+        "chromium-parallel",
+        "firefox-parallel",
+        "Mobile Chrome-parallel",
+      ],
+      fullyParallel: false,
+      workers: 1,
+    },
+
+    {
+      name: "firefox-serial",
+      use: { ...devices["Desktop Firefox"] },
+      testMatch: SERIAL_TESTS,
+      dependencies: ["chromium-serial"],
+      fullyParallel: false,
+      workers: 1,
+    },
+
+    {
+      name: "Mobile Chrome-serial",
+      use: { ...devices["Pixel 5"] },
+      testMatch: SERIAL_TESTS,
+      dependencies: ["firefox-serial"],
+      fullyParallel: false,
+      workers: 1,
     },
 
     /* Test against branded browsers. */
