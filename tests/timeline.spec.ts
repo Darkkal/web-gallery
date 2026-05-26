@@ -47,7 +47,10 @@ test("timeline lightbox opens", async ({ page }) => {
     return;
   }
 
-  await mediaItem.first().click();
+  // Wait for the first media item wrapper to be visible
+  await expect(mediaItem.first()).toBeVisible({ timeout: 5000 });
+  // Dispatch click event directly to bypass native browser control interception (e.g. Firefox native video player controls)
+  await mediaItem.first().dispatchEvent("click");
 
   // Expect lightbox overlay
   const lightbox = page.locator('div[class*="overlay"]');
