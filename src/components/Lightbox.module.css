@@ -507,3 +507,26 @@
     transform: rotate(360deg);
   }
 }
+
+.dateRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dateRow + .dateRow {
+  margin-top: 10px;
+}
+
+.dateLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+  letter-spacing: 0.02em;
+}
+
+.dateValue {
+  font-size: 0.9rem;
+  color: hsl(var(--foreground));
+}

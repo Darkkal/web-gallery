@@ -86,8 +86,13 @@ export async function getMediaItems(filters?: {
   const orderBys: SQL[] = [];
   let cursorCond: SQL | undefined;
 
-  // Use coalesce to get a numeric timestamp for sorting
-  const sortField = sql`COALESCE(${posts.createdAt}, ${mediaItems.capturedAt}, 0)`;
+  let sortField: SQL;
+  if (sortBy.startsWith("captured")) {
+    sortField = sql`COALESCE(${mediaItems.capturedAt}, ${mediaItems.createdAt}, 0)`;
+  } else {
+    sortField = sql`COALESCE(${mediaItems.createdAt}, 0)`;
+  }
+
   // biome-ignore lint/suspicious/noExplicitAny: Drizzle aliased columns conflict with raw SQL types in query builder select shape
   let sortValOutput: any = sortField;
 
@@ -104,7 +109,7 @@ export async function getMediaItems(filters?: {
         and(eq(rankCol, cursorSortVal), gt(mediaItems.id, cursorId)),
       );
     }
-  } else if (sortBy === "created-asc" || sortBy === "captured-asc") {
+  } else if (sortBy.endsWith("-asc")) {
     orderBys.push(asc(sortField), asc(mediaItems.id));
     if (
       cursorSortVal !== null &&
@@ -229,9 +234,16 @@ export async function getMediaItems(filters?: {
   let nextCursor: string | null = null;
   if (results.length === limit) {
     const lastItem = results[results.length - 1];
-    nextCursor = Buffer.from(
-      `${lastItem.sortVal}_${lastItem.item.id}`,
-    ).toString("base64");
+    const sortVal =
+      lastItem.sortVal instanceof Date
+        ? lastItem.sortVal.getTime()
+        : typeof lastItem.sortVal === "string"
+          ? Date.parse(lastItem.sortVal)
+          : Number(lastItem.sortVal || 0);
+
+    nextCursor = Buffer.from(`${sortVal}_${lastItem.item.id}`).toString(
+      "base64",
+    );
   }
 
   // Return the items minus the internal sortVal to match the previous structure as closely as possible
