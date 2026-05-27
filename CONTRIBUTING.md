@@ -56,6 +56,7 @@ Client pages consume this with a "Load More" button that calls the Route Handler
 - **Scraping**: `ScraperManager` singleton controls scraping tasks. Strategies implement `BaseScraperStrategy` → `GalleryDlStrategy`, `YtDlpStrategy`.
 - **Library Scanning**: `MetadataProcessorFactory` handles metadata extraction per platform (Twitter, Pixiv, Gelbooru).
 - **Rule**: When adding support for a new platform, implement a new strategy/processor. Never add `if/else` platform logic to base classes.
+- **Rule**: Post-scrape scans must be incremental (file-level targeted via `queueIncrementalScan`) and go through the scan queue. The manual "Scan Library" button triggers a full scan via `queueScan({ scanType: "full" })`. Never call `syncLibrary()` directly — always use the queue functions to ensure serialization.
 - **Rule**: If a new extractor introduces new searchable metadata columns that are added to the FTS5 virtual table, you MUST update the `ftsColumnAliases` dictionary in `src/lib/utils/search-parser.ts` to map any friendly search prefixes to the new FTS5 column. This dictionary doubles as the allowlist for valid column filters.
 
 ### 1.5 Styling System — CSS Modules + Design Tokens
