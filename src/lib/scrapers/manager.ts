@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import { scrapeHistory, scraperDownloadLogs } from "@/lib/db/schema";
-import { syncLibrary } from "@/lib/library/scanner";
+import { queueIncrementalScan } from "@/lib/library/scanner";
 import { type ScrapeLimits, ScraperRunner } from "@/lib/scrapers/runner";
 import type { BaseScraperStrategy } from "@/lib/scrapers/strategies/base";
 import type { ScrapeProgress } from "@/lib/scrapers/types";
@@ -296,11 +296,11 @@ class ScraperManager {
             `[ScraperManager] Updated history record ${historyId} with final metrics`,
           );
 
-          // Trigger library scan automatically
-          console.log(`[ScraperManager] Triggering library scan...`);
-          syncLibrary().catch((err) =>
-            console.error("[ScraperManager] Auto-scan failed:", err),
+          // Queue incremental scan for only the downloaded files
+          console.log(
+            `[ScraperManager] Queuing incremental scan for ${result.items?.length ?? 0} downloaded files...`,
           );
+          queueIncrementalScan(result.items ?? []);
 
           // Keep it in the map for a bit so the UI can see "Finished"
           setTimeout(() => {
@@ -323,12 +323,9 @@ class ScraperManager {
 
         this.activeScrapes.delete(sourceId);
 
-        // Should we scan on error? Probably yes, to pick up whatever was downloaded before error.
+        // No result.items available on promise rejection — log and let user manually full-scan if needed
         console.log(
-          `[ScraperManager] Triggering library scan (after error)...`,
-        );
-        syncLibrary().catch((err) =>
-          console.error("[ScraperManager] Auto-scan failed:", err),
+          `[ScraperManager] Scrape failed for source ${sourceId}. No incremental scan queued — use manual full scan if needed.`,
         );
       });
   }
