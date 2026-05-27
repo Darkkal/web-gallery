@@ -200,19 +200,23 @@ export default function Lightbox({
 
   if (!item) return null;
 
-  // Format date
-  const date = item.capturedAt
-    ? new Date(item.capturedAt)
-    : item.createdAt
-      ? new Date(item.createdAt)
-      : null;
+  // Format dates
+  const capturedDate = item.capturedAt ? new Date(item.capturedAt) : null;
+  const createdDate = item.createdAt ? new Date(item.createdAt) : null;
 
-  const formattedDate = date
-    ? date.toLocaleString(undefined, {
+  const formattedCapturedDate = capturedDate
+    ? capturedDate.toLocaleString(undefined, {
         dateStyle: "full",
         timeStyle: "medium",
       })
-    : "Unknown Date";
+    : "Unknown";
+
+  const formattedCreatedDate = createdDate
+    ? createdDate.toLocaleString(undefined, {
+        dateStyle: "full",
+        timeStyle: "medium",
+      })
+    : null;
 
   return (
     <div
@@ -442,8 +446,19 @@ export default function Lightbox({
         </div>
 
         <div className={styles.section}>
-          <h3 className={styles.sectionTitle}>Date</h3>
-          <div className={styles.sectionContent}>{formattedDate}</div>
+          <h3 className={styles.sectionTitle}>Date Details</h3>
+          <div className={styles.sectionContent}>
+            <div className={styles.dateRow}>
+              <span className={styles.dateLabel}>Original Post:</span>{" "}
+              <span className={styles.dateValue}>{formattedCapturedDate}</span>
+            </div>
+            {formattedCreatedDate && (
+              <div className={styles.dateRow}>
+                <span className={styles.dateLabel}>Imported to Library:</span>{" "}
+                <span className={styles.dateValue}>{formattedCreatedDate}</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className={styles.section}>
