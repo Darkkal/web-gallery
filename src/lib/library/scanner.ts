@@ -18,6 +18,7 @@ import { MetadataProcessorFactory } from "@/lib/library/processors/factory";
 import type {
   ProcessorContext,
   ProcessTask,
+  SyncOptions,
   TagCache,
   UserCache,
 } from "@/lib/library/types";
@@ -27,6 +28,40 @@ const DOWNLOAD_DIR = paths.downloads;
 // Global control flags for this module process
 let isScanning = false;
 let stopRequested = false;
+
+const scanQueue: SyncOptions[] = [];
+let isProcessingQueue = false;
+
+export function queueScan(options: SyncOptions = { scanType: "full" }): void {
+  scanQueue.push(options);
+  if (!isProcessingQueue) {
+    processQueue().catch((err) =>
+      console.error("[Scanner] Queue processing error:", err),
+    );
+  }
+}
+
+async function processQueue(): Promise<void> {
+  if (isProcessingQueue) return;
+  isProcessingQueue = true;
+  try {
+    while (scanQueue.length > 0) {
+      const next = scanQueue.shift()!;
+      await syncLibrary(next);
+    }
+  } finally {
+    isProcessingQueue = false;
+  }
+}
+
+export function queueIncrementalScan(downloadedFiles: string[]): void {
+  if (downloadedFiles.length === 0) return;
+
+  queueScan({
+    targetFiles: downloadedFiles,
+    scanType: "incremental",
+  });
+}
 
 export function isScanRunning(): boolean {
   return isScanning;
@@ -107,13 +142,14 @@ function getAllFiles(dirPath: string): string[] {
   return results;
 }
 
-export async function syncLibrary() {
+export async function syncLibrary(options?: SyncOptions) {
   if (isScanning) {
     console.warn("Scan already running.");
     return;
   }
 
-  console.log("Starting library sync...");
+  const scanType = options?.scanType || "full";
+  console.log(`Starting library sync (${scanType})...`);
   isScanning = true;
   stopRequested = false;
 
@@ -125,6 +161,7 @@ export async function syncLibrary() {
     .values({
       startTime: new Date(),
       status: "running",
+      scanType,
       filesProcessed: 0,
       filesAdded: 0,
       filesUpdated: 0,
@@ -146,7 +183,21 @@ export async function syncLibrary() {
     // Enable WAL mode for much better write throughput during bulk operations
     await db.run(sql`PRAGMA journal_mode=WAL`);
 
-    const legacyFiles = getAllFiles(DOWNLOAD_DIR);
+    let legacyFiles: string[] = [];
+    if (scanType === "incremental" && options?.targetFiles) {
+      const parentDirs = new Set<string>();
+      for (const file of options.targetFiles) {
+        parentDirs.add(path.dirname(path.resolve(file)));
+      }
+      for (const dir of parentDirs) {
+        if (fs.existsSync(dir)) {
+          legacyFiles = legacyFiles.concat(getAllFiles(dir));
+        }
+      }
+      legacyFiles = Array.from(new Set(legacyFiles));
+    } else {
+      legacyFiles = getAllFiles(DOWNLOAD_DIR);
+    }
 
     console.log(`Found ${legacyFiles.length} files in downloads.`);
 
@@ -269,6 +320,12 @@ export async function syncLibrary() {
       ])
       .onConflictDoNothing();
 
+    const isIncremental = scanType === "incremental" && options?.targetFiles;
+    const targetSet =
+      isIncremental && options?.targetFiles
+        ? new Set(options.targetFiles.map((f) => path.resolve(f)))
+        : null;
+
     const processedPaths = new Set<string>();
     const tasks: ProcessTask[] = [];
 
@@ -315,56 +372,74 @@ export async function syncLibrary() {
       }
 
       for (const mediaPath of group.mediaFiles) {
-        let urlPath: string;
-        if (group.sourceId) {
-          const relativePath = path
-            .relative(group.sourceRoot, mediaPath)
-            .split(path.sep)
-            .join("/");
-          urlPath = `/api/media/${group.sourceId}/${relativePath}`;
-        } else {
-          const relativePath = path
-            .relative(group.sourceRoot, mediaPath)
-            .split(path.sep)
-            .join("/");
-          urlPath = `/${relativePath}`;
-        }
+        const fsPathResolved = path.resolve(mediaPath);
+        const matchedJson = mediaToJson.get(mediaPath);
+        const matchedJsonResolved = matchedJson
+          ? path.resolve(matchedJson)
+          : undefined;
 
-        processedPaths.add(urlPath);
-        tasks.push({
-          fsPath: mediaPath,
-          dbFilePath: urlPath,
-          jsonPath: mediaToJson.get(mediaPath),
-          defaultType: "image",
-          sourceId: group.sourceId,
-        });
-      }
+        const isTargeted =
+          !targetSet ||
+          targetSet.has(fsPathResolved) ||
+          (matchedJsonResolved && targetSet.has(matchedJsonResolved));
 
-      // Process unused JSONs (Text-only posts)
-      for (const jsonPath of group.jsonFiles) {
-        if (!usedJsons.has(jsonPath)) {
+        if (isTargeted) {
           let urlPath: string;
           if (group.sourceId) {
             const relativePath = path
-              .relative(group.sourceRoot, jsonPath)
+              .relative(group.sourceRoot, mediaPath)
               .split(path.sep)
               .join("/");
             urlPath = `/api/media/${group.sourceId}/${relativePath}`;
           } else {
             const relativePath = path
-              .relative(group.sourceRoot, jsonPath)
+              .relative(group.sourceRoot, mediaPath)
               .split(path.sep)
               .join("/");
             urlPath = `/${relativePath}`;
           }
 
+          processedPaths.add(urlPath);
           tasks.push({
-            fsPath: jsonPath,
+            fsPath: mediaPath,
             dbFilePath: urlPath,
-            jsonPath: jsonPath,
-            defaultType: "text",
+            jsonPath: matchedJson,
+            defaultType: "image",
             sourceId: group.sourceId,
           });
+        }
+      }
+
+      // Process unused JSONs (Text-only posts)
+      for (const jsonPath of group.jsonFiles) {
+        if (!usedJsons.has(jsonPath)) {
+          const jsonPathResolved = path.resolve(jsonPath);
+          const isTargeted = !targetSet || targetSet.has(jsonPathResolved);
+
+          if (isTargeted) {
+            let urlPath: string;
+            if (group.sourceId) {
+              const relativePath = path
+                .relative(group.sourceRoot, jsonPath)
+                .split(path.sep)
+                .join("/");
+              urlPath = `/api/media/${group.sourceId}/${relativePath}`;
+            } else {
+              const relativePath = path
+                .relative(group.sourceRoot, jsonPath)
+                .split(path.sep)
+                .join("/");
+              urlPath = `/${relativePath}`;
+            }
+
+            tasks.push({
+              fsPath: jsonPath,
+              dbFilePath: urlPath,
+              jsonPath: jsonPath,
+              defaultType: "text",
+              sourceId: group.sourceId,
+            });
+          }
         }
       }
     }
@@ -460,7 +535,7 @@ export async function syncLibrary() {
       }
     }
 
-    if (!stopRequested) {
+    if (scanType === "full" && !stopRequested) {
       console.log("Cleaning up removed items...");
       const pathsToDelete: string[] = [];
       for (const p of existingMediaPaths) {
