@@ -20,3 +20,10 @@ export interface ProcessorContext {
   userAvatars: Map<string, string>;
   internalSourceId: number | null;
 }
+
+export interface SyncOptions {
+  /** Specific files to target (incremental mode). Parent dirs are walked for JSON matching context only. */
+  targetFiles?: string[];
+  /** 'full' = walk all + cleanup deletions. 'incremental' = process only targetFiles, skip deletion. */
+  scanType?: "full" | "incremental";
+}

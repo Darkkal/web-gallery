@@ -3,10 +3,10 @@
 import { desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { scanHistory } from "@/lib/db/schema";
-import { stopScanning, syncLibrary } from "@/lib/library/scanner";
+import { queueScan, stopScanning } from "@/lib/library/scanner";
 
 export async function scanLibrary() {
-  syncLibrary().catch(console.error);
+  queueScan({ scanType: "full" });
   return { started: true };
 }
 

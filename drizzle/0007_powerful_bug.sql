@@ -1,0 +1,1 @@
+ALTER TABLE `scan_history` ADD `scan_type` text DEFAULT 'full';

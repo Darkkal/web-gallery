@@ -89,6 +89,7 @@ export const scanHistory = sqliteTable("scan_history", {
   status: text("status")
     .$type<"running" | "completed" | "failed" | "stopped">()
     .notNull(),
+  scanType: text("scan_type").$type<"full" | "incremental">().default("full"),
   filesProcessed: integer("files_processed").default(0),
   filesAdded: integer("files_added").default(0),
   filesUpdated: integer("files_updated").default(0),

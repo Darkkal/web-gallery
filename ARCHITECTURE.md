@@ -243,23 +243,31 @@ ScraperManager (singleton)
 
 **Location**: [`src/lib/library/`](./src/lib/library/)
 
-The scanner (`syncLibrary()`) walks the `downloads/` directory, groups files by parent directory, matches media files to their co-located JSON metadata files, and upserts everything into the database.
+The scanner uses a module-level FIFO scan queue (`queueScan()`) to serialize all library scans sequentially rather than dropping concurrent scan requests. It supports two modes: **Full Scan** (walks the entire download directory, index everything, and purge deleted items) and **Incremental Scan** (precision walks only the directories containing new/updated files, processes only the targeted files, and skips deletion checks entirely for high-speed scrape integration).
 
 ```
-syncLibrary()
-  ├── Walk DOWNLOAD_DIR → dirGroups (media + JSON per directory)
-  ├── Load in-memory caches (existing media paths, users, posts, tags)
-  ├── Match media files → JSON files (exact, prefix, or contains)
-  ├── Build ProcessTask list
-  └── Batched DB transactions (BATCH_SIZE = 100)
-        └── For each task:
-              ├── prepareTask() — read JSON + stat the file
-              ├── MetadataProcessorFactory.getProcessor(extractorType)
-              │     └── processor.process(meta, task, context)
-              │           ├── Upsert platform user (twitterUsers / pixivUsers)
-              │           ├── Upsert post + platform detail table
-              │           └── Upsert tags → postTags
-              └── Insert/update mediaItems row
+queueScan() / queueIncrementalScan()
+  └── FIFO Queue
+        └── syncLibrary(options)
+              ├── File Discovery:
+              │     ├── Full: Walk DOWNLOAD_DIR recursively
+              │     └── Incremental: Walk only parent dirs of targetFiles
+              ├── Group files by dir → dirGroups (media + JSON per directory)
+              ├── Load in-memory caches (existing media paths, users, posts, tags)
+              ├── Match media files ↔ JSON files (exact, prefix, or contains)
+              ├── Build ProcessTask list:
+              │     ├── Full: Process all matched tasks
+              │     └── Incremental: Filter to tasks where media or JSON is in targetFiles
+              ├── Batched DB transactions (BATCH_SIZE = 100)
+              │     └── For each task:
+              │           ├── prepareTask() — read JSON + stat the file
+              │           ├── MetadataProcessorFactory.getProcessor(extractorType)
+              │           │     └── processor.process(meta, task, context)
+              │           │           ├── Upsert platform user
+              │           │           ├── Upsert post + details
+              │           │           └── Upsert tags
+              │           └── Insert/update mediaItems row
+              └── Deletion cleanup (Full scan only)
 ```
 
 **Processors** follow the Strategy + Factory pattern:
@@ -342,13 +350,20 @@ ScraperManager.startScrape(sourceId, type, url, downloadDir)
 ScraperManager finalizes scrape_history
         │
         ▼
-syncLibrary() triggered automatically
+queueIncrementalScan(result.items)
         │
-        ├── Walks DOWNLOAD_DIR
-        ├── Matches media ↔ JSON
+        ▼
+Scan Queue (FIFO serialization)
+        │
+        ▼
+syncLibrary({ targetFiles, scanType: "incremental" })
+        │
+        ├── Walks only parent directories of targetFiles
+        ├── Matches media ↔ JSON within those directories
+        ├── Filters ProcessTask list to only new/updated files
         ├── MetadataProcessorFactory → processor.process()
         │       └── Upserts: users, posts, post_details_*, tags, mediaItems
-        └── Finalizes scan_history (status: "completed")
+        └── Finalizes scan_history (status: "completed", type: "incremental")
                 │
                 ▼
         Gallery / Timeline pages now show new content

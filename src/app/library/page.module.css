@@ -127,6 +127,17 @@
   color: hsl(var(--color-info) / 0.8);
 }
 
+.scanTypeBadge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: hsl(var(--color-muted-label) / 0.1);
+  color: hsl(var(--color-muted-label));
+  margin-left: 0.5rem;
+  text-transform: capitalize;
+}
+
 /* Danger Zone */
 .dangerZone {
   border-color: rgba(239, 68, 68, 0.2);

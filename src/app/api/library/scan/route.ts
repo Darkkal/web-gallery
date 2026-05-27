@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { scanHistory } from "@/lib/db/schema";
 
-import { syncLibrary } from "@/lib/library/scanner";
+import { queueScan } from "@/lib/library/scanner";
 
 export async function GET() {
   // Return the latest scan record as-is.
@@ -19,6 +19,6 @@ export async function GET() {
 }
 
 export async function POST() {
-  syncLibrary().catch(console.error);
+  queueScan({ scanType: "full" });
   return NextResponse.json({ started: true });
 }
