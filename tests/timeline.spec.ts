@@ -86,9 +86,16 @@ test("timeline sorting interaction", async ({ page }) => {
   const sortSelect = page.locator("select").first();
   await expect(sortSelect).toBeVisible();
 
-  // Change sort to "Oldest First"
-  await sortSelect.selectOption("created-asc");
-  await expect(sortSelect).toHaveValue("created-asc");
+  // Change sort to "Imported to Library" (created)
+  await sortSelect.selectOption("created");
+  await expect(sortSelect).toHaveValue("created");
+
+  // Click the direction toggle button to switch to Ascending (Oldest First)
+  const dirToggle = page
+    .locator("button[aria-label='Toggle sort direction']")
+    .first();
+  await expect(dirToggle).toBeVisible();
+  await dirToggle.click();
 });
 
 test("timeline defaults to infinite scroll mode", async ({ page }) => {
