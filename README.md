@@ -182,7 +182,7 @@ This software is provided "as is," without warranty of any kind.
 
 ### AI Assistance Notice
 
-This codebase has been developed with AI assistance. Portions of the codebase has been generated, but all contents are manually validated for coding best practices by a software engineer with a professional background.
+This codebase has been developed with AI assistance. 
 
 ## License
 
