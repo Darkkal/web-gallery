@@ -327,9 +327,13 @@
   }
 
   .searchInput,
-  .filterBar select {
+  .filterBar > select {
     width: 100%;
     flex: none;
+  }
+
+  .sortGroup {
+    width: 100%;
   }
 
   .separator {
@@ -360,4 +364,15 @@
 .playlistButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.sortGroup {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.sortGroup select {
+  flex: 1;
+  min-width: 0;
 }

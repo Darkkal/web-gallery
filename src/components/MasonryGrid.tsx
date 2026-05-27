@@ -86,27 +86,44 @@ export default function MasonryGrid<T>({
   );
 }
 
-function getItemHeightFactor(item: any): number {
-  if (!item) return 1.0;
+interface HasDimensions {
+  item?: {
+    width?: number | null;
+    height?: number | null;
+    mediaType?: string | null;
+  } | null;
+  pixiv?: {
+    width?: number | null;
+    height?: number | null;
+  } | null;
+  gelbooru?: {
+    width?: number | null;
+    height?: number | null;
+  } | null;
+}
+
+function getItemHeightFactor(item: unknown): number {
+  if (!item || typeof item !== "object") return 1.0;
+  const obj = item as HasDimensions;
 
   // 1. Direct preprocessed dimensions from DB
-  if (item.item && item.item.width && item.item.height) {
-    const factor = item.item.height / item.item.width;
+  if (obj.item?.width && obj.item.height) {
+    const factor = obj.item.height / obj.item.width;
     if (factor > 0) return factor;
   }
 
   // 2. Fallbacks for platform-specific details (in case they are not scanned/backfilled yet)
-  if (item.pixiv?.width && item.pixiv?.height) {
-    const factor = item.pixiv.height / item.pixiv.width;
+  if (obj.pixiv?.width && obj.pixiv?.height) {
+    const factor = obj.pixiv.height / obj.pixiv.width;
     if (factor > 0) return factor;
   }
-  if (item.gelbooru?.width && item.gelbooru?.height) {
-    const factor = item.gelbooru.height / item.gelbooru.width;
+  if (obj.gelbooru?.width && obj.gelbooru?.height) {
+    const factor = obj.gelbooru.height / obj.gelbooru.width;
     if (factor > 0) return factor;
   }
 
   // 3. Fallback for video files
-  if (item.item?.mediaType === "video") {
+  if (obj.item?.mediaType === "video") {
     return 0.75;
   }
 

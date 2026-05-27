@@ -46,8 +46,10 @@ async function processQueue(): Promise<void> {
   isProcessingQueue = true;
   try {
     while (scanQueue.length > 0) {
-      const next = scanQueue.shift()!;
-      await syncLibrary(next);
+      const next = scanQueue.shift();
+      if (next) {
+        await syncLibrary(next);
+      }
     }
   } finally {
     isProcessingQueue = false;
@@ -792,7 +794,11 @@ async function processItem(
     });
     existingMediaPaths.add(task.dbFilePath);
   } else if (mediaType !== "text") {
-    const updateObj: any = {};
+    const updateObj: {
+      postId?: number | null;
+      width?: number | null;
+      height?: number | null;
+    } = {};
     if (postId) updateObj.postId = postId;
     if (dimensions) {
       updateObj.width = dimensions.width;
