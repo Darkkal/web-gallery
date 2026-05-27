@@ -136,6 +136,11 @@ export default function LibraryPageClient({
                 >
                   {scanStatus.status}
                 </span>
+                {scanStatus.scanType && (
+                  <span className={styles.scanTypeBadge}>
+                    {scanStatus.scanType}
+                  </span>
+                )}
               </div>
               {scanStatus.status === "running" && (
                 <div>
