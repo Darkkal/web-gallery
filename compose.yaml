@@ -9,6 +9,7 @@ services:
       NODE_ENV: production
       DATA_DIR: /data
       MEDIA_DIR: /media
+      TZ: ${TZ:-UTC}
     ports:
       - 3000:3000
     volumes:
@@ -20,3 +21,5 @@ services:
       - ${WEBGALLERY_MEDIA_DIR:-./prod-media}:/media
       # Firefox cookies for authenticated scraping (Fedora/Nobara path)
       - ~/.config/mozilla/firefox:/home/node/.mozilla/firefox:ro
+      # Align container timezone with host system
+      - /etc/localtime:/etc/localtime:ro

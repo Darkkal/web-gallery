@@ -9,6 +9,7 @@ services:
     environment:
       NODE_ENV: development
       DATA_DIR: /data
+      TZ: ${TZ:-UTC}
     ports:
       - 3002:3000
       - 9229:9229
@@ -26,3 +27,5 @@ services:
       - ./data:/data
       # Firefox cookies, this is where it's hosted on Fedora
       - ~/.config/mozilla/firefox:/home/node/.mozilla/firefox:ro
+      # Align container timezone with host system
+      - /etc/localtime:/etc/localtime:ro
