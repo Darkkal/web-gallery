@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.3.0](https://github.com/Darkkal/web-gallery/compare/v0.2.0...v0.3.0) (2026-05-31)
+
+
+### Features
+
+* **gallery:** change column slider to +/- buttons ([78375ae](https://github.com/Darkkal/web-gallery/commit/78375ae080c43fec7ab2f1e9753702757c8416f1))
+* **gallery:** integrate autoplay hook into GalleryItem video component ([f2e4aaf](https://github.com/Darkkal/web-gallery/commit/f2e4aaf784d0451069fbc196393b42920c1686aa))
+* **gallery:** read and pass autoplay settings down to gallery page client ([f35262f](https://github.com/Darkkal/web-gallery/commit/f35262f507ae55df69c5c8dd826bc39e1c9d4b83))
+* **gallery:** simplified sorting selection and added asc/desc sort ([e090ff6](https://github.com/Darkkal/web-gallery/commit/e090ff63acfd7fa332447d353a8eb178dcf7e2a9))
+* **hooks:** implement useAutoplayVideo IntersectionObserver hook ([ffa6c9a](https://github.com/Darkkal/web-gallery/commit/ffa6c9af9f60a5dda1973e268781878ce3630ee4))
+* **lightbox:** allow loading more items while navigating with buffer ([#95](https://github.com/Darkkal/web-gallery/issues/95)) ([60fb542](https://github.com/Darkkal/web-gallery/commit/60fb542bacc6bb154854aebd550988d24c9f589e))
+* **lightbox:** show both import date and publish/create date ([e090ff6](https://github.com/Darkkal/web-gallery/commit/e090ff63acfd7fa332447d353a8eb178dcf7e2a9))
+* **scraper:** add scheduling scrape tasks based on interval or date ([860d953](https://github.com/Darkkal/web-gallery/commit/860d953355c37929287af1a05abc245892d59708))
+* **scraper:** add tasks/history card view for responsive mobile layout ([860d953](https://github.com/Darkkal/web-gallery/commit/860d953355c37929287af1a05abc245892d59708))
+* **scrape:** show scrape duration while running, use hh:mm:ss format ([8b54ef9](https://github.com/Darkkal/web-gallery/commit/8b54ef93b831ca035e9773af20db553047843a6a))
+* set server timezone to host configuration ([860d953](https://github.com/Darkkal/web-gallery/commit/860d953355c37929287af1a05abc245892d59708))
+* **settings:** add autoplay and mute settings schema and defaults ([03213f7](https://github.com/Darkkal/web-gallery/commit/03213f7b5a40dc17be9cc4806ba93f80aeba9032))
+* **settings:** add UI toggles for autoplay and mute preferences ([f8ad4ce](https://github.com/Darkkal/web-gallery/commit/f8ad4ced0219f8b39ebbfa02a86731ec77667617))
+* **timeline,gallery:** loading buffer for uninterrupted scrolling ([39a2c99](https://github.com/Darkkal/web-gallery/commit/39a2c9907bf2a22068f09d503769f85759a59154))
+* **timeline,gallery:** loading buffer for uninterrupted scrolling ([8a514c9](https://github.com/Darkkal/web-gallery/commit/8a514c9bd496a59da0dc6d59679ec5ec1719b17d))
+* **timeline:** add configurable shown character limit to posts ([e36e561](https://github.com/Darkkal/web-gallery/commit/e36e56145921dccb32f3cc92b7e37a8d8f758252))
+* **timeline:** also update sorting ui for timeline ([e090ff6](https://github.com/Darkkal/web-gallery/commit/e090ff63acfd7fa332447d353a8eb178dcf7e2a9))
+* **timeline:** changed post character display limit to line instead ([219c99b](https://github.com/Darkkal/web-gallery/commit/219c99b13d5492619d1aaf168ef23ed0a706a879))
+* **timeline:** integrate autoplay hook into PostCard video component ([48cc4e8](https://github.com/Darkkal/web-gallery/commit/48cc4e8e6e3304b04ca912d11b8bba5e1489e289))
+* **timeline:** read and pass autoplay settings down to timeline page client ([6e46cd3](https://github.com/Darkkal/web-gallery/commit/6e46cd3b0a65504126e98cb2e025006caeb41e16))
+
+
+### Bug Fixes
+
+* **gallery,timeline:** asc/desc button now on same line as sort ([d3d3196](https://github.com/Darkkal/web-gallery/commit/d3d319626b9cd7642f83254b73e1e77b6794b3ab))
+* **gallery:** sorting by date ([e090ff6](https://github.com/Darkkal/web-gallery/commit/e090ff63acfd7fa332447d353a8eb178dcf7e2a9))
+* **gallery:** try to evenly fit media items across columns ([d3001bf](https://github.com/Darkkal/web-gallery/commit/d3001bf30eefd717e512f6718a0e5b76ee2aac56))
+* **gallery:** try to evenly fit media items across columns ([a08a5ed](https://github.com/Darkkal/web-gallery/commit/a08a5ed67f5828d4c0433331fefc6697cfdd0e2d))
+
 ## [0.2.0](https://github.com/Darkkal/web-gallery/compare/v0.1.0...v0.2.0) (2026-05-25)
 
 
