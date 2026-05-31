@@ -144,48 +144,219 @@ export default function ScrapeTaskList({
 
   return (
     <div className={styles.listContainer}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Limits</th>
-            <th>Schedule</th>
-            <th>Last Run</th>
-            <th>Next Run</th>
-            <th>Status</th>
-            <th style={{ textAlign: "right" }}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {initialTasks.map((task) => {
-            const source = sources.find((s) => s.id === task.sourceId);
-            const sourceDisplay = source
-              ? source.name || source.url
-              : `Source ID: ${task.sourceId}`;
+      {/* Desktop Table View */}
+      <div className={styles.desktopTable}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Limits</th>
+              <th>Schedule</th>
+              <th>Last Run</th>
+              <th>Next Run</th>
+              <th>Status</th>
+              <th style={{ textAlign: "right" }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {initialTasks.map((task) => {
+              const source = sources.find((s) => s.id === task.sourceId);
+              const sourceDisplay = source
+                ? source.name || source.url
+                : `Source ID: ${task.sourceId}`;
 
-            return editingTaskId === task.id ? (
-              <React.Fragment key={`edit-group-${task.id}`}>
-                <tr
-                  className={styles.tableRow}
-                  style={{ borderBottom: "none" }}
-                >
+              return editingTaskId === task.id ? (
+                <React.Fragment key={`edit-group-${task.id}`}>
+                  <tr
+                    className={styles.tableRow}
+                    style={{ borderBottom: "none" }}
+                  >
+                    <td>
+                      <input
+                        value={editValues.name}
+                        onChange={(e) =>
+                          setEditValues({
+                            ...editValues,
+                            name: e.target.value,
+                          })
+                        }
+                        placeholder="Task Name"
+                        className={styles.input}
+                        style={{
+                          width: "100%",
+                          marginBottom: "4px",
+                          padding: "4px 8px",
+                        }}
+                      />
+                      <div
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "hsl(var(--muted-foreground))",
+                          maxWidth: "300px",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={source?.url}
+                      >
+                        {sourceDisplay}
+                      </div>
+                    </td>
+                    <td>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "4px",
+                        }}
+                      >
+                        <input
+                          type="number"
+                          min="1"
+                          value={editValues.stopAfterCompleted}
+                          onChange={(e) =>
+                            setEditValues({
+                              ...editValues,
+                              stopAfterCompleted: e.target.value,
+                            })
+                          }
+                          placeholder="Max DL"
+                          className={styles.input}
+                          style={{
+                            fontSize: "0.75rem",
+                            padding: "2px 4px",
+                            height: "auto",
+                          }}
+                          title="Stop after completed"
+                        />
+                        <input
+                          type="number"
+                          min="1"
+                          value={editValues.stopAfterSkipped}
+                          onChange={(e) =>
+                            setEditValues({
+                              ...editValues,
+                              stopAfterSkipped: e.target.value,
+                            })
+                          }
+                          placeholder="Max Skip"
+                          className={styles.input}
+                          style={{
+                            fontSize: "0.75rem",
+                            padding: "2px 4px",
+                            height: "auto",
+                          }}
+                          title="Stop after skipped"
+                        />
+                        <input
+                          type="number"
+                          min="1"
+                          value={editValues.stopAfterPosts}
+                          onChange={(e) =>
+                            setEditValues({
+                              ...editValues,
+                              stopAfterPosts: e.target.value,
+                            })
+                          }
+                          placeholder="Max Posts"
+                          className={styles.input}
+                          style={{
+                            fontSize: "0.75rem",
+                            padding: "2px 4px",
+                            height: "auto",
+                          }}
+                          title="Stop after posts"
+                        />
+                      </div>
+                    </td>
+                    <td colSpan={3}>
+                      <div
+                        style={{
+                          fontSize: "0.875rem",
+                          color: "hsl(var(--muted-foreground))",
+                        }}
+                      >
+                        Editing Schedule Below
+                      </div>
+                    </td>
+                    <td>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          fontSize: "0.875rem",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={editValues.enabled}
+                          onChange={(e) =>
+                            setEditValues({
+                              ...editValues,
+                              enabled: e.target.checked,
+                            })
+                          }
+                          style={{ margin: 0 }}
+                        />
+                        Enabled
+                      </label>
+                    </td>
+                    <td>
+                      <div className={styles.actionGroup}>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveEdit(task.id)}
+                          disabled={savingId === task.id}
+                          className={styles.iconButton}
+                          style={{
+                            color: "hsl(142.1 76.2% 36.3%)",
+                          }}
+                          title="Save Changes"
+                        >
+                          <Check size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelEdit}
+                          disabled={savingId === task.id}
+                          className={styles.iconButton}
+                          style={{
+                            color: "hsl(var(--destructive))",
+                          }}
+                          title="Cancel"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr
+                    className={styles.tableRow}
+                    style={{ background: "hsl(var(--muted) / 0.1)" }}
+                  >
+                    <td colSpan={7} style={{ padding: "0 1rem 1rem 1rem" }}>
+                      <ScheduleBuilder
+                        initialInterval={editValues.scheduleInterval}
+                        initialCron={editValues.scheduleCron}
+                        onChange={({ scheduleInterval, scheduleCron }) => {
+                          setEditValues((prev) => ({
+                            ...prev,
+                            scheduleInterval,
+                            scheduleCron,
+                          }));
+                        }}
+                      />
+                    </td>
+                  </tr>
+                </React.Fragment>
+              ) : (
+                <tr key={task.id} className={styles.tableRow}>
                   <td>
-                    <input
-                      value={editValues.name}
-                      onChange={(e) =>
-                        setEditValues({
-                          ...editValues,
-                          name: e.target.value,
-                        })
-                      }
-                      placeholder="Task Name"
-                      className={styles.input}
-                      style={{
-                        width: "100%",
-                        marginBottom: "4px",
-                        padding: "4px 8px",
-                      }}
-                    />
+                    <div style={{ fontWeight: 500 }}>
+                      {task.name || `Task #${task.id}`}
+                    </div>
                     <div
                       style={{
                         fontSize: "0.75rem",
@@ -205,177 +376,370 @@ export default function ScrapeTaskList({
                       style={{
                         display: "flex",
                         flexDirection: "column",
-                        gap: "4px",
+                        gap: "2px",
+                        fontSize: "0.75rem",
                       }}
                     >
-                      <input
-                        type="number"
-                        min="1"
-                        value={editValues.stopAfterCompleted}
-                        onChange={(e) =>
-                          setEditValues({
-                            ...editValues,
-                            stopAfterCompleted: e.target.value,
-                          })
-                        }
-                        placeholder="Max DL"
-                        className={styles.input}
-                        style={{
-                          fontSize: "0.75rem",
-                          padding: "2px 4px",
-                          height: "auto",
-                        }}
-                        title="Stop after completed"
-                      />
-                      <input
-                        type="number"
-                        min="1"
-                        value={editValues.stopAfterSkipped}
-                        onChange={(e) =>
-                          setEditValues({
-                            ...editValues,
-                            stopAfterSkipped: e.target.value,
-                          })
-                        }
-                        placeholder="Max Skip"
-                        className={styles.input}
-                        style={{
-                          fontSize: "0.75rem",
-                          padding: "2px 4px",
-                          height: "auto",
-                        }}
-                        title="Stop after skipped"
-                      />
-                      <input
-                        type="number"
-                        min="1"
-                        value={editValues.stopAfterPosts}
-                        onChange={(e) =>
-                          setEditValues({
-                            ...editValues,
-                            stopAfterPosts: e.target.value,
-                          })
-                        }
-                        placeholder="Max Posts"
-                        className={styles.input}
-                        style={{
-                          fontSize: "0.75rem",
-                          padding: "2px 4px",
-                          height: "auto",
-                        }}
-                        title="Stop after posts"
-                      />
-                    </div>
-                  </td>
-                  <td colSpan={3}>
-                    <div
-                      style={{
-                        fontSize: "0.875rem",
-                        color: "hsl(var(--muted-foreground))",
-                      }}
-                    >
-                      Editing Schedule Below
+                      {task.downloadOptions?.stopAfterCompleted && (
+                        <span>
+                          Max DL: {task.downloadOptions.stopAfterCompleted}
+                        </span>
+                      )}
+                      {task.downloadOptions?.stopAfterSkipped && (
+                        <span>
+                          Max Skip: {task.downloadOptions.stopAfterSkipped}
+                        </span>
+                      )}
+                      {task.downloadOptions?.stopAfterPosts && (
+                        <span>
+                          Max Posts: {task.downloadOptions.stopAfterPosts}
+                        </span>
+                      )}
+                      {!task.downloadOptions?.stopAfterCompleted &&
+                        !task.downloadOptions?.stopAfterSkipped &&
+                        !task.downloadOptions?.stopAfterPosts && (
+                          <span
+                            style={{
+                              color: "hsl(var(--muted-foreground))",
+                            }}
+                          >
+                            No limits
+                          </span>
+                        )}
                     </div>
                   </td>
                   <td>
-                    <label
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        fontSize: "0.875rem",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={editValues.enabled}
-                        onChange={(e) =>
-                          setEditValues({
-                            ...editValues,
-                            enabled: e.target.checked,
-                          })
-                        }
-                        style={{ margin: 0 }}
-                      />
-                      Enabled
-                    </label>
+                    <span style={{ fontSize: "0.875rem" }}>
+                      {describeSchedule(
+                        task.scheduleInterval,
+                        task.scheduleCron,
+                      )}
+                    </span>
+                  </td>
+                  <td>
+                    {task.lastRunAt
+                      ? formatDistanceToNow(new Date(task.lastRunAt), {
+                          addSuffix: true,
+                        })
+                      : "Never"}
+                  </td>
+                  <td>
+                    {task.enabled && task.nextRunAt
+                      ? formatDistanceToNow(new Date(task.nextRunAt), {
+                          addSuffix: true,
+                        })
+                      : "-"}
+                  </td>
+                  <td>
+                    {task.enabled ? (
+                      <span
+                        className={`${styles.badge} ${styles.badgeEnabled}`}
+                      >
+                        Enabled
+                      </span>
+                    ) : (
+                      <span
+                        className={`${styles.badge} ${styles.badgeDisabled}`}
+                      >
+                        Disabled
+                      </span>
+                    )}
                   </td>
                   <td>
                     <div className={styles.actionGroup}>
                       <button
                         type="button"
-                        onClick={() => handleSaveEdit(task.id)}
-                        disabled={savingId === task.id}
+                        onClick={() => handleRun(task.id, "quick")}
+                        disabled={runningTasks.has(task.id)}
                         className={styles.iconButton}
                         style={{
-                          color: "hsl(142.1 76.2% 36.3%)",
-                        }}
-                        title="Save Changes"
+                          color: "hsl(35 100% 50%)",
+                        }} // Orange color for quick
+                        title="Quick Run (Stops after 15 skipped)"
                       >
-                        <Check size={16} />
+                        <Zap size={16} />
                       </button>
                       <button
                         type="button"
-                        onClick={handleCancelEdit}
-                        disabled={savingId === task.id}
+                        onClick={() => handleRun(task.id, "full")}
+                        disabled={runningTasks.has(task.id)}
+                        className={styles.iconButton}
+                        title="Full Run"
+                      >
+                        <Play size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStop(task.id)}
+                        className={styles.iconButton}
+                        title="Stop Task"
+                      >
+                        <Square size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(task)}
+                        className={styles.iconButton}
+                        title="Edit Task"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(task.id)}
                         className={styles.iconButton}
                         style={{
                           color: "hsl(var(--destructive))",
                         }}
-                        title="Cancel"
+                        title="Delete Task"
                       >
-                        <X size={16} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>
                 </tr>
-                <tr
-                  className={styles.tableRow}
-                  style={{ background: "hsl(var(--muted) / 0.1)" }}
+              );
+            })}
+            {initialTasks.length === 0 && (
+              <tr>
+                <td
+                  colSpan={7}
+                  style={{
+                    textAlign: "center",
+                    padding: "3rem",
+                    color: "hsl(var(--muted-foreground))",
+                  }}
                 >
-                  <td colSpan={7} style={{ padding: "0 1rem 1rem 1rem" }}>
-                    <ScheduleBuilder
-                      initialInterval={editValues.scheduleInterval}
-                      initialCron={editValues.scheduleCron}
-                      onChange={({ scheduleInterval, scheduleCron }) => {
-                        setEditValues((prev) => ({
-                          ...prev,
-                          scheduleInterval,
-                          scheduleCron,
-                        }));
-                      }}
-                    />
-                  </td>
-                </tr>
-              </React.Fragment>
-            ) : (
-              <tr key={task.id} className={styles.tableRow}>
-                <td>
-                  <div style={{ fontWeight: 500 }}>
+                  No tasks found. Create one above.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Cards View */}
+      <div className={styles.mobileCardsList}>
+        {initialTasks.map((task) => {
+          const source = sources.find((s) => s.id === task.sourceId);
+          const sourceDisplay = source
+            ? source.name || source.url
+            : `Source ID: ${task.sourceId}`;
+
+          return editingTaskId === task.id ? (
+            <div key={`edit-card-${task.id}`} className={styles.taskCard}>
+              <div className={styles.formGroup} style={{ gap: "0.25rem" }}>
+                <span className={styles.label}>Task Name</span>
+                <input
+                  value={editValues.name}
+                  onChange={(e) =>
+                    setEditValues({
+                      ...editValues,
+                      name: e.target.value,
+                    })
+                  }
+                  placeholder="Task Name"
+                  className={styles.input}
+                />
+                <div className={styles.taskCardSource}>{sourceDisplay}</div>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: "0.5rem",
+                  marginTop: "0.5rem",
+                }}
+              >
+                <div className={styles.formGroup} style={{ gap: "0.25rem" }}>
+                  <span
+                    className={styles.label}
+                    style={{ fontSize: "0.75rem" }}
+                  >
+                    Max DL
+                  </span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editValues.stopAfterCompleted}
+                    onChange={(e) =>
+                      setEditValues({
+                        ...editValues,
+                        stopAfterCompleted: e.target.value,
+                      })
+                    }
+                    placeholder="None"
+                    className={styles.input}
+                    style={{ height: "2.25rem", padding: "0 0.5rem" }}
+                  />
+                </div>
+                <div className={styles.formGroup} style={{ gap: "0.25rem" }}>
+                  <span
+                    className={styles.label}
+                    style={{ fontSize: "0.75rem" }}
+                  >
+                    Max Skip
+                  </span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editValues.stopAfterSkipped}
+                    onChange={(e) =>
+                      setEditValues({
+                        ...editValues,
+                        stopAfterSkipped: e.target.value,
+                      })
+                    }
+                    placeholder="None"
+                    className={styles.input}
+                    style={{ height: "2.25rem", padding: "0 0.5rem" }}
+                  />
+                </div>
+                <div className={styles.formGroup} style={{ gap: "0.25rem" }}>
+                  <span
+                    className={styles.label}
+                    style={{ fontSize: "0.75rem" }}
+                  >
+                    Max Posts
+                  </span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editValues.stopAfterPosts}
+                    onChange={(e) =>
+                      setEditValues({
+                        ...editValues,
+                        stopAfterPosts: e.target.value,
+                      })
+                    }
+                    placeholder="None"
+                    className={styles.input}
+                    style={{ height: "2.25rem", padding: "0 0.5rem" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: "0.5rem" }}>
+                <ScheduleBuilder
+                  initialInterval={editValues.scheduleInterval}
+                  initialCron={editValues.scheduleCron}
+                  onChange={({ scheduleInterval, scheduleCron }) => {
+                    setEditValues((prev) => ({
+                      ...prev,
+                      scheduleInterval,
+                      scheduleCron,
+                    }));
+                  }}
+                />
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginTop: "0.75rem",
+                  borderTop: "1px solid hsl(var(--border))",
+                  paddingTop: "0.75rem",
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontSize: "0.875rem",
+                    cursor: "pointer",
+                    fontWeight: 500,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={editValues.enabled}
+                    onChange={(e) =>
+                      setEditValues({
+                        ...editValues,
+                        enabled: e.target.checked,
+                      })
+                    }
+                  />
+                  Enabled
+                </label>
+
+                <div className={styles.actionGroup}>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveEdit(task.id)}
+                    disabled={savingId === task.id}
+                    className={styles.button}
+                    style={{
+                      height: "2.25rem",
+                      padding: "0 0.75rem",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    disabled={savingId === task.id}
+                    className={styles.button}
+                    style={{
+                      height: "2.25rem",
+                      padding: "0 0.75rem",
+                      fontSize: "0.875rem",
+                      backgroundColor: "hsl(var(--muted))",
+                      color: "hsl(var(--muted-foreground))",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div key={`card-${task.id}`} className={styles.taskCard}>
+              <div className={styles.taskCardHeader}>
+                <div>
+                  <div className={styles.taskCardTitle}>
                     {task.name || `Task #${task.id}`}
                   </div>
-                  <div
-                    style={{
-                      fontSize: "0.75rem",
-                      color: "hsl(var(--muted-foreground))",
-                      maxWidth: "300px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={source?.url}
-                  >
+                  <div className={styles.taskCardSource} title={source?.url}>
                     {sourceDisplay}
                   </div>
-                </td>
-                <td>
-                  <div
+                </div>
+                {task.enabled ? (
+                  <span className={`${styles.badge} ${styles.badgeEnabled}`}>
+                    Enabled
+                  </span>
+                ) : (
+                  <span className={`${styles.badge} ${styles.badgeDisabled}`}>
+                    Disabled
+                  </span>
+                )}
+              </div>
+
+              <div className={styles.taskCardGrid}>
+                <div className={styles.taskCardField}>
+                  <span className={styles.taskCardLabel}>Schedule</span>
+                  <span
+                    className={styles.taskCardValue}
+                    style={{ fontSize: "0.8rem" }}
+                  >
+                    {describeSchedule(task.scheduleInterval, task.scheduleCron)}
+                  </span>
+                </div>
+                <div className={styles.taskCardField}>
+                  <span className={styles.taskCardLabel}>Limits</span>
+                  <span
+                    className={styles.taskCardValue}
                     style={{
+                      fontSize: "0.75rem",
                       display: "flex",
                       flexDirection: "column",
-                      gap: "2px",
-                      fontSize: "0.75rem",
+                      gap: "1px",
                     }}
                   >
                     {task.downloadOptions?.stopAfterCompleted && (
@@ -396,117 +760,102 @@ export default function ScrapeTaskList({
                     {!task.downloadOptions?.stopAfterCompleted &&
                       !task.downloadOptions?.stopAfterSkipped &&
                       !task.downloadOptions?.stopAfterPosts && (
-                        <span
-                          style={{
-                            color: "hsl(var(--muted-foreground))",
-                          }}
-                        >
-                          No limits
-                        </span>
+                        <span>No limits</span>
                       )}
-                  </div>
-                </td>
-                <td>
-                  <span style={{ fontSize: "0.875rem" }}>
-                    {describeSchedule(task.scheduleInterval, task.scheduleCron)}
                   </span>
-                </td>
-                <td>
-                  {task.lastRunAt
-                    ? formatDistanceToNow(new Date(task.lastRunAt), {
-                        addSuffix: true,
-                      })
-                    : "Never"}
-                </td>
-                <td>
-                  {task.enabled && task.nextRunAt
-                    ? formatDistanceToNow(new Date(task.nextRunAt), {
-                        addSuffix: true,
-                      })
-                    : "-"}
-                </td>
-                <td>
-                  {task.enabled ? (
-                    <span className={`${styles.badge} ${styles.badgeEnabled}`}>
-                      Enabled
-                    </span>
-                  ) : (
-                    <span className={`${styles.badge} ${styles.badgeDisabled}`}>
-                      Disabled
-                    </span>
-                  )}
-                </td>
-                <td>
-                  <div className={styles.actionGroup}>
-                    <button
-                      type="button"
-                      onClick={() => handleRun(task.id, "quick")}
-                      disabled={runningTasks.has(task.id)}
-                      className={styles.iconButton}
-                      style={{
-                        color: "hsl(35 100% 50%)",
-                      }} // Orange color for quick
-                      title="Quick Run (Stops after 15 skipped)"
-                    >
-                      <Zap size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRun(task.id, "full")}
-                      disabled={runningTasks.has(task.id)}
-                      className={styles.iconButton}
-                      title="Full Run"
-                    >
-                      <Play size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleStop(task.id)}
-                      className={styles.iconButton}
-                      title="Stop Task"
-                    >
-                      <Square size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleEditClick(task)}
-                      className={styles.iconButton}
-                      title="Edit Task"
-                    >
-                      <Pencil size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(task.id)}
-                      className={styles.iconButton}
-                      style={{
-                        color: "hsl(var(--destructive))",
-                      }}
-                      title="Delete Task"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-          {initialTasks.length === 0 && (
-            <tr>
-              <td
-                colSpan={7}
-                style={{
-                  textAlign: "center",
-                  padding: "3rem",
-                  color: "hsl(var(--muted-foreground))",
-                }}
-              >
-                No tasks found. Create one above.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+                </div>
+                <div
+                  className={styles.taskCardField}
+                  style={{ marginTop: "0.25rem" }}
+                >
+                  <span className={styles.taskCardLabel}>Last Run</span>
+                  <span
+                    className={styles.taskCardValue}
+                    style={{ fontSize: "0.75rem" }}
+                  >
+                    {task.lastRunAt
+                      ? formatDistanceToNow(new Date(task.lastRunAt), {
+                          addSuffix: true,
+                        })
+                      : "Never"}
+                  </span>
+                </div>
+                <div
+                  className={styles.taskCardField}
+                  style={{ marginTop: "0.25rem" }}
+                >
+                  <span className={styles.taskCardLabel}>Next Run</span>
+                  <span
+                    className={styles.taskCardValue}
+                    style={{ fontSize: "0.75rem" }}
+                  >
+                    {task.enabled && task.nextRunAt
+                      ? formatDistanceToNow(new Date(task.nextRunAt), {
+                          addSuffix: true,
+                        })
+                      : "-"}
+                  </span>
+                </div>
+              </div>
+
+              <div className={styles.taskCardActions}>
+                <button
+                  type="button"
+                  onClick={() => handleRun(task.id, "quick")}
+                  disabled={runningTasks.has(task.id)}
+                  className={styles.iconButton}
+                  style={{ color: "hsl(35 100% 50%)" }}
+                  title="Quick Run (Stops after 15 skipped)"
+                >
+                  <Zap size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRun(task.id, "full")}
+                  disabled={runningTasks.has(task.id)}
+                  className={styles.iconButton}
+                  title="Full Run"
+                >
+                  <Play size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleStop(task.id)}
+                  className={styles.iconButton}
+                  title="Stop Task"
+                >
+                  <Square size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleEditClick(task)}
+                  className={styles.iconButton}
+                  title="Edit Task"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(task.id)}
+                  className={styles.iconButton}
+                  style={{ color: "hsl(var(--destructive))" }}
+                  title="Delete Task"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {initialTasks.length === 0 && (
+          <div
+            className={styles.emptyCell}
+            style={{ border: "none", width: "100%" }}
+          >
+            No tasks found. Create one above.
+          </div>
+        )}
+      </div>
     </div>
   );
 }
