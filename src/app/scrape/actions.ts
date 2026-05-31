@@ -41,16 +41,37 @@ export async function createScrapeTask(data: {
     stopAfterSkipped?: number;
     stopAfterPosts?: number;
   };
-  scheduleInterval?: number;
+  scheduleInterval?: number | null;
+  scheduleCron?: string | null;
   enabled?: boolean;
 }) {
-  await db.insert(scrapingTasks).values({
-    sourceId: data.sourceId,
-    name: data.name,
-    downloadOptions: data.downloadOptions,
-    scheduleInterval: data.scheduleInterval,
-    enabled: data.enabled ?? true,
-  });
+  const result = await db
+    .insert(scrapingTasks)
+    .values({
+      sourceId: data.sourceId,
+      name: data.name,
+      downloadOptions: data.downloadOptions,
+      scheduleInterval: data.scheduleInterval,
+      scheduleCron: data.scheduleCron,
+      enabled: data.enabled ?? true,
+    })
+    .returning({ id: scrapingTasks.id });
+
+  const insertedId = result[0]?.id;
+  if (insertedId && (data.enabled ?? true)) {
+    try {
+      const { taskScheduler } = await import("@/lib/scheduler/scheduler");
+      taskScheduler.addSchedule({
+        id: insertedId,
+        scheduleInterval: data.scheduleInterval,
+        scheduleCron: data.scheduleCron,
+        enabled: data.enabled ?? true,
+      });
+    } catch (err) {
+      console.error("[Actions] Failed to register task with scheduler:", err);
+    }
+  }
+
   revalidatePath("/scrape");
 }
 
@@ -63,16 +84,44 @@ export async function updateScrapeTask(
       stopAfterSkipped?: number;
       stopAfterPosts?: number;
     };
-    scheduleInterval?: number;
+    scheduleInterval?: number | null;
+    scheduleCron?: string | null;
     enabled?: boolean;
   },
 ) {
   await db.update(scrapingTasks).set(data).where(eq(scrapingTasks.id, id));
+
+  const updated = await db.query.scrapingTasks.findFirst({
+    where: eq(scrapingTasks.id, id),
+  });
+
+  if (updated) {
+    try {
+      const { taskScheduler } = await import("@/lib/scheduler/scheduler");
+      taskScheduler.addSchedule({
+        id: updated.id,
+        scheduleInterval: updated.scheduleInterval,
+        scheduleCron: updated.scheduleCron,
+        enabled: updated.enabled,
+      });
+    } catch (err) {
+      console.error("[Actions] Failed to update task with scheduler:", err);
+    }
+  }
+
   revalidatePath("/scrape");
 }
 
 export async function deleteScrapeTask(id: number) {
   await db.delete(scrapingTasks).where(eq(scrapingTasks.id, id));
+
+  try {
+    const { taskScheduler } = await import("@/lib/scheduler/scheduler");
+    taskScheduler.removeSchedule(id);
+  } catch (err) {
+    console.error("[Actions] Failed to remove task from scheduler:", err);
+  }
+
   revalidatePath("/scrape");
 }
 
@@ -81,6 +130,34 @@ export async function toggleTaskSchedule(id: number, enabled: boolean) {
     .update(scrapingTasks)
     .set({ enabled })
     .where(eq(scrapingTasks.id, id));
+
+  const updated = await db.query.scrapingTasks.findFirst({
+    where: eq(scrapingTasks.id, id),
+  });
+
+  if (updated) {
+    try {
+      const { taskScheduler } = await import("@/lib/scheduler/scheduler");
+      if (enabled) {
+        taskScheduler.addSchedule({
+          id: updated.id,
+          scheduleInterval: updated.scheduleInterval,
+          scheduleCron: updated.scheduleCron,
+          enabled: true,
+        });
+      } else {
+        taskScheduler.removeSchedule(id);
+        // Clear nextRunAt in database
+        await db
+          .update(scrapingTasks)
+          .set({ nextRunAt: null })
+          .where(eq(scrapingTasks.id, id));
+      }
+    } catch (err) {
+      console.error("[Actions] Failed to toggle schedule in scheduler:", err);
+    }
+  }
+
   revalidatePath("/scrape");
 }
 

@@ -275,3 +275,110 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Schedule Builder Styling */
+.scheduleBuilderContainer {
+  background-color: hsl(var(--muted) / 0.3);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.scheduleBuilderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.scheduleBuilderTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.scheduleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.scheduleCol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 120px;
+}
+
+.daysGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.dayBtn {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.dayBtn:hover {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.dayBtnActive {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
+}
+
+.scheduleSummary {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: hsl(var(--color-info, var(--primary)));
+  background-color: hsl(var(--color-info, var(--primary)) / 0.08);
+  border-left: 3px solid hsl(var(--color-info, var(--primary)));
+  padding: 0.5rem 0.75rem;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin-top: 0.25rem;
+}
+
+.scheduleWarning {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: hsl(var(--color-danger, var(--destructive)));
+  background-color: hsl(var(--color-danger, var(--destructive)) / 0.08);
+  border-left: 3px solid hsl(var(--color-danger, var(--destructive)));
+  padding: 0.5rem 0.75rem;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin-top: 0.25rem;
+}
+
+.advancedHatchToggle {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  align-self: flex-start;
+  padding: 0;
+}
+
+.advancedHatchToggle:hover {
+  color: hsl(var(--foreground));
+}

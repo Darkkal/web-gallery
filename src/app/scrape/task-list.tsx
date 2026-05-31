@@ -2,7 +2,7 @@
 
 import { formatDistanceToNow } from "date-fns";
 import { Check, Pencil, Play, Square, Trash2, X, Zap } from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   deleteScrapeTask,
   runTaskNow,
@@ -10,6 +10,8 @@ import {
   updateScrapeTask,
 } from "@/app/scrape/actions";
 import styles from "@/app/scrape/page.module.css";
+import ScheduleBuilder from "@/app/scrape/schedule-builder";
+import { describeSchedule } from "@/lib/utils/schedule-utils";
 
 interface Task {
   id: number;
@@ -23,6 +25,8 @@ interface Task {
     stopAfterSkipped?: number;
     stopAfterPosts?: number;
   } | null;
+  scheduleInterval: number | null;
+  scheduleCron: string | null;
 }
 
 interface Source {
@@ -41,12 +45,22 @@ export default function ScrapeTaskList({
   const [runningTasks, setRunningTasks] = useState<Set<number>>(new Set());
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [savingId, setSavingId] = useState<number | null>(null);
-  const [editValues, setEditValues] = useState({
+  const [editValues, setEditValues] = useState<{
+    name: string;
+    stopAfterCompleted: string;
+    stopAfterSkipped: string;
+    stopAfterPosts: string;
+    enabled: boolean;
+    scheduleInterval: number | null;
+    scheduleCron: string | null;
+  }>({
     name: "",
     stopAfterCompleted: "",
     stopAfterSkipped: "",
     stopAfterPosts: "",
     enabled: true,
+    scheduleInterval: null,
+    scheduleCron: null,
   });
 
   const handleRun = async (id: number, mode: "full" | "quick") => {
@@ -90,6 +104,8 @@ export default function ScrapeTaskList({
         task.downloadOptions?.stopAfterSkipped?.toString() || "",
       stopAfterPosts: task.downloadOptions?.stopAfterPosts?.toString() || "",
       enabled: task.enabled ?? true,
+      scheduleInterval: task.scheduleInterval,
+      scheduleCron: task.scheduleCron,
     });
   };
 
@@ -114,6 +130,8 @@ export default function ScrapeTaskList({
             : undefined,
         },
         enabled: editValues.enabled,
+        scheduleInterval: editValues.scheduleInterval,
+        scheduleCron: editValues.scheduleCron,
       });
       setEditingTaskId(null);
     } catch (error) {
@@ -131,7 +149,9 @@ export default function ScrapeTaskList({
           <tr>
             <th>Name</th>
             <th>Limits</th>
+            <th>Schedule</th>
             <th>Last Run</th>
+            <th>Next Run</th>
             <th>Status</th>
             <th style={{ textAlign: "right" }}>Actions</th>
           </tr>
@@ -144,165 +164,191 @@ export default function ScrapeTaskList({
               : `Source ID: ${task.sourceId}`;
 
             return editingTaskId === task.id ? (
-              <tr key={`edit-${task.id}`} className={styles.tableRow}>
-                <td>
-                  <input
-                    value={editValues.name}
-                    onChange={(e) =>
-                      setEditValues({
-                        ...editValues,
-                        name: e.target.value,
-                      })
-                    }
-                    placeholder="Task Name"
-                    className={styles.input}
-                    style={{
-                      width: "100%",
-                      marginBottom: "4px",
-                      padding: "4px 8px",
-                    }}
-                  />
-                  <div
-                    style={{
-                      fontSize: "0.75rem",
-                      color: "hsl(var(--muted-foreground))",
-                      maxWidth: "300px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={source?.url}
-                  >
-                    {sourceDisplay}
-                  </div>
-                </td>
-                <td>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "4px",
-                    }}
-                  >
+              <React.Fragment key={`edit-group-${task.id}`}>
+                <tr
+                  className={styles.tableRow}
+                  style={{ borderBottom: "none" }}
+                >
+                  <td>
                     <input
-                      type="number"
-                      min="1"
-                      value={editValues.stopAfterCompleted}
+                      value={editValues.name}
                       onChange={(e) =>
                         setEditValues({
                           ...editValues,
-                          stopAfterCompleted: e.target.value,
+                          name: e.target.value,
                         })
                       }
-                      placeholder="Max DL"
+                      placeholder="Task Name"
                       className={styles.input}
                       style={{
-                        fontSize: "0.75rem",
-                        padding: "2px 4px",
-                        height: "auto",
+                        width: "100%",
+                        marginBottom: "4px",
+                        padding: "4px 8px",
                       }}
-                      title="Stop after completed"
                     />
-                    <input
-                      type="number"
-                      min="1"
-                      value={editValues.stopAfterSkipped}
-                      onChange={(e) =>
-                        setEditValues({
-                          ...editValues,
-                          stopAfterSkipped: e.target.value,
-                        })
-                      }
-                      placeholder="Max Skip"
-                      className={styles.input}
+                    <div
                       style={{
                         fontSize: "0.75rem",
-                        padding: "2px 4px",
-                        height: "auto",
+                        color: "hsl(var(--muted-foreground))",
+                        maxWidth: "300px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
-                      title="Stop after skipped"
-                    />
-                    <input
-                      type="number"
-                      min="1"
-                      value={editValues.stopAfterPosts}
-                      onChange={(e) =>
-                        setEditValues({
-                          ...editValues,
-                          stopAfterPosts: e.target.value,
-                        })
-                      }
-                      placeholder="Max Posts"
-                      className={styles.input}
-                      style={{
-                        fontSize: "0.75rem",
-                        padding: "2px 4px",
-                        height: "auto",
-                      }}
-                      title="Stop after posts"
-                    />
-                  </div>
-                </td>
-                <td>
-                  {task.lastRunAt
-                    ? formatDistanceToNow(new Date(task.lastRunAt), {
-                        addSuffix: true,
-                      })
-                    : "Never"}
-                </td>
-                <td>
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      fontSize: "0.875rem",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={editValues.enabled}
-                      onChange={(e) =>
-                        setEditValues({
-                          ...editValues,
-                          enabled: e.target.checked,
-                        })
-                      }
-                      style={{ margin: 0 }}
-                    />
-                    Enabled
-                  </label>
-                </td>
-                <td>
-                  <div className={styles.actionGroup}>
-                    <button
-                      type="button"
-                      onClick={() => handleSaveEdit(task.id)}
-                      disabled={savingId === task.id}
-                      className={styles.iconButton}
-                      style={{
-                        color: "hsl(142.1 76.2% 36.3%)",
-                      }}
-                      title="Save Changes"
+                      title={source?.url}
                     >
-                      <Check size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCancelEdit}
-                      disabled={savingId === task.id}
-                      className={styles.iconButton}
+                      {sourceDisplay}
+                    </div>
+                  </td>
+                  <td>
+                    <div
                       style={{
-                        color: "hsl(var(--destructive))",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "4px",
                       }}
-                      title="Cancel"
                     >
-                      <X size={16} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editValues.stopAfterCompleted}
+                        onChange={(e) =>
+                          setEditValues({
+                            ...editValues,
+                            stopAfterCompleted: e.target.value,
+                          })
+                        }
+                        placeholder="Max DL"
+                        className={styles.input}
+                        style={{
+                          fontSize: "0.75rem",
+                          padding: "2px 4px",
+                          height: "auto",
+                        }}
+                        title="Stop after completed"
+                      />
+                      <input
+                        type="number"
+                        min="1"
+                        value={editValues.stopAfterSkipped}
+                        onChange={(e) =>
+                          setEditValues({
+                            ...editValues,
+                            stopAfterSkipped: e.target.value,
+                          })
+                        }
+                        placeholder="Max Skip"
+                        className={styles.input}
+                        style={{
+                          fontSize: "0.75rem",
+                          padding: "2px 4px",
+                          height: "auto",
+                        }}
+                        title="Stop after skipped"
+                      />
+                      <input
+                        type="number"
+                        min="1"
+                        value={editValues.stopAfterPosts}
+                        onChange={(e) =>
+                          setEditValues({
+                            ...editValues,
+                            stopAfterPosts: e.target.value,
+                          })
+                        }
+                        placeholder="Max Posts"
+                        className={styles.input}
+                        style={{
+                          fontSize: "0.75rem",
+                          padding: "2px 4px",
+                          height: "auto",
+                        }}
+                        title="Stop after posts"
+                      />
+                    </div>
+                  </td>
+                  <td colSpan={3}>
+                    <div
+                      style={{
+                        fontSize: "0.875rem",
+                        color: "hsl(var(--muted-foreground))",
+                      }}
+                    >
+                      Editing Schedule Below
+                    </div>
+                  </td>
+                  <td>
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        fontSize: "0.875rem",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={editValues.enabled}
+                        onChange={(e) =>
+                          setEditValues({
+                            ...editValues,
+                            enabled: e.target.checked,
+                          })
+                        }
+                        style={{ margin: 0 }}
+                      />
+                      Enabled
+                    </label>
+                  </td>
+                  <td>
+                    <div className={styles.actionGroup}>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveEdit(task.id)}
+                        disabled={savingId === task.id}
+                        className={styles.iconButton}
+                        style={{
+                          color: "hsl(142.1 76.2% 36.3%)",
+                        }}
+                        title="Save Changes"
+                      >
+                        <Check size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        disabled={savingId === task.id}
+                        className={styles.iconButton}
+                        style={{
+                          color: "hsl(var(--destructive))",
+                        }}
+                        title="Cancel"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr
+                  className={styles.tableRow}
+                  style={{ background: "hsl(var(--muted) / 0.1)" }}
+                >
+                  <td colSpan={7} style={{ padding: "0 1rem 1rem 1rem" }}>
+                    <ScheduleBuilder
+                      initialInterval={editValues.scheduleInterval}
+                      initialCron={editValues.scheduleCron}
+                      onChange={({ scheduleInterval, scheduleCron }) => {
+                        setEditValues((prev) => ({
+                          ...prev,
+                          scheduleInterval,
+                          scheduleCron,
+                        }));
+                      }}
+                    />
+                  </td>
+                </tr>
+              </React.Fragment>
             ) : (
               <tr key={task.id} className={styles.tableRow}>
                 <td>
@@ -361,11 +407,23 @@ export default function ScrapeTaskList({
                   </div>
                 </td>
                 <td>
+                  <span style={{ fontSize: "0.875rem" }}>
+                    {describeSchedule(task.scheduleInterval, task.scheduleCron)}
+                  </span>
+                </td>
+                <td>
                   {task.lastRunAt
                     ? formatDistanceToNow(new Date(task.lastRunAt), {
                         addSuffix: true,
                       })
                     : "Never"}
+                </td>
+                <td>
+                  {task.enabled && task.nextRunAt
+                    ? formatDistanceToNow(new Date(task.nextRunAt), {
+                        addSuffix: true,
+                      })
+                    : "-"}
                 </td>
                 <td>
                   {task.enabled ? (
@@ -436,7 +494,7 @@ export default function ScrapeTaskList({
           {initialTasks.length === 0 && (
             <tr>
               <td
-                colSpan={5}
+                colSpan={7}
                 style={{
                   textAlign: "center",
                   padding: "3rem",

@@ -1,0 +1,1 @@
+ALTER TABLE `scraping_tasks` ADD `schedule_cron` text;
