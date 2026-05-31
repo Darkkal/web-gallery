@@ -50,6 +50,7 @@ export const scrapingTasks = sqliteTable("scraping_tasks", {
     stopAfterPosts?: number;
   }>(),
   scheduleInterval: integer("schedule_interval"), // in seconds
+  scheduleCron: text("schedule_cron"), // cron pattern string
   nextRunAt: integer("next_run_at", { mode: "timestamp" }),
   lastRunAt: integer("last_run_at", { mode: "timestamp" }),
   enabled: integer("enabled", { mode: "boolean" }).default(true),

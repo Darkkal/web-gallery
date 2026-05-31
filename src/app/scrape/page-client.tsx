@@ -23,6 +23,8 @@ export default function ScrapePageClient({
       stopAfterSkipped?: number;
       stopAfterPosts?: number;
     } | null;
+    scheduleInterval: number | null;
+    scheduleCron: string | null;
   }[];
   sources: { id: number; name: string | null; url: string }[];
   history: {

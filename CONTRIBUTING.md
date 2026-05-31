@@ -186,10 +186,15 @@ Individual pages export their own `metadata` for custom titles (e.g., `export co
 - **Security headers** are configured in `next.config.ts` (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy).
 - **Note**: Content Security Policy is intentionally not configured. This application scrapes arbitrary external content and renders it client-side, making a meaningful CSP infeasible for the current architecture.
 
-### 1.12 Image Configuration
-
 - `next.config.ts` has wildcard `remotePatterns` for scraper-sourced content from arbitrary domains.
 - Only use `unoptimized` on `next/image` for truly local file paths that bypass Next.js optimization. Images served through API routes (e.g., avatar proxy) should leverage Next.js image optimization.
+
+### 1.13 Task Scheduling (FIFO Queue and Croner)
+
+- **Timers**: Scheduled scraping tasks use `Croner` for high-precision, in-memory timers.
+- **Queue**: To prevent write contention and locks on the SQLite database, all scheduled runs are serialized sequentially through a module-level FIFO queue (`taskScheduler.enqueue()`).
+- **Manual vs Scheduled**: Manual scraper runs (`runTaskNow` / "Run Now") bypass the scheduler queue to run immediately. Scheduled runs always go through the queue.
+- **State Persistence**: The database columns `scheduleInterval` (seconds) and `scheduleCron` (cron pattern) are the sources of truth. On trigger, `nextRunAt` is immediately recalculated and written to the database.
 
 ---
 
@@ -203,6 +208,7 @@ Individual pages export their own `metadata` for custom titles (e.g., `export co
 6. **Utility deduplication**: Shared utility functions (e.g., `parseSizeToBytes`, `formatBytes`) live in `src/lib/utils/`. Do not duplicate them across files.
 7. **Per-page metadata**: Each route should export its own `metadata` object for proper tab titles.
 8. **Conventional Commit Messages**: This project uses `release-please` to manage version releases and auto-populate `CHANGELOG.md` in CI/CD. All commit messages must follow the [Conventional Commits specification](https://www.conventionalcommits.org/) (e.g., `feat(playlists): ...`, `fix(config): ...`, `chore(biome): ...`).
+9. **Keep Documentation in Sync**: When implementing new features, modifications to subsystems, or introducing new architectural patterns, you MUST update both `ARCHITECTURE.md` and `CONTRIBUTING.md` to reflect these changes. Keeping documentation co-located and synchronized with code changes ensures future contributors (both human and AI) maintain complete context.
 
 ---
 

@@ -18,6 +18,7 @@ For day-to-day coding conventions and established patterns, see [CONTRIBUTING.md
    - [3.5 Next.js Application Layer](#35-nextjs-application-layer)
    - [3.6 Avatar Proxy & Request Queue](#36-avatar-proxy--request-queue)
    - [3.7 Settings & Configuration System](#37-settings--configuration-system)
+   - [3.8 Task Scheduling Subsystem](#38-task-scheduling-subsystem)
 4. [Data Flow](#4-data-flow)
    - [4.1 Scrape → Scan → Display](#41-scrape--scan--display)
    - [4.2 Client-Side Data Fetching](#42-client-side-data-fetching)
@@ -150,7 +151,6 @@ web-gallery/
 │   │   │       ├── factory.ts      #     MetadataProcessorFactory (Strategy selector)
 │   │   │       ├── twitter.ts      #     Twitter/X metadata processor
 │   │   │       ├── pixiv.ts        #     Pixiv metadata processor
-│   │   │       └── gelbooru.ts     #     Gelbooru/Safebooru metadata processor
 │   │   ├── scrapers/
 │   │   │   ├── manager.ts          #   ScraperManager singleton (start/stop/status)
 │   │   │   ├── runner.ts           #   ScraperRunner (spawns child process)
@@ -159,6 +159,8 @@ web-gallery/
 │   │   │       ├── base.ts         #     BaseScraperStrategy interface
 │   │   │       ├── gallery-dl.ts   #     gallery-dl CLI strategy
 │   │   │       └── yt-dlp.ts       #     yt-dlp CLI strategy (stub)
+│   │   ├── scheduler/
+│   │   │   └── scheduler.ts        #   TaskScheduler singleton (FIFO queue, Croner)
 │   │   └── utils/
 │   │       ├── format.ts           #   formatBytes, parseSizeToBytes, formatDate
 │   │       └── search-parser.ts    #   FTS5 query parser + column alias allowlist
@@ -186,10 +188,11 @@ web-gallery/
 
 **Entry point**: [`src/instrumentation.ts`](./src/instrumentation.ts)
 
-Next.js calls `register()` once at server startup (Node.js runtime only, not during Edge builds). It performs two critical tasks before any request is served:
+Next.js calls `register()` once at server startup (Node.js runtime only, not during Edge builds). It performs three critical tasks before any request is served:
 
 1. **`initDb()`** — initializes the SQLite connection and applies pending migrations via the custom `applyMigrations()` runner (see §3.2).
 2. **`cleanupStaleScans()`** — finds any `scan_history` rows left as `"running"` from a previous crash/restart and marks them `"stopped"`. This makes the DB the source of truth for scan state.
+3. **`taskScheduler.init()`** — initializes the task scheduler by reading all enabled scraping tasks from the database and starting their in-memory cron schedules (see §3.8).
 
 Additionally, `instrumentation.ts` registers global `uncaughtException` and `unhandledRejection` handlers to ensure fatal errors are logged with full stack traces before the process exits.
 
@@ -326,6 +329,22 @@ The settings system manages core application preferences and CLI scraper profile
 - **Dynamic Scraper Config Injection**: On settings updates and scraper executions, the system dynamically merges scraper settings (proxies, request throttling/sleep intervals, retries, cookie sources) into `$DATA_DIR/scrapers/gallery-dl/gallery-dl.conf` by reading and parsing the template config or modifying the existing file.
 - **Log Retention Purging**: Integrated directly with Next.js boot (`instrumentation.ts`), the settings layer automatically cleans up physical scraper logs and clear references in the `scrape_history` DB table that exceed the configured `scrapeLogRetentionDays` limit.
 - **Production Guarding**: Standardizes UI color schemes (`colorTheme`), pagination counts, scroll feed modes (`infinite` waterfall vs. explicit `button` loaders), and production environments' execution permissions (`enableProductionDestructiveOps`) to safeguard sqlite truncation or directory clears in deployment.
+
+### 3.8 Task Scheduling Subsystem
+
+**Location**: [`src/lib/scheduler/`](./src/lib/scheduler/)
+
+The Task Scheduling Subsystem enables recurring scraper executions for automation:
+
+- **Croner & SQLite**: Uses `Croner` for in-memory, high-precision schedule timers. Configured cron expressions (`scheduleCron`) and intervals in seconds (`scheduleInterval`) are persisted in the local SQLite database to survive server restarts.
+- **Singleton Pattern**: Managed via a global `TaskScheduler` singleton to persist schedules through Next.js Hot Module Replacement (HMR) during development without spawning duplicate cron registrations.
+- **FIFO Queue Serialization**: To prevent database write contention and SQLite locks during concurrent scheduled operations, scheduled tasks are enqueued into a sequential FIFO queue. A scheduled execution awaits the completion of any previous scraper run before starting.
+
+**Flow**:
+1. On boot, `taskScheduler.init()` reads enabled scraping tasks from the SQLite database.
+2. Interval-based tasks are mapped to equivalent Cron expressions (e.g., `*/30 * * * * *` for 30s) so they can also use Croner's high-precision triggers and next-run calculations.
+3. When a Cron job fires, it enqueues the task to the execution queue (`taskScheduler.enqueue()`) and calculates + updates `nextRunAt` in the database.
+4. The queue executes tasks sequentially, calling `scraperManager.startScrape()` and polling for completion.
 
 ---
 
@@ -515,3 +534,7 @@ Adding a new platform (e.g. Instagram) requires only a new processor file and a 
 
 ### Split DATA_DIR / MEDIA_DIR
 Separating fast-access data (database, scraper state) from bulk media allows operators to put the SQLite database on an SSD while storing potentially hundreds of gigabytes of media on a cheaper HDD — a common NAS/homelab setup.
+
+### FIFO schedule execution for SQLite safety
+To prevent multiple concurrent scheduled scraping tasks from locking or corrupting the SQLite database, all scheduled runs are serialized through a sequential FIFO queue. The next scheduled task begins execution only after the current scraper process completes and its database synchronization finishes.
+

@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import { createScrapeTask } from "@/app/scrape/actions";
 import styles from "@/app/scrape/page.module.css";
+import ScheduleBuilder from "@/app/scrape/schedule-builder";
 
 interface Source {
   id: number;
@@ -17,7 +18,10 @@ export default function ScrapeTaskForm({ sources }: { sources: Source[] }) {
   const [stopAfterCompleted, setStopAfterCompleted] = useState("");
   const [stopAfterSkipped, setStopAfterSkipped] = useState("");
   const [stopAfterPosts, setStopAfterPosts] = useState("");
+  const [scheduleInterval, setScheduleInterval] = useState<number | null>(null);
+  const [scheduleCron, setScheduleCron] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +43,8 @@ export default function ScrapeTaskForm({ sources }: { sources: Source[] }) {
             ? parseInt(stopAfterPosts, 10)
             : undefined,
         },
-        scheduleInterval: undefined,
+        scheduleInterval,
+        scheduleCron,
         enabled: true,
       });
       setName("");
@@ -47,6 +52,10 @@ export default function ScrapeTaskForm({ sources }: { sources: Source[] }) {
       setStopAfterCompleted("");
       setStopAfterSkipped("");
       setStopAfterPosts("");
+      // Reset schedules
+      setScheduleInterval(null);
+      setScheduleCron(null);
+      setResetKey((prev) => prev + 1);
     } catch (error) {
       console.error("Failed to create task:", error);
       alert("Failed to create task");
@@ -149,6 +158,16 @@ export default function ScrapeTaskForm({ sources }: { sources: Source[] }) {
           <Plus size={16} style={{ marginRight: "0.5rem" }} />
           {loading ? "Creating..." : "Create Task"}
         </button>
+      </div>
+
+      <div style={{ gridColumn: "1 / -1" }}>
+        <ScheduleBuilder
+          key={resetKey} // Re-key on successful create task submit to reset builder form fields
+          onChange={({ scheduleInterval, scheduleCron }) => {
+            setScheduleInterval(scheduleInterval);
+            setScheduleCron(scheduleCron);
+          }}
+        />
       </div>
     </form>
   );

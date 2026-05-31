@@ -20,6 +20,14 @@ export async function register() {
       console.error("[Startup] Failed to cleanup old scrape logs:", e);
     }
 
+    // Initialize the scraping task scheduler
+    try {
+      const { taskScheduler } = await import("@/lib/scheduler/scheduler");
+      await taskScheduler.init();
+    } catch (e) {
+      console.error("[Startup] Failed to initialize task scheduler:", e);
+    }
+
     // Process-level error handlers to ensure unexpected terminations
     // are logged with stack traces instead of dying silently.
     process.on("uncaughtException", (error) => {

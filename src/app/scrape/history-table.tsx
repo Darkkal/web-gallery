@@ -178,78 +178,191 @@ export default function ScrapeHistoryTable({
 
   return (
     <div className={styles.listContainer}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>Time</th>
-            <th>Duration</th>
-            <th>Status</th>
-            <th className={styles.thRight}>Downloaded</th>
-            <th className={styles.thRight}>Posts</th>
-            <th className={styles.thRight}>Skipped</th>
-            <th className={styles.thRight}>Size</th>
-            <th className={styles.thRight}>Errors</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {historyItems.map((item) => (
-            <tr key={item.id} className={styles.tableRow}>
-              <td>
-                {formatDistanceToNow(new Date(item.startTime), {
-                  addSuffix: true,
-                })}
-              </td>
-              <td>
-                <DurationTimer
-                  startTime={item.startTime}
-                  endTime={item.endTime}
-                  status={item.status}
-                />
-              </td>
-              <td>
-                <span className={styles.badge} data-status={item.status}>
-                  {item.status}
-                </span>
-              </td>
-              <td className={styles.tdRight}>{item.filesDownloaded}</td>
-              <td className={styles.tdRight}>{item.postsProcessed ?? 0}</td>
-              <td className={styles.tdRight}>{item.skippedCount ?? 0}</td>
-              <td className={styles.tdRight}>
-                {formatBytes(item.bytesDownloaded || 0)}
-              </td>
-              <td
-                className={`${styles.tdRight} ${item.errorCount ? styles.errorText : ""}`}
-              >
-                {item.errorCount}
-              </td>
-              <td>
-                {(item.status === "failed" || item.status === "stopped") && (
-                  <button
-                    type="button"
-                    onClick={() => handleResume(item.id)}
-                    className={styles.iconButton}
-                    title={
-                      item.cursor
-                        ? `Resume from cursor: ${item.cursor}`
-                        : "Try to resume from log file"
-                    }
-                  >
-                    <RotateCcw size={14} />
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
-          {historyItems.length === 0 && (
+      {/* Desktop Table View */}
+      <div className={styles.desktopTable}>
+        <table className={styles.table}>
+          <thead>
             <tr>
-              <td colSpan={9} className={styles.emptyCell}>
-                No history available.
-              </td>
+              <th>Time</th>
+              <th>Duration</th>
+              <th>Status</th>
+              <th className={styles.thRight}>Downloaded</th>
+              <th className={styles.thRight}>Posts</th>
+              <th className={styles.thRight}>Skipped</th>
+              <th className={styles.thRight}>Size</th>
+              <th className={styles.thRight}>Errors</th>
+              <th>Actions</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {historyItems.map((item) => (
+              <tr key={item.id} className={styles.tableRow}>
+                <td>
+                  {formatDistanceToNow(new Date(item.startTime), {
+                    addSuffix: true,
+                  })}
+                </td>
+                <td>
+                  <DurationTimer
+                    startTime={item.startTime}
+                    endTime={item.endTime}
+                    status={item.status}
+                  />
+                </td>
+                <td>
+                  <span className={styles.badge} data-status={item.status}>
+                    {item.status}
+                  </span>
+                </td>
+                <td className={styles.tdRight}>{item.filesDownloaded}</td>
+                <td className={styles.tdRight}>{item.postsProcessed ?? 0}</td>
+                <td className={styles.tdRight}>{item.skippedCount ?? 0}</td>
+                <td className={styles.tdRight}>
+                  {formatBytes(item.bytesDownloaded || 0)}
+                </td>
+                <td
+                  className={`${styles.tdRight} ${item.errorCount ? styles.errorText : ""}`}
+                >
+                  {item.errorCount}
+                </td>
+                <td>
+                  {(item.status === "failed" || item.status === "stopped") && (
+                    <button
+                      type="button"
+                      onClick={() => handleResume(item.id)}
+                      className={styles.iconButton}
+                      title={
+                        item.cursor
+                          ? `Resume from cursor: ${item.cursor}`
+                          : "Try to resume from log file"
+                      }
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {historyItems.length === 0 && (
+              <tr>
+                <td colSpan={9} className={styles.emptyCell}>
+                  No history available.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className={styles.mobileCardsList}>
+        {historyItems.map((item) => (
+          <div key={item.id} className={styles.taskCard}>
+            <div className={styles.taskCardHeader}>
+              <div>
+                <div
+                  className={styles.taskCardTitle}
+                  style={{ fontSize: "0.875rem" }}
+                >
+                  {formatDistanceToNow(new Date(item.startTime), {
+                    addSuffix: true,
+                  })}
+                </div>
+                <div className={styles.taskCardSource}>
+                  Duration:{" "}
+                  <DurationTimer
+                    startTime={item.startTime}
+                    endTime={item.endTime}
+                    status={item.status}
+                  />
+                </div>
+              </div>
+              <span className={styles.badge} data-status={item.status}>
+                {item.status}
+              </span>
+            </div>
+
+            <div
+              className={styles.taskCardGrid}
+              style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
+            >
+              <div className={styles.taskCardField}>
+                <span className={styles.taskCardLabel}>Downloaded</span>
+                <span
+                  className={styles.taskCardValue}
+                  style={{ fontSize: "0.8rem" }}
+                >
+                  {item.filesDownloaded}
+                </span>
+              </div>
+              <div className={styles.taskCardField}>
+                <span className={styles.taskCardLabel}>Posts</span>
+                <span
+                  className={styles.taskCardValue}
+                  style={{ fontSize: "0.8rem" }}
+                >
+                  {item.postsProcessed ?? 0}
+                </span>
+              </div>
+              <div className={styles.taskCardField}>
+                <span className={styles.taskCardLabel}>Skipped</span>
+                <span
+                  className={styles.taskCardValue}
+                  style={{ fontSize: "0.8rem" }}
+                >
+                  {item.skippedCount ?? 0}
+                </span>
+              </div>
+              <div
+                className={styles.taskCardField}
+                style={{ marginTop: "0.25rem" }}
+              >
+                <span className={styles.taskCardLabel}>Size</span>
+                <span
+                  className={styles.taskCardValue}
+                  style={{ fontSize: "0.75rem" }}
+                >
+                  {formatBytes(item.bytesDownloaded || 0)}
+                </span>
+              </div>
+              <div
+                className={styles.taskCardField}
+                style={{ marginTop: "0.25rem" }}
+              >
+                <span className={styles.taskCardLabel}>Errors</span>
+                <span
+                  className={`${styles.taskCardValue} ${item.errorCount ? styles.errorText : ""}`}
+                  style={{ fontSize: "0.75rem" }}
+                >
+                  {item.errorCount}
+                </span>
+              </div>
+            </div>
+
+            {(item.status === "failed" || item.status === "stopped") && (
+              <div className={styles.taskCardActions}>
+                <button
+                  type="button"
+                  onClick={() => handleResume(item.id)}
+                  className={styles.iconButton}
+                  title={
+                    item.cursor
+                      ? `Resume from cursor: ${item.cursor}`
+                      : "Try to resume from log file"
+                  }
+                >
+                  <RotateCcw size={14} />
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+        {historyItems.length === 0 && (
+          <div className={styles.emptyCell} style={{ border: "none" }}>
+            No history available.
+          </div>
+        )}
+      </div>
     </div>
   );
 }
