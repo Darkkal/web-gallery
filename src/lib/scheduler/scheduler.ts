@@ -50,7 +50,8 @@ class TaskScheduler {
       });
 
       console.log(
-        `[TaskScheduler] Found ${activeTasks.length} enabled tasks to schedule.`,
+        "[TaskScheduler] Found %d enabled tasks to schedule.",
+        activeTasks.length,
       );
 
       for (const task of activeTasks) {
@@ -91,7 +92,9 @@ class TaskScheduler {
         pattern = task.scheduleCron;
       } else {
         console.error(
-          `[TaskScheduler] Invalid cron pattern for task ID ${task.id}: ${task.scheduleCron}`,
+          "[TaskScheduler] Invalid cron pattern for task ID %d: %s",
+          task.id,
+          task.scheduleCron,
         );
         return;
       }
@@ -101,12 +104,15 @@ class TaskScheduler {
 
     if (pattern) {
       console.log(
-        `[TaskScheduler] Scheduling task ID ${task.id} with pattern: ${pattern}`,
+        "[TaskScheduler] Scheduling task ID %d with pattern: %s",
+        task.id,
+        pattern,
       );
       try {
         const job = new Cron(pattern, () => {
           console.log(
-            `[TaskScheduler] Cron trigger fired for task ID: ${task.id}`,
+            "[TaskScheduler] Cron trigger fired for task ID: %d",
+            task.id,
           );
           this.enqueue(task.id, "quick");
 
@@ -122,7 +128,9 @@ class TaskScheduler {
         this.updateNextRunAt(task.id, nextDate);
       } catch (err) {
         console.error(
-          `[TaskScheduler] Failed to schedule task ID ${task.id} with pattern ${pattern}:`,
+          "[TaskScheduler] Failed to schedule task ID %d with pattern %s:",
+          task.id,
+          pattern,
           err,
         );
       }
@@ -141,7 +149,8 @@ class TaskScheduler {
       job.stop();
       this.jobs.delete(taskId);
       console.log(
-        `[TaskScheduler] Removed active schedule for task ID: ${taskId}`,
+        "[TaskScheduler] Removed active schedule for task ID: %d",
+        taskId,
       );
     }
   }
@@ -150,7 +159,7 @@ class TaskScheduler {
    * Enqueues a task to run sequentially through the FIFO queue.
    */
   public enqueue(taskId: number, mode: "full" | "quick" = "quick") {
-    console.log(`[TaskScheduler] Enqueuing task ID: ${taskId} (${mode})`);
+    console.log("[TaskScheduler] Enqueuing task ID: %d (%s)", taskId, mode);
 
     // Avoid double enqueuing same task if it is already in queue
     const alreadyQueued = this.queue.some(
@@ -158,7 +167,8 @@ class TaskScheduler {
     );
     if (alreadyQueued) {
       console.log(
-        `[TaskScheduler] Task ID ${taskId} is already in the execution queue. Skipping.`,
+        "[TaskScheduler] Task ID %d is already in the execution queue. Skipping.",
+        taskId,
       );
       return;
     }
@@ -184,7 +194,8 @@ class TaskScheduler {
             await this.executeTask(item.taskId, item.mode);
           } catch (taskErr) {
             console.error(
-              `[TaskScheduler] Failed to execute task ID ${item.taskId}:`,
+              "[TaskScheduler] Failed to execute task ID %d:",
+              item.taskId,
               taskErr,
             );
           }
@@ -200,7 +211,9 @@ class TaskScheduler {
    */
   private async executeTask(taskId: number, mode: "full" | "quick") {
     console.log(
-      `[TaskScheduler] Starting execution for task ID: ${taskId} (${mode})`,
+      "[TaskScheduler] Starting execution for task ID: %d (%s)",
+      taskId,
+      mode,
     );
 
     const task = await db.query.scrapingTasks.findFirst({
@@ -212,7 +225,8 @@ class TaskScheduler {
 
     if (!task) {
       console.log(
-        `[TaskScheduler] Execution aborted: Task ID ${taskId} not found in database.`,
+        "[TaskScheduler] Execution aborted: Task ID %d not found in database.",
+        taskId,
       );
       this.removeSchedule(taskId);
       return;
@@ -220,7 +234,8 @@ class TaskScheduler {
 
     if (!task.enabled) {
       console.log(
-        `[TaskScheduler] Execution aborted: Task ID ${taskId} is currently disabled.`,
+        "[TaskScheduler] Execution aborted: Task ID %d is currently disabled.",
+        taskId,
       );
       this.removeSchedule(taskId);
       return;
@@ -229,7 +244,8 @@ class TaskScheduler {
     const source = task.source;
     if (!source) {
       console.log(
-        `[TaskScheduler] Execution aborted: Task ID ${taskId} is missing its source.`,
+        "[TaskScheduler] Execution aborted: Task ID %d is missing its source.",
+        taskId,
       );
       return;
     }
@@ -238,14 +254,16 @@ class TaskScheduler {
     let activeStatus = scraperManager.getStatus(task.sourceId);
     if (activeStatus && activeStatus.status === "running") {
       console.log(
-        `[TaskScheduler] Source ID ${task.sourceId} is already scraping. Awaiting completion...`,
+        "[TaskScheduler] Source ID %d is already scraping. Awaiting completion...",
+        task.sourceId,
       );
       while (activeStatus && activeStatus.status === "running") {
         await new Promise((resolve) => setTimeout(resolve, 5000));
         activeStatus = scraperManager.getStatus(task.sourceId);
       }
       console.log(
-        `[TaskScheduler] Existing scrape for source ID ${task.sourceId} finished. Continuing task execution.`,
+        "[TaskScheduler] Existing scrape for source ID %d finished. Continuing task execution.",
+        task.sourceId,
       );
     }
 
@@ -279,7 +297,7 @@ class TaskScheduler {
       }
     }
 
-    console.log(`[TaskScheduler] Task ID ${taskId} has completed scraping.`);
+    console.log("[TaskScheduler] Task ID %d has completed scraping.", taskId);
   }
 
   /**
@@ -293,7 +311,8 @@ class TaskScheduler {
         .where(eq(scrapingTasks.id, taskId));
     } catch (err) {
       console.error(
-        `[TaskScheduler] Failed to update nextRunAt in database for task ${taskId}:`,
+        "[TaskScheduler] Failed to update nextRunAt in database for task %d:",
+        taskId,
         err,
       );
     }
