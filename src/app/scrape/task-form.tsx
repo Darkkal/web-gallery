@@ -21,6 +21,7 @@ export default function ScrapeTaskForm({ sources }: { sources: Source[] }) {
   const [scheduleInterval, setScheduleInterval] = useState<number | null>(null);
   const [scheduleCron, setScheduleCron] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +55,7 @@ export default function ScrapeTaskForm({ sources }: { sources: Source[] }) {
       // Reset schedules
       setScheduleInterval(null);
       setScheduleCron(null);
+      setResetKey((prev) => prev + 1);
     } catch (error) {
       console.error("Failed to create task:", error);
       alert("Failed to create task");
@@ -160,7 +162,7 @@ export default function ScrapeTaskForm({ sources }: { sources: Source[] }) {
 
       <div style={{ gridColumn: "1 / -1" }}>
         <ScheduleBuilder
-          key={`${sourceId}-${name}`} // Re-key on create task submit to reset builder form fields
+          key={resetKey} // Re-key on successful create task submit to reset builder form fields
           onChange={({ scheduleInterval, scheduleCron }) => {
             setScheduleInterval(scheduleInterval);
             setScheduleCron(scheduleCron);
