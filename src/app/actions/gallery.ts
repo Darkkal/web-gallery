@@ -20,6 +20,15 @@ export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
   return result;
 }
 
+function isHostnameInDomain(hostname: string, domain: string): boolean {
+  const normalizedHost = hostname.toLowerCase();
+  const normalizedDomain = domain.toLowerCase();
+  return (
+    normalizedHost === normalizedDomain ||
+    normalizedHost.endsWith(`.${normalizedDomain}`)
+  );
+}
+
 export async function refetchPostData(postIds: number[]) {
   console.log(
     `[GalleryActions] Refetching post data for ${postIds.length} posts`,
@@ -62,15 +71,15 @@ export async function refetchPostData(postIds: number[]) {
             const parsed = new URL(post.url);
             const hostname = parsed.hostname.toLowerCase();
             if (
-              hostname.includes("twitter.com") ||
-              hostname.includes("x.com")
+              isHostnameInDomain(hostname, "twitter.com") ||
+              isHostnameInDomain(hostname, "x.com")
             ) {
               type = "twitter";
-            } else if (hostname.includes("pixiv.net")) {
+            } else if (isHostnameInDomain(hostname, "pixiv.net")) {
               type = "pixiv";
             } else if (
-              hostname.includes("gelbooru.com") ||
-              hostname.includes("safebooru.org")
+              isHostnameInDomain(hostname, "gelbooru.com") ||
+              isHostnameInDomain(hostname, "safebooru.org")
             ) {
               type = "gelbooruv02";
             }
@@ -145,7 +154,7 @@ export async function refetchPostData(postIds: number[]) {
         successCount++;
       }
     } catch (err) {
-      console.error(`[GalleryActions] Failed to refetch post ${postId}:`, err);
+      console.error("[GalleryActions] Failed to refetch post %s:", postId, err);
     }
   }
 
