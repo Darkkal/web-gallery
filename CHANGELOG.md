@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/Darkkal/web-gallery/compare/v0.3.0...v0.4.0) (2026-06-01)
+
+
+### Features
+
+* **statistics:** implement post statistics dashboard and fix query sorts ([80ef3ca](https://github.com/Darkkal/web-gallery/commit/80ef3caa29d73ec4ad028cd6b1770738f937586a))
+
+
+### Bug Fixes
+
+* **config:** add captions flag to pixiv extractor for missing data ([7efd136](https://github.com/Darkkal/web-gallery/commit/7efd13656532264ce8df7db3e9c949fd2679e2ba))
+
 ## [0.3.0](https://github.com/Darkkal/web-gallery/compare/v0.2.0...v0.3.0) (2026-05-31)
 
 
