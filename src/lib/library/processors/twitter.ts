@@ -1,5 +1,5 @@
 import path from "node:path";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { postDetailsTwitter, posts, twitterUsers } from "@/lib/db/schema";
 import type { IMetadataProcessor } from "@/lib/library/processors/base";
 import type { ProcessorContext, ProcessTask } from "@/lib/library/types";
@@ -160,12 +160,47 @@ export class TwitterProcessor implements IMetadataProcessor<TwitterMeta> {
         return postId;
       } else {
         const postId = existingPosts.get(key) || null;
-        if (postId && internalSourceId) {
-          // Update internalSourceId if it's currently null
+        if (postId) {
+          const updateSet: Record<string, unknown> = {
+            title: userObj.nick || userObj.name,
+            content: meta.content,
+            date: meta.date,
+            url: `https://x.com/${userObj.name || userObj.nick || "i"}/status/${tid}`,
+          };
+          if (internalSourceId) {
+            updateSet.internalSourceId = internalSourceId;
+          }
+          if (task.jsonPath) {
+            updateSet.metadataPath = path
+              .relative(path.join(process.cwd(), "public"), task.jsonPath)
+              .split(path.sep)
+              .join("/");
+          }
+          await tx.update(posts).set(updateSet).where(eq(posts.id, postId));
+
           await tx
-            .update(posts)
-            .set({ internalSourceId })
-            .where(and(eq(posts.id, postId), isNull(posts.internalSourceId)));
+            .update(postDetailsTwitter)
+            .set({
+              retweetId: meta.retweet_id ? String(meta.retweet_id) : null,
+              quoteId: meta.quote_id ? String(meta.quote_id) : null,
+              replyId: meta.reply_id ? String(meta.reply_id) : null,
+              conversationId: meta.conversation_id
+                ? String(meta.conversation_id)
+                : null,
+              lang: meta.lang,
+              source: meta.source,
+              sensitive: meta.sensitive,
+              sensitiveFlags: meta.sensitive_flags,
+              favoriteCount: meta.favorite_count,
+              quoteCount: meta.quote_count,
+              replyCount: meta.reply_count,
+              retweetCount: meta.retweet_count,
+              bookmarkCount: meta.bookmark_count,
+              viewCount: meta.view_count,
+              category: "twitter",
+              subcategory: "tweet",
+            })
+            .where(eq(postDetailsTwitter.postId, postId));
         }
         return postId;
       }

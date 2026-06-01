@@ -145,6 +145,9 @@ export const posts = sqliteTable("posts", {
   content: text("content"), // caption, body, etc.
   url: text("url"), // Link to original post
   metadataPath: text("metadata_path"), // Path to the JSON metadata file
+  isSourceDeleted: integer("is_source_deleted", { mode: "boolean" }).default(
+    false,
+  ),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
     () => new Date(),
   ),

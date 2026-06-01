@@ -376,3 +376,20 @@
   flex: 1;
   min-width: 0;
 }
+
+.deletedSourceBadge {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  background: hsl(var(--color-danger) / 0.9);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}

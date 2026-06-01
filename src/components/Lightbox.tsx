@@ -29,6 +29,7 @@ interface LightboxProps {
   onNext?: () => void;
   onPrev?: () => void;
   onDelete?: (id: number, deleteFile: boolean) => void;
+  onRefetch?: (postId: number) => Promise<void>;
   loopVideos?: boolean;
   isPageLoading?: boolean;
 }
@@ -45,6 +46,7 @@ export default function Lightbox({
   onNext,
   onPrev,
   onDelete,
+  onRefetch,
   loopVideos,
   isPageLoading = false,
 }: LightboxProps) {
@@ -52,7 +54,20 @@ export default function Lightbox({
   const [showInfo, setShowInfo] = useState(true);
   const [pixivTags, setPixivTags] = useState<{ name: string }[]>([]);
   const [isRecentlyMounted, setIsRecentlyMounted] = useState(true);
+  const [refetching, setRefetching] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  async function handleRefetch() {
+    if (!onRefetch || !row.post?.id) return;
+    setRefetching(true);
+    try {
+      await onRefetch(row.post.id);
+    } catch (err) {
+      alert(`Failed to refetch post data: ${err}`);
+    } finally {
+      setRefetching(false);
+    }
+  }
 
   // Playlists State
   const [associatedPlaylists, setAssociatedPlaylists] = useState<
@@ -393,6 +408,13 @@ export default function Lightbox({
           </h2>
         </div>
 
+        {row.post?.isSourceDeleted && (
+          <div className={styles.sourceDeletedBanner}>
+            ⚠️ This post is no longer available on the remote platform (deleted
+            or private).
+          </div>
+        )}
+
         {user && (
           <div className={`${styles.section} ${styles.userCard}`}>
             {user.profileImage && (
@@ -612,6 +634,22 @@ export default function Lightbox({
         {(row.post?.url || (tweet?.tweetId && user) || pixiv?.pixivId) && (
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Source</h3>
+            {onRefetch && row.post?.id && (
+              <button
+                type="button"
+                className={styles.refetchButton}
+                onClick={handleRefetch}
+                disabled={refetching}
+              >
+                {refetching ? (
+                  <>
+                    <span className={styles.refetchSpinner} /> Refetching...
+                  </>
+                ) : (
+                  "Refetch Post Data"
+                )}
+              </button>
+            )}
             {row.post?.url && (
               <a
                 href={row.post.url}
