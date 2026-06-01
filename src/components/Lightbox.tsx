@@ -631,7 +631,7 @@ export default function Lightbox({
           </div>
         )}
 
-        {(row.post?.url || (tweet?.tweetId && user) || pixiv?.pixivId) && (
+        {(row.post?.url || (tweet?.tweetId && user)) && (
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Source</h3>
             {onRefetch && row.post?.id && (
@@ -668,16 +668,6 @@ export default function Lightbox({
                 className={styles.linkButton}
               >
                 View Tweet
-              </a>
-            )}
-            {pixiv?.pixivId && (
-              <a
-                href={`https://www.pixiv.net/artworks/${pixiv.pixivId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.linkButton}
-              >
-                View on Pixiv
               </a>
             )}
           </div>
