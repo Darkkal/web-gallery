@@ -64,6 +64,15 @@ export default function GalleryItem({
         </div>
       )}
 
+      {row.post?.isSourceDeleted && (
+        <div
+          className={styles.deletedSourceBadge}
+          title="Post is no longer available on remote source"
+        >
+          🚫 Deleted from Source
+        </div>
+      )}
+
       {item.mediaType === "video" ? (
         <>
           <video

@@ -213,7 +213,7 @@ class ScraperManager {
 
     this.activeScrapes.set(sourceId, { process: child, status, strategy });
 
-    promise
+    return promise
       .then(async (result) => {
         let logMsg = result.error || result.output || "";
         if (logMsg.length > 200) {
@@ -307,6 +307,8 @@ class ScraperManager {
             this.activeScrapes.delete(sourceId);
           }, 30000); // 30 seconds
         }
+
+        return result;
       })
       .catch(async (err) => {
         console.error(`[ScraperManager] ERROR for source ID:`, sourceId, err);
@@ -327,6 +329,8 @@ class ScraperManager {
         console.log(
           `[ScraperManager] Scrape failed for source ${sourceId}. No incremental scan queued — use manual full scan if needed.`,
         );
+
+        throw err;
       });
   }
 

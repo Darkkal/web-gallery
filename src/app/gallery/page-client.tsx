@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { deleteMediaItems } from "@/app/actions/gallery";
+import { deleteMediaItems, refetchPostData } from "@/app/actions/gallery";
 import BulkActionBar from "@/app/gallery/components/BulkActionBar";
 import FilterBar from "@/app/gallery/components/FilterBar";
 import GalleryItem from "@/app/gallery/components/GalleryItem";
@@ -86,6 +86,7 @@ function GalleryPageContent({
 }) {
   const [columnCount, setColumnCount] = useState(4);
   const [deleting, setDeleting] = useState(false);
+  const [refetching, setRefetching] = useState(false);
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
 
   const {
@@ -179,6 +180,45 @@ function GalleryPageContent({
     }
   }
 
+  async function handleBulkRefetch() {
+    if (selectedCount === 0) return;
+
+    // Find the unique post IDs of selected media items
+    const selectedPostIds = new Set<number>();
+    for (const group of items) {
+      for (const gi of group.groupItems) {
+        if (selectedIds.has(gi.item.id) && gi.post?.id) {
+          selectedPostIds.add(gi.post.id);
+        }
+      }
+    }
+
+    const postIds = Array.from(selectedPostIds);
+    if (postIds.length === 0) {
+      alert("No posts with remote URLs are selected.");
+      return;
+    }
+
+    setRefetching(true);
+    try {
+      const res = await refetchPostData(postIds);
+      alert(
+        `Refetch complete: ${res.successCount} succeeded, ${res.deletedCount} remote sources were deleted/unavailable.`,
+      );
+      clearSelection();
+      await refresh();
+    } catch (err) {
+      alert(`Failed to refetch post data: ${err}`);
+    } finally {
+      setRefetching(false);
+    }
+  }
+
+  async function handleRefetchSingle(postId: number) {
+    await refetchPostData([postId]);
+    await refresh();
+  }
+
   const currentGroup = selectedIndex !== null ? items[selectedIndex] : null;
   const currentItemRow = currentGroup
     ? currentGroup.groupItems[mediaIndex]
@@ -191,7 +231,9 @@ function GalleryPageContent({
           selectedCount={selectedCount}
           onBulkDelete={handleBulkDelete}
           onAddToPlaylist={() => setIsAddToPlaylistOpen(true)}
+          onBulkRefetch={handleBulkRefetch}
           deleting={deleting}
+          refetching={refetching}
         />
       )}
 
@@ -303,6 +345,7 @@ function GalleryPageContent({
           onNext={nextLightbox}
           onPrev={prevLightbox}
           onDelete={handleDeleteItem}
+          onRefetch={handleRefetchSingle}
           loopVideos={loopVideos}
           isPageLoading={isPageLoading}
         />

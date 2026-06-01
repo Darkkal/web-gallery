@@ -1,5 +1,5 @@
 import path from "node:path";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import {
   pixivUsers,
   postDetailsPixiv,
@@ -154,18 +154,48 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
       } else {
         postId = existingPosts.get(key) || null;
         if (postId) {
+          const updateSet: Record<string, unknown> = {
+            title: meta.title,
+            content: meta.caption,
+            date: meta.date || meta.create_date,
+            url: `https://www.pixiv.net/artworks/${pid}`,
+          };
           if (internalSourceId) {
-            await tx
-              .update(posts)
-              .set({ internalSourceId })
-              .where(and(eq(posts.id, postId), isNull(posts.internalSourceId)));
+            updateSet.internalSourceId = internalSourceId;
           }
           if (meta.visible === false) {
-            await tx
-              .update(posts)
-              .set({ deletedAt: new Date() })
-              .where(and(eq(posts.id, postId), isNull(posts.deletedAt)));
+            updateSet.deletedAt = new Date();
           }
+          if (task.jsonPath) {
+            updateSet.metadataPath = path
+              .relative(path.join(process.cwd(), "public"), task.jsonPath)
+              .split(path.sep)
+              .join("/");
+          }
+          await tx.update(posts).set(updateSet).where(eq(posts.id, postId));
+
+          await tx
+            .update(postDetailsPixiv)
+            .set({
+              width: meta.width,
+              height: meta.height,
+              pageCount: meta.page_count,
+              restrict: meta.restrict,
+              xRestrict: meta.x_restrict,
+              sanityLevel: meta.sanity_level,
+              totalView: meta.total_view,
+              totalBookmarks: meta.total_bookmarks,
+              isBookmarked: meta.is_bookmarked,
+              visible: meta.visible,
+              isMuted: meta.is_muted,
+              illustAiType: meta.illust_ai_type,
+              illustBookStyle: meta.illust_book_style,
+              tags: meta.tags,
+              category: "pixiv",
+              subcategory: meta.subcategory,
+              type: meta.type,
+            })
+            .where(eq(postDetailsPixiv.postId, postId));
         }
       }
     }
