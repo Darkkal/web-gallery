@@ -1,13 +1,17 @@
 "use client";
 
 import { ArrowDown, ArrowUp } from "lucide-react";
+import { useEffect } from "react";
 import styles from "@/app/timeline/page.module.css";
+import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
+import { useSearchAutocomplete } from "@/hooks/useSearchAutocomplete";
 
 interface FilterBarProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   sortBy: string;
   setSortBy: (sort: string) => void;
+  onSuppressSearch?: (suppress: boolean) => void;
 }
 
 export default function FilterBar({
@@ -15,7 +19,24 @@ export default function FilterBar({
   setSearchQuery,
   sortBy,
   setSortBy,
+  onSuppressSearch,
 }: FilterBarProps) {
+  const {
+    suggestions,
+    selectedIndex,
+    isOpen,
+    inputRef,
+    handleKeyDown,
+    acceptSuggestion,
+    shouldSuppressSearch,
+  } = useSearchAutocomplete(searchQuery, setSearchQuery);
+
+  useEffect(() => {
+    if (onSuppressSearch) {
+      onSuppressSearch(shouldSuppressSearch);
+    }
+  }, [shouldSuppressSearch, onSuppressSearch]);
+
   // Parse field and direction from sortBy state
   const isRelevance = sortBy === "relevance";
   const currentField = isRelevance ? "relevance" : sortBy.split("-")[0];
@@ -41,13 +62,32 @@ export default function FilterBar({
 
   return (
     <div className={styles.filterBar}>
-      <input
-        type="text"
-        placeholder="Search timeline (e.g. source:twitter)..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className={`${styles.input} ${styles.searchInput}`}
-      />
+      <div style={{ position: "relative", flex: 2, display: "flex" }}>
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder="Search timeline (e.g. tag:landscape, extractor:twitter)..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className={`${styles.input} ${styles.searchInput}`}
+          style={{ width: "100%" }}
+          aria-autocomplete="list"
+          aria-controls={isOpen ? "search-autocomplete-listbox" : undefined}
+          aria-expanded={isOpen}
+          role="combobox"
+          aria-activedescendant={
+            isOpen ? `suggestion-item-${selectedIndex}` : undefined
+          }
+        />
+        {isOpen && (
+          <AutocompleteDropdown
+            suggestions={suggestions}
+            selectedIndex={selectedIndex}
+            onSelect={acceptSuggestion}
+          />
+        )}
+      </div>
       <div className={styles.separator} />
       <div className={styles.sortGroup}>
         <select

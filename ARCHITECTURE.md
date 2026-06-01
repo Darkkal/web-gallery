@@ -218,6 +218,8 @@ Additionally, `instrumentation.ts` registers global `uncaughtException` and `unh
 
 **Full-Text Search**: The `posts` table is backed by a SQLite FTS5 virtual table. Column aliases and the filter allowlist are maintained in [`src/lib/utils/search-parser.ts`](./src/lib/utils/search-parser.ts).
 
+**Search Autocomplete**: Implements a Discord-style two-phase search suggestions dropdown (suggesting filter columns and matching database values) driven by `useSearchAutocomplete`, a dedicated repository (`src/lib/db/repositories/autocomplete.ts`), and the `/api/autocomplete` Route Handler. Typing/selection queries are debounced, and live-search pagination refetches are suppressed while the autocomplete popover is active to minimize overhead.
+
 ### 3.3 Scraping Subsystem
 
 **Location**: [`src/lib/scrapers/`](./src/lib/scrapers/)

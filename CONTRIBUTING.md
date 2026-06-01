@@ -92,6 +92,7 @@ Common UI logic is extracted into `src/hooks/`:
 | `useInfiniteScroll` | Manages IntersectionObserver sentinel for paginated feeds | Gallery, Timeline |
 | `useLightbox` | Lightbox open/close/navigate state | Gallery, Timeline |
 | `usePaginatedData` | Generic cursor-based pagination + fetch | Gallery, Timeline, Playlists |
+| `useSearchAutocomplete` | Manages search query autocomplete dropdown state and keys | Gallery, Timeline |
 | `useSelection` | Selection state (toggle, select-all, clear, group selection) | Gallery, Sources |
 
 - **Rule**: When building a new page with selection, search, or lightbox behavior, consume these hooks rather than reimplementing the logic inline.
@@ -103,6 +104,7 @@ Frontend types are in `src/types/`:
 | File | Contains |
 |------|----------|
 | `media.ts` | `MediaItem`, `GalleryGroup`, `GalleryRow` |
+| `autocomplete.ts` | `AutocompleteSuggestion`, `AutocompleteResponse` definitions |
 | `playlist.ts` | `Playlist`, playlist-related types |
 | `posts.ts` | `TimelinePost`, post-related types |
 | `settings.ts` | `SystemSettings`, `AppSettings` definitions |

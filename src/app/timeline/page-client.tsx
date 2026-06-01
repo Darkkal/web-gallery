@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import FilterBar from "@/app/timeline/components/FilterBar";
 import PostCard from "@/app/timeline/components/PostCard";
 import styles from "@/app/timeline/page.module.css";
@@ -89,6 +89,8 @@ function TimelinePageContent({
   condensePostText: boolean;
   condensePostLines: number;
 }) {
+  const [suppressSearch, setSuppressSearch] = useState(false);
+
   const {
     items: posts,
     searchQuery,
@@ -106,6 +108,7 @@ function TimelinePageContent({
     fetchPath: "/api/timeline",
     dataKey: "posts",
     pageSize,
+    suppressSearch,
   });
 
   const {
@@ -253,6 +256,7 @@ function TimelinePageContent({
         setSearchQuery={setSearchQuery}
         sortBy={sortBy}
         setSortBy={setSortBy}
+        onSuppressSearch={setSuppressSearch}
       />
 
       <div className={styles.feed}>

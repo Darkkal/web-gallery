@@ -89,6 +89,8 @@ function GalleryPageContent({
   const [refetching, setRefetching] = useState(false);
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
 
+  const [suppressSearch, setSuppressSearch] = useState(false);
+
   const {
     items,
     searchQuery,
@@ -108,6 +110,7 @@ function GalleryPageContent({
     dataKey: "items",
     pageSize,
     playlistId,
+    suppressSearch,
   });
 
   const {
@@ -255,6 +258,7 @@ function GalleryPageContent({
         columnCount={columnCount}
         setColumnCount={setColumnCount}
         onRefresh={() => refresh()}
+        onSuppressSearch={setSuppressSearch}
       />
 
       <MasonryGrid

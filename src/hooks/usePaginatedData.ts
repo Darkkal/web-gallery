@@ -14,6 +14,7 @@ interface UsePaginatedDataOptions<T> {
   pageSize?: number;
   debounceMs?: number;
   playlistId?: number;
+  suppressSearch?: boolean;
 }
 
 export function usePaginatedData<T>({
@@ -26,6 +27,7 @@ export function usePaginatedData<T>({
   pageSize = 20,
   debounceMs = 1000,
   playlistId,
+  suppressSearch = false,
 }: UsePaginatedDataOptions<T>) {
   const [items, setItems] = useState<T[]>(initialItems);
   const [searchQuery, setSearchQuery] = useState(initialSearch);
@@ -117,8 +119,11 @@ export function usePaginatedData<T>({
       isFirstRender.current = false;
       return;
     }
+    if (suppressSearch) {
+      return;
+    }
     refresh();
-  }, [refresh]);
+  }, [refresh, suppressSearch]);
 
   return {
     items,

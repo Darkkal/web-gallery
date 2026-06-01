@@ -8,7 +8,10 @@ import {
   Plus,
   Square,
 } from "lucide-react";
+import { useEffect } from "react";
 import styles from "@/app/gallery/page.module.css";
+import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
+import { useSearchAutocomplete } from "@/hooks/useSearchAutocomplete";
 
 interface FilterBarProps {
   selectionMode: boolean;
@@ -21,6 +24,7 @@ interface FilterBarProps {
   columnCount: number;
   setColumnCount: (count: number) => void;
   onRefresh: () => void;
+  onSuppressSearch?: (suppress: boolean) => void;
 }
 
 export default function FilterBar({
@@ -34,7 +38,24 @@ export default function FilterBar({
   columnCount,
   setColumnCount,
   onRefresh,
+  onSuppressSearch,
 }: FilterBarProps) {
+  const {
+    suggestions,
+    selectedIndex,
+    isOpen,
+    inputRef,
+    handleKeyDown,
+    acceptSuggestion,
+    shouldSuppressSearch,
+  } = useSearchAutocomplete(searchQuery, setSearchQuery);
+
+  useEffect(() => {
+    if (onSuppressSearch) {
+      onSuppressSearch(shouldSuppressSearch);
+    }
+  }, [shouldSuppressSearch, onSuppressSearch]);
+
   // Parse field and direction from sortBy state
   const isRelevance = sortBy === "relevance";
   const currentField = isRelevance ? "relevance" : sortBy.split("-")[0];
@@ -82,14 +103,37 @@ export default function FilterBar({
 
       <div className={styles.separator} />
 
-      <input
-        type="text"
-        placeholder="Search (e.g. source:pixiv, min_favs:100, tag)..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && onRefresh()}
-        className={`${styles.input} ${styles.searchInput}`}
-      />
+      <div style={{ position: "relative", flex: 2, display: "flex" }}>
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder="Search (e.g. tag:landscape, extractor:pixiv)..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={(e) => {
+            handleKeyDown(e);
+            if (e.key === "Enter" && !isOpen) {
+              onRefresh();
+            }
+          }}
+          className={`${styles.input} ${styles.searchInput}`}
+          style={{ width: "100%" }}
+          aria-autocomplete="list"
+          aria-controls={isOpen ? "search-autocomplete-listbox" : undefined}
+          aria-expanded={isOpen}
+          role="combobox"
+          aria-activedescendant={
+            isOpen ? `suggestion-item-${selectedIndex}` : undefined
+          }
+        />
+        {isOpen && (
+          <AutocompleteDropdown
+            suggestions={suggestions}
+            selectedIndex={selectedIndex}
+            onSelect={acceptSuggestion}
+          />
+        )}
+      </div>
       <div className={styles.sortGroup}>
         <select
           value={currentField}

@@ -3,29 +3,90 @@ export interface ParsedSearchQuery {
   sourceFilter: string | null;
 }
 
+export interface SearchFilterColumn {
+  alias: string;
+  name: string;
+  icon: string;
+  description: string;
+  type: "dynamic" | "static";
+}
+
+export const SEARCH_COLUMNS: SearchFilterColumn[] = [
+  {
+    alias: "tag:",
+    name: "Tag",
+    icon: "🏷️",
+    description: "Filter by tag name",
+    type: "dynamic",
+  },
+  {
+    alias: "user:",
+    name: "User",
+    icon: "👤",
+    description: "Filter by username",
+    type: "dynamic",
+  },
+  {
+    alias: "handle:",
+    name: "Handle",
+    icon: "@",
+    description: "Filter by user handle",
+    type: "dynamic",
+  },
+  {
+    alias: "title:",
+    name: "Title",
+    icon: "📝",
+    description: "Filter by post title",
+    type: "dynamic",
+  },
+  {
+    alias: "content:",
+    name: "Content",
+    icon: "📄",
+    description: "Filter by post content",
+    type: "dynamic",
+  },
+  {
+    alias: "source:",
+    name: "Source",
+    icon: "🔗",
+    description: "Filter by extractor type",
+    type: "static",
+  },
+  {
+    alias: "extractor:",
+    name: "Extractor",
+    icon: "⚙️",
+    description: "Filter by extractor type",
+    type: "static",
+  },
+];
+
+export const ftsColumnAliases: Record<string, string> = {
+  tag: "tag_names",
+  tag_names: "tag_names",
+  user: "user_name",
+  user_name: "user_name",
+  handle: "user_handle",
+  user_handle: "user_handle",
+  title: "title",
+  content: "content",
+  source_name: "source_name",
+};
+
 export function parseSearchQuery(search: string = ""): ParsedSearchQuery {
   let cleanQuery = search;
 
   let sourceFilter: string | null = null;
-  const sourceMatch = cleanQuery.match(/source:([a-zA-Z0-9_-]+)/i);
+  // Match either "source:xyz" or "extractor:xyz"
+  const sourceMatch = cleanQuery.match(
+    /(?:source|extractor):([a-zA-Z0-9_-]+)/i,
+  );
   if (sourceMatch) {
     sourceFilter = sourceMatch[1].toLowerCase();
     cleanQuery = cleanQuery.replace(sourceMatch[0], "").trim();
   }
-
-  // Define friendly aliases mapping to actual FTS5 virtual table column names
-  const ftsColumnAliases: Record<string, string> = {
-    tag: "tag_names",
-    tag_names: "tag_names",
-    user: "user_name",
-    user_name: "user_name",
-    handle: "user_handle",
-    user_handle: "user_handle",
-    title: "title",
-    content: "content",
-    source_name: "source_name",
-    // Add future extractor mappings here
-  };
 
   const validFtsColumns = new Set(Object.values(ftsColumnAliases));
 
