@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BarChart3,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -59,6 +60,11 @@ const NAV_ITEMS = [
     icon: Tag,
   },
   {
+    label: "Statistics",
+    href: "/statistics",
+    icon: BarChart3,
+  },
+  {
     label: "Settings",
     href: "/settings",
     icon: Settings,
@@ -103,6 +109,7 @@ const MOBILE_GROUPS = [
     icon: Settings,
     items: [
       { label: "Library", href: "/library", icon: Library },
+      { label: "Statistics", href: "/statistics", icon: BarChart3 },
       { label: "Settings", href: "/settings", icon: Settings },
     ],
   },

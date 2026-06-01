@@ -4,6 +4,10 @@ import { desc, eq, inArray, sql } from "drizzle-orm";
 import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import {
+  recomputeStatistics,
+  recordHistorySnapshot,
+} from "@/lib/db/repositories/statistics";
+import {
   gallerydlExtractorTypes,
   mediaItems,
   pixivUsers,
@@ -566,6 +570,17 @@ export async function syncLibrary(options?: SyncOptions) {
       }
     }
 
+    if (!stopRequested) {
+      try {
+        console.log("[Scanner] Computing library statistics...");
+        await recomputeStatistics();
+        await recordHistorySnapshot("import");
+        console.log("[Scanner] Library statistics computed successfully.");
+      } catch (statsErr) {
+        console.error("[Scanner] Failed to compute statistics:", statsErr);
+      }
+    }
+
     const finalStatus = stopRequested ? "stopped" : "completed";
 
     await db
@@ -611,6 +626,7 @@ interface PlatformMetadata {
   uploader_id?: string;
   user?: {
     id?: string | number;
+    account?: string;
     profile_image?: string;
     profile_image_url_https?: string;
     profile_image_urls?: {
@@ -757,6 +773,11 @@ async function processItem(
       meta.extractor === "safebooru"
     )
       extractorType = "gelbooruv02";
+    else if (meta.category) {
+      extractorType = meta.category;
+    } else if (meta.extractor) {
+      extractorType = meta.extractor;
+    }
 
     if (extractorType) {
       const processor = MetadataProcessorFactory.getProcessor(extractorType);
@@ -771,6 +792,51 @@ async function processItem(
           internalSourceId,
         };
         postId = await processor.process(meta, task, context);
+      } else {
+        // Fallback: Create a generic post record so unrecognized extractors are still registered
+        const jsonSourceId = String(
+          meta.id ||
+            meta.json_source_id ||
+            meta.tweet_id ||
+            meta.illust_id ||
+            path.basename(task.fsPath, path.extname(task.fsPath)),
+        );
+        const uniqueKey = `${extractorType}:${jsonSourceId}`;
+        let existingId = existingPosts.get(uniqueKey);
+
+        if (!existingId) {
+          const userId = String(
+            meta.user_id ||
+              meta.uploader_id ||
+              (meta.user && (meta.user.id || meta.user.account)) ||
+              "",
+          );
+          const dateStr = String(
+            meta.date || meta.create_date || meta.created_at || "",
+          );
+          const title = String(meta.title || "");
+          const content = String(meta.content || meta.description || "");
+
+          const inserted = await tx
+            .insert(posts)
+            .values({
+              extractorType,
+              jsonSourceId,
+              internalSourceId,
+              userId: userId || null,
+              date: dateStr || null,
+              title: title || null,
+              content: content || null,
+              metadataPath: task.jsonPath
+                ? task.jsonPath.substring(paths.dataDir.length)
+                : null,
+              createdAt: new Date(),
+            })
+            .returning({ id: posts.id });
+          existingId = inserted[0].id;
+          existingPosts.set(uniqueKey, existingId);
+        }
+        postId = existingId;
       }
     }
   }
