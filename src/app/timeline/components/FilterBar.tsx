@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import styles from "@/app/timeline/page.module.css";
 import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
+import dropdownStyles from "@/components/AutocompleteDropdown.module.css";
 import { useSearchAutocomplete } from "@/hooks/useSearchAutocomplete";
 
 interface FilterBarProps {
@@ -12,6 +13,7 @@ interface FilterBarProps {
   sortBy: string;
   setSortBy: (sort: string) => void;
   onSuppressSearch?: (suppress: boolean) => void;
+  isSearching?: boolean;
 }
 
 export default function FilterBar({
@@ -20,6 +22,7 @@ export default function FilterBar({
   sortBy,
   setSortBy,
   onSuppressSearch,
+  isSearching = false,
 }: FilterBarProps) {
   const {
     suggestions,
@@ -71,7 +74,7 @@ export default function FilterBar({
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           className={`${styles.input} ${styles.searchInput}`}
-          style={{ width: "100%" }}
+          style={{ width: "100%", paddingRight: isSearching ? "36px" : "12px" }}
           aria-autocomplete="list"
           aria-controls={isOpen ? "search-autocomplete-listbox" : undefined}
           aria-expanded={isOpen}
@@ -80,6 +83,24 @@ export default function FilterBar({
             isOpen ? `suggestion-item-${selectedIndex}` : undefined
           }
         />
+        {isSearching && (
+          <div
+            style={{
+              position: "absolute",
+              right: "12px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "hsl(var(--muted-foreground))",
+              pointerEvents: "none",
+              zIndex: 10,
+            }}
+          >
+            <Loader2 className={dropdownStyles.spinner} size={18} />
+          </div>
+        )}
         {isOpen && (
           <AutocompleteDropdown
             suggestions={suggestions}

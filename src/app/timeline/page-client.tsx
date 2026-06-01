@@ -98,6 +98,7 @@ function TimelinePageContent({
     sortBy,
     setSortBy,
     isLoading,
+    isSearching,
     loadMore,
     hasMore,
   } = usePaginatedData<TimelinePost>({
@@ -257,6 +258,7 @@ function TimelinePageContent({
         sortBy={sortBy}
         setSortBy={setSortBy}
         onSuppressSearch={setSuppressSearch}
+        isSearching={isSearching}
       />
 
       <div className={styles.feed}>

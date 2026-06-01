@@ -98,6 +98,7 @@ function GalleryPageContent({
     sortBy,
     setSortBy,
     isLoading,
+    isSearching,
     loadMore,
     refresh,
     hasMore,
@@ -259,6 +260,7 @@ function GalleryPageContent({
         setColumnCount={setColumnCount}
         onRefresh={() => refresh()}
         onSuppressSearch={setSuppressSearch}
+        isSearching={isSearching}
       />
 
       <MasonryGrid

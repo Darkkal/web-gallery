@@ -125,6 +125,8 @@ export function usePaginatedData<T>({
     refresh();
   }, [refresh, suppressSearch]);
 
+  const isSearching = isLoading || searchQuery !== debouncedSearch;
+
   return {
     items,
     setItems,
@@ -135,6 +137,7 @@ export function usePaginatedData<T>({
     nextCursor,
     setNextCursor,
     isLoading,
+    isSearching,
     loadMore,
     refresh,
     hasMore: nextCursor !== null,
