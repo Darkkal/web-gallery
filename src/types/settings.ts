@@ -11,6 +11,8 @@ export interface AppSettings {
   autoplayVideos: boolean;
   muteAutoplayVideos: boolean;
   infiniteScrollBuffer: number;
+  computeStorageStatistics: boolean;
+  statisticsRankingLimit: number;
 }
 
 export interface ScraperSettings {
@@ -50,6 +52,8 @@ export const DEFAULT_SETTINGS: SystemSettings = {
     autoplayVideos: false,
     muteAutoplayVideos: true,
     infiniteScrollBuffer: 300,
+    computeStorageStatistics: true,
+    statisticsRankingLimit: 10,
   },
   scraper: {
     rateLimit: "5M",

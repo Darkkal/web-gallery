@@ -145,6 +145,18 @@ export default function SettingsPageClient({
     }
 
     if (
+      settings.app.statisticsRankingLimit < 1 ||
+      settings.app.statisticsRankingLimit > 100
+    ) {
+      setNotification({
+        type: "error",
+        message: "Statistics ranking limit must be between 1 and 100.",
+      });
+      setIsSaving(false);
+      return;
+    }
+
+    if (
       settings.scraper.sleepMin < 0 ||
       settings.scraper.sleepMax < 0 ||
       settings.scraper.sleepMin > settings.scraper.sleepMax
@@ -576,6 +588,75 @@ export default function SettingsPageClient({
                   />
                   <span className={styles.slider} />
                 </label>
+              </div>
+
+              <h2 className={styles.sectionTitle}>
+                <Sliders size={18} />
+                <span>Library Statistics Page</span>
+              </h2>
+
+              <div
+                className={styles.toggleContainer}
+                style={{ marginBottom: "1.5rem" }}
+              >
+                <div className={styles.toggleInfo}>
+                  <span className={styles.toggleTitle}>
+                    Compute Storage Statistics
+                  </span>
+                  <span className={styles.toggleDescription}>
+                    Calculate total storage used by media files during library
+                    scans. Disable on slow storage for faster scans.
+                  </span>
+                </div>
+                <label
+                  className={styles.switch}
+                  htmlFor="computeStorageStatistics"
+                >
+                  <input
+                    id="computeStorageStatistics"
+                    aria-label="Compute Storage Statistics"
+                    type="checkbox"
+                    checked={settings.app.computeStorageStatistics}
+                    onChange={(e) =>
+                      handleAppChange(
+                        "computeStorageStatistics",
+                        e.target.checked,
+                      )
+                    }
+                  />
+                  <span className={styles.slider} />
+                </label>
+              </div>
+
+              <div
+                className={styles.formGroup}
+                style={{ marginBottom: "2rem" }}
+              >
+                <label
+                  htmlFor="statisticsRankingLimit"
+                  className={styles.label}
+                >
+                  Ranking Cards Limit
+                </label>
+                <input
+                  id="statisticsRankingLimit"
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={settings.app.statisticsRankingLimit}
+                  onChange={(e) =>
+                    handleAppChange(
+                      "statisticsRankingLimit",
+                      parseInt(e.target.value, 10) || 10,
+                    )
+                  }
+                  className={styles.input}
+                  required
+                />
+                <p className={styles.helperText}>
+                  Maximum number of cards shown in each ranking section on the
+                  Statistics page (1-100).
+                </p>
               </div>
 
               <h2 className={styles.sectionTitle}>

@@ -19,6 +19,7 @@ For day-to-day coding conventions and established patterns, see [CONTRIBUTING.md
    - [3.6 Avatar Proxy & Request Queue](#36-avatar-proxy--request-queue)
    - [3.7 Settings & Configuration System](#37-settings--configuration-system)
    - [3.8 Task Scheduling Subsystem](#38-task-scheduling-subsystem)
+   - [3.9 Statistics Subsystem](#39-statistics-subsystem)
 4. [Data Flow](#4-data-flow)
    - [4.1 Scrape → Scan → Display](#41-scrape--scan--display)
    - [4.2 Client-Side Data Fetching](#42-client-side-data-fetching)
@@ -96,6 +97,7 @@ web-gallery/
 │   │   │   ├── library/            #   Library scan status
 │   │   │   ├── playlists/          #   Playlist read/write (REST)
 │   │   │   ├── sources/            #   Source list + scrape status
+│   │   │   ├── statistics/         #   Statistics data route
 │   │   │   └── timeline/           #   Timeline post list (paginated)
 │   │   ├── gallery/                # Masonry gallery page
 │   │   ├── timeline/               # Chronological post feed page
@@ -105,6 +107,7 @@ web-gallery/
 │   │   ├── scrape/                 # Scrape trigger page
 │   │   ├── tags/                   # Tag browser page
 │   │   ├── playlists/              # Playlist / collection management
+│   │   ├── statistics/             # Statistics & dashboard page
 │   │   ├── downloads/              # Local file serving handler
 │   │   ├── avatars/                # Avatar image route handler
 │   │   ├── globals.css             # Design tokens (HSL variables, dark/light themes)
@@ -133,6 +136,7 @@ web-gallery/
 │   │   ├── posts.ts                #   TimelinePost, post-related types
 │   │   ├── settings.ts             #   SystemSettings, AppSettings definitions
 │   │   ├── source.ts               #   Source, source-related types
+│   │   ├── statistics.ts           #   Statistics data structures & types
 │   │   └── users.ts                #   TwitterUser, PixivUser
 │   ├── lib/                        # Server-only business logic
 │   │   ├── config.ts               #   Centralized path config (DATA_DIR / MEDIA_DIR)
@@ -142,7 +146,7 @@ web-gallery/
 │   │   ├── db/
 │   │   │   ├── index.ts            #   DB client init + custom migration runner
 │   │   │   ├── schema.ts           #   Drizzle table definitions + relations
-│   │   │   └── repositories/       #   Domain queries (media.ts, posts.ts, sources.ts)
+│   │   │   └── repositories/       #   Domain queries (media.ts, posts.ts, sources.ts, statistics.ts)
 │   │   ├── library/
 │   │   │   ├── scanner.ts          #   Main sync orchestrator (syncLibrary)
 │   │   │   ├── types.ts            #   ProcessTask, ProcessorContext, etc.
@@ -346,6 +350,19 @@ The Task Scheduling Subsystem enables recurring scraper executions for automatio
 3. When a Cron job fires, it enqueues the task to the execution queue (`taskScheduler.enqueue()`) and calculates + updates `nextRunAt` in the database.
 4. The queue executes tasks sequentially, calling `scraperManager.startScrape()` and polling for completion.
 
+### 3.9 Statistics Subsystem
+
+**Location**: [`src/lib/db/repositories/statistics.ts`](./src/lib/db/repositories/statistics.ts)
+
+The Statistics Subsystem provides pre-computed counters and historical growth metrics to drive the dashboard:
+
+- **Pre-Computed Snapshot**: The `library_statistics` table acts as a single-row caching layer for aggregate counts of posts, media items, tags, users, extractors, and overall storage bytes. This avoids running heavy `COUNT(*)` queries on page loads.
+- **Scanner & Repository Triggers**: 
+  - After any full library scan, the scanner calls `recomputeStatistics()` to rebuild precise aggregates, then calls `recordHistorySnapshot()` to append or update daily growth history.
+  - Increment-based adjustments: Targeted operations, such as deleting media items via `deleteMediaItems()`, trigger `incrementStatistics(delta)` to deduct counters and storage sizes atomically in real-time.
+- **Proportional Timeline Distribution**: For historical charts, cumulative growth is tracked daily in `statistics_history`. If a metric lacks historical timestamps (such as tags or user entries), the repository maps them proportionally to the daily posts import velocity to provide clean growth curves.
+- **REST Endpoints & Client Rendering**: The dashboard fetches its data on-demand from `/api/statistics` for modular caching and instant filters (date granularity, range limits, active page sorting).
+
 ---
 
 ## 4. Data Flow
@@ -435,6 +452,8 @@ pixiv_users    (profile — standalone, linked via posts.userId)
 
 scan_history   (standalone: run log for library syncs)
 scraper_download_logs  (sourceId → filePath mapping for source attribution)
+library_statistics (standalone: pre-computed snapshot counters)
+statistics_history (standalone: daily snapshots for historical cumulative growth)
 ```
 
 **Key relationships**:

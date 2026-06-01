@@ -64,6 +64,13 @@
       "when": 1780249731358,
       "tag": "0008_sour_psynapse",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1780249731359,
+      "tag": "0009_statistics_tables",
+      "breakpoints": true
     }
   ]
 }

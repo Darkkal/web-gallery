@@ -14,6 +14,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { incrementStatistics } from "@/lib/db/repositories/statistics";
 import {
   mediaItems,
   pixivUsers,
@@ -268,6 +269,8 @@ export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
 
   if (ids.length === 0) return { success: true, count: 0 };
 
+  let deletedStorageBytes = 0;
+
   if (deleteFiles) {
     const itemsToDelete = await db
       .select({ filePath: mediaItems.filePath })
@@ -290,6 +293,11 @@ export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
           continue;
         }
 
+        try {
+          const stat = await fs.stat(absolutePath);
+          deletedStorageBytes += stat.size;
+        } catch {}
+
         await fs.unlink(absolutePath);
 
         const ext = path.extname(item.filePath);
@@ -307,6 +315,10 @@ export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
 
         try {
           await fs.access(absoluteJsonPath);
+          try {
+            const jsonStat = await fs.stat(absoluteJsonPath);
+            deletedStorageBytes += jsonStat.size;
+          } catch {}
           await fs.unlink(absoluteJsonPath);
         } catch {
           // Ignore if missing
@@ -323,6 +335,18 @@ export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
 
   await db.delete(playlistItems).where(inArray(playlistItems.mediaItemId, ids));
   await db.delete(mediaItems).where(inArray(mediaItems.id, ids));
+
+  try {
+    await incrementStatistics({
+      totalMediaItems: -ids.length,
+      storageBytes: -deletedStorageBytes,
+    });
+  } catch (statsErr) {
+    console.error(
+      "[MediaRepository] Failed to update statistics on delete:",
+      statsErr,
+    );
+  }
 
   return { success: true, count: ids.length };
 }

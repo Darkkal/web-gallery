@@ -107,6 +107,7 @@ Frontend types are in `src/types/`:
 | `posts.ts` | `TimelinePost`, post-related types |
 | `settings.ts` | `SystemSettings`, `AppSettings` definitions |
 | `source.ts` | `Source`, source-related types |
+| `statistics.ts` | `LibraryStatistics`, `StatisticsHistoryPoint`, etc. |
 | `users.ts` | `TwitterUser`, `PixivUser` |
 
 - **Rule**: Import shared types from `@/types/`. Do not define inline interfaces in page components.
@@ -195,6 +196,10 @@ Individual pages export their own `metadata` for custom titles (e.g., `export co
 - **Queue**: To prevent write contention and locks on the SQLite database, all scheduled runs are serialized sequentially through a module-level FIFO queue (`taskScheduler.enqueue()`).
 - **Manual vs Scheduled**: Manual scraper runs (`runTaskNow` / "Run Now") bypass the scheduler queue to run immediately. Scheduled runs always go through the queue.
 - **State Persistence**: The database columns `scheduleInterval` (seconds) and `scheduleCron` (cron pattern) are the sources of truth. On trigger, `nextRunAt` is immediately recalculated and written to the database.
+
+### 1.14 Statistics Counters
+
+- **Rule**: When implementing features that create or delete posts, media items, tags, users, or affect extractor coverage, you MUST update the pre-computed statistics. Use `incrementStatistics(delta)` for targeted counter adjustments (additions/deletions) or `recomputeStatistics()` for full accuracy after bulk operations. See `src/lib/db/repositories/statistics.ts`.
 
 ---
 

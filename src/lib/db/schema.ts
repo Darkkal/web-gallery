@@ -4,6 +4,7 @@ import {
   primaryKey,
   sqliteTable,
   text,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 export const gallerydlExtractorTypes = sqliteTable(
@@ -420,3 +421,35 @@ export const postTagsRelations = relations(postTags, ({ one }) => ({
     references: [posts.id],
   }),
 }));
+
+export const libraryStatistics = sqliteTable("library_statistics", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  totalPosts: integer("total_posts").notNull().default(0),
+  totalMediaItems: integer("total_media_items").notNull().default(0),
+  totalTags: integer("total_tags").notNull().default(0),
+  totalUsers: integer("total_users").notNull().default(0),
+  totalExtractors: integer("total_extractors").notNull().default(0),
+  storageBytes: integer("storage_bytes").notNull().default(0),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+export const statisticsHistory = sqliteTable(
+  "statistics_history",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    date: text("date").notNull(),
+    dateType: text("date_type").notNull().default("import"),
+    totalPosts: integer("total_posts").notNull().default(0),
+    totalMediaItems: integer("total_media_items").notNull().default(0),
+    totalTags: integer("total_tags").notNull().default(0),
+    totalUsers: integer("total_users").notNull().default(0),
+    totalExtractors: integer("total_extractors").notNull().default(0),
+    storageBytes: integer("storage_bytes").notNull().default(0),
+  },
+  (table) => ({
+    dateIdx: uniqueIndex("idx_statistics_history_date").on(
+      table.date,
+      table.dateType,
+    ),
+  }),
+);
