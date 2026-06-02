@@ -1,13 +1,20 @@
 "use client";
 
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Loader2 } from "lucide-react";
+import { useEffect } from "react";
 import styles from "@/app/timeline/page.module.css";
+import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
+import dropdownStyles from "@/components/AutocompleteDropdown.module.css";
+import { useSearchAutocomplete } from "@/hooks/useSearchAutocomplete";
+import { saveFiltersToHistory } from "@/lib/utils/search-parser";
 
 interface FilterBarProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   sortBy: string;
   setSortBy: (sort: string) => void;
+  onSuppressSearch?: (suppress: boolean) => void;
+  isSearching?: boolean;
 }
 
 export default function FilterBar({
@@ -15,7 +22,26 @@ export default function FilterBar({
   setSearchQuery,
   sortBy,
   setSortBy,
+  onSuppressSearch,
+  isSearching = false,
 }: FilterBarProps) {
+  const {
+    suggestions,
+    selectedIndex,
+    isOpen,
+    inputRef,
+    handleKeyDown,
+    acceptSuggestion,
+    shouldSuppressSearch,
+    isLoading,
+  } = useSearchAutocomplete(searchQuery, setSearchQuery);
+
+  useEffect(() => {
+    if (onSuppressSearch) {
+      onSuppressSearch(shouldSuppressSearch);
+    }
+  }, [shouldSuppressSearch, onSuppressSearch]);
+
   // Parse field and direction from sortBy state
   const isRelevance = sortBy === "relevance";
   const currentField = isRelevance ? "relevance" : sortBy.split("-")[0];
@@ -41,13 +67,56 @@ export default function FilterBar({
 
   return (
     <div className={styles.filterBar}>
-      <input
-        type="text"
-        placeholder="Search timeline (e.g. source:twitter)..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className={`${styles.input} ${styles.searchInput}`}
-      />
+      <div style={{ position: "relative", flex: 2, display: "flex" }}>
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder="Search timeline (e.g. tag:landscape, extractor:twitter)..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={(e) => {
+            handleKeyDown(e);
+            if (e.key === "Enter" && !isOpen) {
+              saveFiltersToHistory(searchQuery);
+            }
+          }}
+          className={`${styles.input} ${styles.searchInput}`}
+          style={{ width: "100%", paddingRight: isSearching ? "36px" : "12px" }}
+          aria-autocomplete="list"
+          aria-controls={isOpen ? "search-autocomplete-listbox" : undefined}
+          aria-expanded={isOpen}
+          role="combobox"
+          aria-activedescendant={
+            isOpen ? `suggestion-item-${selectedIndex}` : undefined
+          }
+        />
+        {isSearching && (
+          <div
+            style={{
+              position: "absolute",
+              right: "12px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "hsl(var(--muted-foreground))",
+              pointerEvents: "none",
+              zIndex: 10,
+            }}
+          >
+            <Loader2 className={dropdownStyles.spinner} size={18} />
+          </div>
+        )}
+        {isOpen && (
+          <AutocompleteDropdown
+            suggestions={suggestions}
+            selectedIndex={selectedIndex}
+            onSelect={acceptSuggestion}
+            isLoading={isLoading}
+          />
+        )}
+      </div>
       <div className={styles.separator} />
       <div className={styles.sortGroup}>
         <select

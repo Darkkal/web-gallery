@@ -3,29 +3,93 @@ export interface ParsedSearchQuery {
   sourceFilter: string | null;
 }
 
+export interface SearchFilterColumn {
+  alias: string;
+  name: string;
+  icon: string;
+  description: string;
+  type: "dynamic" | "static";
+}
+
+export const SEARCH_COLUMNS: SearchFilterColumn[] = [
+  {
+    alias: "tag:",
+    name: "Tag",
+    icon: "🏷️",
+    description: "Filter by tag name",
+    type: "dynamic",
+  },
+  {
+    alias: "user:",
+    name: "User",
+    icon: "👤",
+    description: "Filter by username",
+    type: "dynamic",
+  },
+  {
+    alias: "handle:",
+    name: "Handle",
+    icon: "@",
+    description: "Filter by user handle",
+    type: "dynamic",
+  },
+  {
+    alias: "title:",
+    name: "Title",
+    icon: "📝",
+    description: "Filter by post title",
+    type: "dynamic",
+  },
+  {
+    alias: "content:",
+    name: "Content",
+    icon: "📄",
+    description: "Filter by post content",
+    type: "dynamic",
+  },
+  {
+    alias: "source:",
+    name: "Source",
+    icon: "🔗",
+    description: "Filter by extractor type",
+    type: "static",
+  },
+  {
+    alias: "extractor:",
+    name: "Extractor",
+    icon: "⚙️",
+    description: "Filter by extractor type",
+    type: "static",
+  },
+];
+
+export const ftsColumnAliases: Record<string, string> = {
+  tag: "tag_names",
+  tag_names: "tag_names",
+  user: "user_name",
+  user_name: "user_name",
+  handle: "user_handle",
+  user_handle: "user_handle",
+  title: "title",
+  content: "content",
+  source_name: "source_name",
+};
+
 export function parseSearchQuery(search: string = ""): ParsedSearchQuery {
-  let cleanQuery = search;
+  // Strip trailing incomplete column prefixes like "tag:", "user:", "source:", etc. at the end of the query
+  const trailingPrefixRegex =
+    /\b(?:tag|user|handle|title|content|source|extractor):\s*$/i;
+  let cleanQuery = search.replace(trailingPrefixRegex, "").trim();
 
   let sourceFilter: string | null = null;
-  const sourceMatch = cleanQuery.match(/source:([a-zA-Z0-9_-]+)/i);
+  // Match either "source:xyz" or "extractor:xyz"
+  const sourceMatch = cleanQuery.match(
+    /(?:source|extractor):([a-zA-Z0-9_-]+)/i,
+  );
   if (sourceMatch) {
     sourceFilter = sourceMatch[1].toLowerCase();
     cleanQuery = cleanQuery.replace(sourceMatch[0], "").trim();
   }
-
-  // Define friendly aliases mapping to actual FTS5 virtual table column names
-  const ftsColumnAliases: Record<string, string> = {
-    tag: "tag_names",
-    tag_names: "tag_names",
-    user: "user_name",
-    user_name: "user_name",
-    handle: "user_handle",
-    user_handle: "user_handle",
-    title: "title",
-    content: "content",
-    source_name: "source_name",
-    // Add future extractor mappings here
-  };
 
   const validFtsColumns = new Set(Object.values(ftsColumnAliases));
 
@@ -53,4 +117,29 @@ export function parseSearchQuery(search: string = ""): ParsedSearchQuery {
   });
 
   return { cleanQuery, sourceFilter };
+}
+
+export function saveFiltersToHistory(query: string) {
+  if (typeof window === "undefined") return;
+  const filterMatches = query.match(/\b([a-zA-Z0-9_]+):([a-zA-Z0-9_-]+)/g);
+  if (!filterMatches) return;
+
+  try {
+    const historyJson = localStorage.getItem("webgallery_search_history");
+    let history: string[] = historyJson ? JSON.parse(historyJson) : [];
+
+    for (const filter of filterMatches) {
+      const lowerFilter = filter.toLowerCase();
+      // Remove duplicate if it already exists
+      history = history.filter((x) => x.toLowerCase() !== lowerFilter);
+      // Prepend to top
+      history.unshift(filter);
+    }
+
+    // Cap at 30 items
+    history = history.slice(0, 30);
+    localStorage.setItem("webgallery_search_history", JSON.stringify(history));
+  } catch (err) {
+    console.error("Failed to save search history:", err);
+  }
 }
