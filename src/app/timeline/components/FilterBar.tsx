@@ -6,6 +6,7 @@ import styles from "@/app/timeline/page.module.css";
 import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
 import dropdownStyles from "@/components/AutocompleteDropdown.module.css";
 import { useSearchAutocomplete } from "@/hooks/useSearchAutocomplete";
+import { saveFiltersToHistory } from "@/lib/utils/search-parser";
 
 interface FilterBarProps {
   searchQuery: string;
@@ -32,6 +33,7 @@ export default function FilterBar({
     handleKeyDown,
     acceptSuggestion,
     shouldSuppressSearch,
+    isLoading,
   } = useSearchAutocomplete(searchQuery, setSearchQuery);
 
   useEffect(() => {
@@ -72,7 +74,12 @@ export default function FilterBar({
           placeholder="Search timeline (e.g. tag:landscape, extractor:twitter)..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={(e) => {
+            handleKeyDown(e);
+            if (e.key === "Enter" && !isOpen) {
+              saveFiltersToHistory(searchQuery);
+            }
+          }}
           className={`${styles.input} ${styles.searchInput}`}
           style={{ width: "100%", paddingRight: isSearching ? "36px" : "12px" }}
           aria-autocomplete="list"
@@ -106,6 +113,7 @@ export default function FilterBar({
             suggestions={suggestions}
             selectedIndex={selectedIndex}
             onSelect={acceptSuggestion}
+            isLoading={isLoading}
           />
         )}
       </div>

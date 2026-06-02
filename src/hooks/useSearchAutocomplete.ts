@@ -1,10 +1,29 @@
 import { useEffect, useRef, useState } from "react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { SEARCH_COLUMNS } from "@/lib/utils/search-parser";
+import {
+  SEARCH_COLUMNS,
+  saveFiltersToHistory,
+} from "@/lib/utils/search-parser";
 import type {
   AutocompleteResponse,
   AutocompleteSuggestion,
 } from "@/types/autocomplete";
+
+// Parse word at current cursor position
+const getWordAtCursor = (text: string, cursorOffset: number) => {
+  const beforeCursor = text.slice(0, cursorOffset);
+  const afterCursor = text.slice(cursorOffset);
+
+  const lastSpaceBefore = beforeCursor.lastIndexOf(" ");
+  const start = lastSpaceBefore === -1 ? 0 : lastSpaceBefore + 1;
+
+  const firstSpaceAfter = afterCursor.indexOf(" ");
+  const end =
+    firstSpaceAfter === -1 ? text.length : cursorOffset + firstSpaceAfter;
+
+  const word = text.slice(start, end);
+  return { word, start, end };
+};
 
 export function useSearchAutocomplete(
   value: string,
@@ -15,28 +34,13 @@ export function useSearchAutocomplete(
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [phase, setPhase] = useState<"column" | "value">("column");
   const [activeColumn, setActiveColumn] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Track raw value query for value phase, which we'll debounce
   const [valueQuery, setValueQuery] = useState<string>("");
   const debouncedValueQuery = useDebouncedValue(valueQuery, 200);
 
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // Parse word at current cursor position
-  const getWordAtCursor = (text: string, cursorOffset: number) => {
-    const beforeCursor = text.slice(0, cursorOffset);
-    const afterCursor = text.slice(cursorOffset);
-
-    const lastSpaceBefore = beforeCursor.lastIndexOf(" ");
-    const start = lastSpaceBefore === -1 ? 0 : lastSpaceBefore + 1;
-
-    const firstSpaceAfter = afterCursor.indexOf(" ");
-    const end =
-      firstSpaceAfter === -1 ? text.length : cursorOffset + firstSpaceAfter;
-
-    const word = text.slice(start, end);
-    return { word, start, end };
-  };
 
   const recalculate = () => {
     if (!inputRef.current) return;
@@ -58,6 +62,9 @@ export function useSearchAutocomplete(
       );
 
       if (isValidColumn) {
+        if (phase !== "value" || valQuery !== valueQuery) {
+          setIsLoading(true);
+        }
         setPhase("value");
         setActiveColumn(colPrefix);
         setValueQuery(valQuery);
@@ -68,6 +75,7 @@ export function useSearchAutocomplete(
 
     // Otherwise, we are in 'column' phase
     setPhase("column");
+    setIsLoading(false);
     setActiveColumn(null);
     setValueQuery("");
 
@@ -109,26 +117,92 @@ export function useSearchAutocomplete(
     let active = true;
 
     async function fetchValueSuggestions() {
+      setIsLoading(true);
       try {
+        let context = "";
+        if (inputRef.current) {
+          const text = inputRef.current.value;
+          const cursorOffset = inputRef.current.selectionStart ?? 0;
+          const { start, end } = getWordAtCursor(text, cursorOffset);
+          const textWithoutWord = text.slice(0, start) + text.slice(end);
+          context = textWithoutWord.trim();
+        }
+
+        const contextParam = context
+          ? `&context=${encodeURIComponent(context)}`
+          : "";
         const res = await fetch(
           `/api/autocomplete?column=${encodeURIComponent(
             col,
-          )}&q=${encodeURIComponent(debouncedValueQuery)}`,
+          )}&q=${encodeURIComponent(debouncedValueQuery)}${contextParam}`,
         );
         if (!res.ok)
           throw new Error("Failed to fetch autocomplete suggestions");
         const data: AutocompleteResponse = await res.json();
 
         if (active) {
-          setSuggestions(data.suggestions);
+          // Load local history matching the column prefix and query
+          let historySuggestions: AutocompleteSuggestion[] = [];
+          if (typeof window !== "undefined") {
+            try {
+              const historyJson = localStorage.getItem(
+                "webgallery_search_history",
+              );
+              const history: string[] = historyJson
+                ? JSON.parse(historyJson)
+                : [];
+              const prefix = `${col}:`;
+
+              historySuggestions = history
+                .filter(
+                  (x) =>
+                    x.toLowerCase().startsWith(prefix.toLowerCase()) &&
+                    x.toLowerCase() !== prefix.toLowerCase(),
+                )
+                .map((x) => {
+                  const val = x.slice(prefix.length);
+                  return {
+                    value: val,
+                    label: val,
+                    description: "recent search",
+                    icon: "🕒",
+                    type: "value" as const,
+                  };
+                })
+                .filter((s) =>
+                  s.value
+                    .toLowerCase()
+                    .startsWith(debouncedValueQuery.toLowerCase()),
+                );
+            } catch (err) {
+              console.error("Failed to load local history:", err);
+            }
+          }
+
+          // Merge local history with global recommendations, preventing duplicates
+          const combined = [
+            ...historySuggestions,
+            ...data.suggestions.filter(
+              (ns) =>
+                !historySuggestions.some(
+                  (hs) => hs.value.toLowerCase() === ns.value.toLowerCase(),
+                ),
+            ),
+          ];
+
+          setSuggestions(combined);
           setSelectedIndex(0);
-          setIsOpen(data.suggestions.length > 0);
+          setIsOpen(combined.length > 0);
         }
       } catch (err) {
         console.error(err);
         if (active) {
           setSuggestions([]);
           setIsOpen(false);
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
         }
       }
     }
@@ -169,6 +243,11 @@ export function useSearchAutocomplete(
     const newText = text.slice(0, start) + replacement + text.slice(end);
     onChange(newText);
 
+    // Save to history when a value suggestion is committed
+    if (suggestion.type === "value") {
+      saveFiltersToHistory(newText);
+    }
+
     // Reposition cursor on next tick
     setTimeout(() => {
       if (inputRef.current) {
@@ -178,7 +257,9 @@ export function useSearchAutocomplete(
       }
     }, 0);
 
-    setIsOpen(false);
+    if (suggestion.type === "value") {
+      setIsOpen(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -224,5 +305,6 @@ export function useSearchAutocomplete(
     shouldSuppressSearch: isOpen,
     recalculate,
     setIsOpen,
+    isLoading,
   };
 }

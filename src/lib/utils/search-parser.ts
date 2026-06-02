@@ -76,7 +76,10 @@ export const ftsColumnAliases: Record<string, string> = {
 };
 
 export function parseSearchQuery(search: string = ""): ParsedSearchQuery {
-  let cleanQuery = search;
+  // Strip trailing incomplete column prefixes like "tag:", "user:", "source:", etc. at the end of the query
+  const trailingPrefixRegex =
+    /\b(?:tag|user|handle|title|content|source|extractor):\s*$/i;
+  let cleanQuery = search.replace(trailingPrefixRegex, "").trim();
 
   let sourceFilter: string | null = null;
   // Match either "source:xyz" or "extractor:xyz"
@@ -114,4 +117,29 @@ export function parseSearchQuery(search: string = ""): ParsedSearchQuery {
   });
 
   return { cleanQuery, sourceFilter };
+}
+
+export function saveFiltersToHistory(query: string) {
+  if (typeof window === "undefined") return;
+  const filterMatches = query.match(/\b([a-zA-Z0-9_]+):([a-zA-Z0-9_-]+)/g);
+  if (!filterMatches) return;
+
+  try {
+    const historyJson = localStorage.getItem("webgallery_search_history");
+    let history: string[] = historyJson ? JSON.parse(historyJson) : [];
+
+    for (const filter of filterMatches) {
+      const lowerFilter = filter.toLowerCase();
+      // Remove duplicate if it already exists
+      history = history.filter((x) => x.toLowerCase() !== lowerFilter);
+      // Prepend to top
+      history.unshift(filter);
+    }
+
+    // Cap at 30 items
+    history = history.slice(0, 30);
+    localStorage.setItem("webgallery_search_history", JSON.stringify(history));
+  } catch (err) {
+    console.error("Failed to save search history:", err);
+  }
 }

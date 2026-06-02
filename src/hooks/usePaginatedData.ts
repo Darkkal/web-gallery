@@ -37,10 +37,18 @@ export function usePaginatedData<T>({
   );
   const [isLoading, setIsLoading] = useState(false);
 
-  // Keep a ref to nextCursor so loadMore can read the latest value
-  // without needing to be recreated on every cursor change.
+  // Keep refs to current values to avoid callback recreation
   const cursorRef = useRef(nextCursor);
   cursorRef.current = nextCursor;
+
+  const searchQueryRef = useRef(searchQuery);
+  searchQueryRef.current = searchQuery;
+
+  const sortByRef = useRef(sortBy);
+  sortByRef.current = sortBy;
+
+  const lastSearchedQueryRef = useRef(initialSearch);
+  const lastSearchedSortRef = useRef(initialSort);
 
   const debouncedSearch = useDebouncedValue(searchQuery, debounceMs);
   const debouncedSort = useDebouncedValue(sortBy, debounceMs);
@@ -48,10 +56,12 @@ export function usePaginatedData<T>({
   // Fetch a fresh page (cursor=null) and replace all items
   const refresh = useCallback(async () => {
     setIsLoading(true);
+    const queryToSearch = searchQueryRef.current;
+    const sortToSearch = sortByRef.current;
     try {
       const params = new URLSearchParams({
-        search: debouncedSearch,
-        sortBy: debouncedSort,
+        search: queryToSearch,
+        sortBy: sortToSearch,
         limit: String(pageSize),
       });
       if (playlistId) {
@@ -63,18 +73,13 @@ export function usePaginatedData<T>({
         const data = await res.json();
         setItems(data[dataKey]);
         setNextCursor(data.nextCursor);
+        lastSearchedQueryRef.current = queryToSearch;
+        lastSearchedSortRef.current = sortToSearch;
       }
     } finally {
       setIsLoading(false);
     }
-  }, [
-    debouncedSearch,
-    debouncedSort,
-    fetchPath,
-    dataKey,
-    pageSize,
-    playlistId,
-  ]);
+  }, [fetchPath, dataKey, pageSize, playlistId]);
 
   // Append the next page using the current cursor
   const loadMore = useCallback(async () => {
@@ -84,8 +89,8 @@ export function usePaginatedData<T>({
     setIsLoading(true);
     try {
       const params = new URLSearchParams({
-        search: debouncedSearch,
-        sortBy: debouncedSort,
+        search: lastSearchedQueryRef.current,
+        sortBy: lastSearchedSortRef.current,
         limit: String(pageSize),
         cursor,
       });
@@ -102,18 +107,12 @@ export function usePaginatedData<T>({
     } finally {
       setIsLoading(false);
     }
-  }, [
-    debouncedSearch,
-    debouncedSort,
-    fetchPath,
-    dataKey,
-    pageSize,
-    playlistId,
-  ]);
+  }, [fetchPath, dataKey, pageSize, playlistId]);
 
   // Reset and re-fetch when search/sort changes
   const isFirstRender = useRef(true);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run search on debounced search/sort changes or suppress changes
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -122,8 +121,15 @@ export function usePaginatedData<T>({
     if (suppressSearch) {
       return;
     }
+    // Only query if the query or sort has actually changed from what was last loaded
+    if (
+      searchQueryRef.current === lastSearchedQueryRef.current &&
+      sortByRef.current === lastSearchedSortRef.current
+    ) {
+      return;
+    }
     refresh();
-  }, [refresh, suppressSearch]);
+  }, [refresh, debouncedSearch, debouncedSort, suppressSearch]);
 
   const isSearching = isLoading || searchQuery !== debouncedSearch;
 

@@ -1,4 +1,4 @@
-import { and, eq, isNull, like, sql } from "drizzle-orm";
+import { and, eq, isNull, like, notInArray, type SQL, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   pixivUsers,
@@ -8,20 +8,83 @@ import {
   tags,
   twitterUsers,
 } from "@/lib/db/schema";
+import { parseSearchQuery } from "@/lib/utils/search-parser";
 import type { AutocompleteSuggestion } from "@/types/autocomplete";
 
 export async function autocompleteTag(
   prefix: string,
   limit: number = 8,
+  context?: string,
 ): Promise<AutocompleteSuggestion[]> {
-  const results = await db
+  const existingTags = context
+    ? Array.from(context.matchAll(/\btag:(\S+)/gi)).map((m) => m[1])
+    : [];
+
+  const whereConditions: SQL[] = [like(tags.name, `${prefix}%`)];
+  if (existingTags.length > 0) {
+    const lowerTags = existingTags.map((t) => t.toLowerCase());
+    whereConditions.push(notInArray(sql`lower(${tags.name})`, lowerTags));
+  }
+
+  // If there's a context, let's find posts matching it
+  // biome-ignore lint/suspicious/noExplicitAny: Drizzle dynamic query typing requires any for reassignment
+  let postsFilterSubquery: any = null;
+  if (context) {
+    const { cleanQuery, sourceFilter } = parseSearchQuery(context);
+    const searchLower = cleanQuery.trim().toLowerCase();
+
+    if (searchLower || sourceFilter) {
+      const postWhereConditions: SQL[] = [isNull(posts.deletedAt)];
+      if (sourceFilter) {
+        postWhereConditions.push(eq(posts.extractorType, sourceFilter));
+      }
+
+      let q = db
+        .select({
+          id: posts.id,
+        })
+        .from(posts)
+        .$dynamic();
+
+      if (searchLower) {
+        const ftsSub = db
+          .select({
+            search_id: sql<number>`rowid`.as("search_id"),
+          })
+          .from(sql`posts_fts`)
+          .where(sql`posts_fts MATCH ${searchLower}`)
+          .as("fts_sub");
+
+        q = q.innerJoin(ftsSub, eq(posts.id, ftsSub.search_id));
+      }
+
+      postsFilterSubquery = q
+        .where(and(...postWhereConditions))
+        .as("posts_filter_subquery");
+    }
+  }
+
+  let query = db
     .select({
       name: tags.name,
       count: sql<number>`count(${postTags.postId})`.mapWith(Number),
     })
     .from(tags)
-    .leftJoin(postTags, eq(tags.id, postTags.tagId))
-    .where(like(tags.name, `${prefix}%`))
+    .$dynamic();
+
+  if (postsFilterSubquery) {
+    query = query
+      .innerJoin(postTags, eq(tags.id, postTags.tagId))
+      .innerJoin(
+        postsFilterSubquery,
+        eq(postTags.postId, postsFilterSubquery.id),
+      );
+  } else {
+    query = query.leftJoin(postTags, eq(tags.id, postTags.tagId));
+  }
+
+  const results = await query
+    .where(and(...whereConditions))
     .groupBy(tags.name)
     .orderBy(sql`count(${postTags.postId}) DESC`)
     .limit(limit);

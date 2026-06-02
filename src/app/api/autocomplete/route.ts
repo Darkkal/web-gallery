@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
   const q = searchParams.get("q") || "";
   const limitStr = searchParams.get("limit") || "8";
   const limit = Math.max(1, Math.min(50, parseInt(limitStr, 10) || 8));
+  const context = searchParams.get("context") || undefined;
 
   if (!column) {
     return NextResponse.json({ suggestions: [] } as AutocompleteResponse);
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
   try {
     switch (column) {
       case "tag":
-        suggestions = await autocompleteTag(q, limit);
+        suggestions = await autocompleteTag(q, limit, context);
         break;
       case "user":
         suggestions = await autocompleteUser(q, limit);

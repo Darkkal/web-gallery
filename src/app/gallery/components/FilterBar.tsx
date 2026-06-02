@@ -14,6 +14,7 @@ import styles from "@/app/gallery/page.module.css";
 import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
 import dropdownStyles from "@/components/AutocompleteDropdown.module.css";
 import { useSearchAutocomplete } from "@/hooks/useSearchAutocomplete";
+import { saveFiltersToHistory } from "@/lib/utils/search-parser";
 
 interface FilterBarProps {
   selectionMode: boolean;
@@ -52,6 +53,7 @@ export default function FilterBar({
     handleKeyDown,
     acceptSuggestion,
     shouldSuppressSearch,
+    isLoading,
   } = useSearchAutocomplete(searchQuery, setSearchQuery);
 
   useEffect(() => {
@@ -117,6 +119,7 @@ export default function FilterBar({
           onKeyDown={(e) => {
             handleKeyDown(e);
             if (e.key === "Enter" && !isOpen) {
+              saveFiltersToHistory(searchQuery);
               onRefresh();
             }
           }}
@@ -153,6 +156,7 @@ export default function FilterBar({
             suggestions={suggestions}
             selectedIndex={selectedIndex}
             onSelect={acceptSuggestion}
+            isLoading={isLoading}
           />
         )}
       </div>

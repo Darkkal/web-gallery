@@ -76,8 +76,40 @@
   }
 }
 
+.loadingContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+}
+
+.loadingText {
+  color: hsl(var(--muted-foreground));
+}
+
+.topRightSpinnerContainer {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: hsl(var(--popover));
+  padding: 4px;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
 .spinner {
+  width: 1rem;
+  height: 1rem;
+  color: hsl(var(--primary));
   animation: spin 1s linear infinite;
+  flex-shrink: 0;
 }
 
 @keyframes spin {
