@@ -1,5 +1,6 @@
 import path from "node:path";
 import { eq } from "drizzle-orm";
+import { paths } from "@/lib/config";
 import { postDetailsTwitter, posts, twitterUsers } from "@/lib/db/schema";
 import type { IMetadataProcessor } from "@/lib/library/processors/base";
 import type { ProcessorContext, ProcessTask } from "@/lib/library/types";
@@ -119,7 +120,7 @@ export class TwitterProcessor implements IMetadataProcessor<TwitterMeta> {
             url: `https://x.com/${userObj.name || userObj.nick || "i"}/status/${tid}`,
             metadataPath: task.jsonPath
               ? path
-                  .relative(path.join(process.cwd(), "public"), task.jsonPath)
+                  .relative(path.dirname(paths.downloads), task.jsonPath)
                   .split(path.sep)
                   .join("/")
               : null,
@@ -172,7 +173,7 @@ export class TwitterProcessor implements IMetadataProcessor<TwitterMeta> {
           }
           if (task.jsonPath) {
             updateSet.metadataPath = path
-              .relative(path.join(process.cwd(), "public"), task.jsonPath)
+              .relative(path.dirname(paths.downloads), task.jsonPath)
               .split(path.sep)
               .join("/");
           }

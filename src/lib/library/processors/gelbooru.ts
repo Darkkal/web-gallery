@@ -1,5 +1,6 @@
 import path from "node:path";
 import { eq } from "drizzle-orm";
+import { paths } from "@/lib/config";
 import { postDetailsGelbooruV02, posts, postTags, tags } from "@/lib/db/schema";
 import type { IMetadataProcessor } from "@/lib/library/processors/base";
 import type { ProcessorContext, ProcessTask } from "@/lib/library/types";
@@ -64,7 +65,7 @@ export class GelbooruProcessor implements IMetadataProcessor<GelbooruMeta> {
             url: `https://gelbooru.com/index.php?page=post&s=view&id=${idStr}`,
             metadataPath: task.jsonPath
               ? path
-                  .relative(path.join(process.cwd(), "public"), task.jsonPath)
+                  .relative(path.dirname(paths.downloads), task.jsonPath)
                   .split(path.sep)
                   .join("/")
               : null,
@@ -129,7 +130,7 @@ export class GelbooruProcessor implements IMetadataProcessor<GelbooruMeta> {
           }
           if (task.jsonPath) {
             updateSet.metadataPath = path
-              .relative(path.join(process.cwd(), "public"), task.jsonPath)
+              .relative(path.dirname(paths.downloads), task.jsonPath)
               .split(path.sep)
               .join("/");
           }

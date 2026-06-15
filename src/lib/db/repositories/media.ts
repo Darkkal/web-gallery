@@ -13,6 +13,7 @@ import {
   type SQL,
   sql,
 } from "drizzle-orm";
+import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import { incrementStatistics } from "@/lib/db/repositories/statistics";
 import {
@@ -277,7 +278,7 @@ export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
       .from(mediaItems)
       .where(inArray(mediaItems.id, ids));
 
-    const publicRoot = path.resolve(process.cwd(), "public");
+    const publicRoot = path.dirname(paths.downloads);
 
     for (const item of itemsToDelete) {
       try {

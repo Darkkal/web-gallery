@@ -1,5 +1,6 @@
 import path from "node:path";
 import { eq } from "drizzle-orm";
+import { paths } from "@/lib/config";
 import {
   pixivUsers,
   postDetailsPixiv,
@@ -113,7 +114,7 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
             url: `https://www.pixiv.net/artworks/${pid}`,
             metadataPath: task.jsonPath
               ? path
-                  .relative(path.join(process.cwd(), "public"), task.jsonPath)
+                  .relative(path.dirname(paths.downloads), task.jsonPath)
                   .split(path.sep)
                   .join("/")
               : null,
@@ -168,7 +169,7 @@ export class PixivProcessor implements IMetadataProcessor<PixivMeta> {
           }
           if (task.jsonPath) {
             updateSet.metadataPath = path
-              .relative(path.join(process.cwd(), "public"), task.jsonPath)
+              .relative(path.dirname(paths.downloads), task.jsonPath)
               .split(path.sep)
               .join("/");
           }

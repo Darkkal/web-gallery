@@ -25,9 +25,8 @@ import path from "node:path";
  * symlinks from those public dirs to the MEDIA_DIR locations.
  */
 
-const DATA_DIR = process.env.DATA_DIR || process.cwd();
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 const MEDIA_DIR = process.env.MEDIA_DIR || process.cwd();
-const hasMediaDir = !!process.env.MEDIA_DIR;
 
 export const paths = {
   /** Root data directory (fast storage — DB, scraper state) */
@@ -41,21 +40,13 @@ export const paths = {
 
   /**
    * Downloaded media files (bulk storage, served at /downloads/).
-   *
-   * When MEDIA_DIR is set (Docker): files live directly under $MEDIA_DIR/downloads/
-   * When MEDIA_DIR is unset (dev):  files live under ./public/downloads/ (Next.js static serving)
    */
-  downloads: hasMediaDir
-    ? path.join(MEDIA_DIR, "downloads")
-    : path.join(MEDIA_DIR, "public", "downloads"),
+  downloads: path.join(MEDIA_DIR, "downloads"),
 
   /**
    * Cached avatar images (bulk storage, served at /avatars/).
-   * Same MEDIA_DIR logic as downloads.
    */
-  avatars: hasMediaDir
-    ? path.join(MEDIA_DIR, "avatars")
-    : path.join(MEDIA_DIR, "public", "avatars"),
+  avatars: path.join(MEDIA_DIR, "avatars"),
 
   /** Root directory for scraper-related data (fast storage) */
   scraperData: path.join(DATA_DIR, "scrapers"),
