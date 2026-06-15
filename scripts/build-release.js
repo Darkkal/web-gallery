@@ -23,6 +23,10 @@ async function main() {
   const standaloneDir = path.join(rootDir, ".next", "standalone");
   const distDir = path.join(rootDir, "dist");
 
+  const pkgJsonPath = path.join(rootDir, "package.json");
+  const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8"));
+  const version = pkgJson.version;
+
   console.log("1. Building Next.js standalone application...");
   execSync("npm run build", { stdio: "inherit", cwd: rootDir });
 
@@ -319,6 +323,21 @@ Module.prototype.require = function(request) {
     stdio: "inherit",
     cwd: standaloneDir,
   });
+
+  console.log(`Renaming binaries to include version v${version}...`);
+  const binaryMappings = [
+    { old: "web-gallery-linux", new: `web-gallery-v${version}-linux` },
+    { old: "web-gallery-macos", new: `web-gallery-v${version}-macos` },
+    { old: "web-gallery-win.exe", new: `web-gallery-v${version}-win.exe` },
+  ];
+  for (const mapping of binaryMappings) {
+    const oldPath = path.join(distDir, mapping.old);
+    const newPath = path.join(distDir, mapping.new);
+    if (fs.existsSync(oldPath)) {
+      fs.renameSync(oldPath, newPath);
+      console.log(`Renamed: ${mapping.old} -> ${mapping.new}`);
+    }
+  }
 
   console.log("6. Copying dependency setup scripts to release package...");
   const shSrc = path.join(rootDir, "scripts", "setup-deps.sh");

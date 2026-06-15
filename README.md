@@ -135,15 +135,15 @@ Web Gallery requires `gallery-dl`, `ffmpeg`, and `ffprobe` to perform media scra
 This will automatically download and place the latest precompiled binaries (`gallery-dl`, `ffmpeg`, `ffprobe`) into a local `./bin/` folder. The application will automatically detect and prioritize these local binaries.
 
 #### 3. Run the Application
-Start the standalone server:
+Start the standalone server (the executable name contains the version number, e.g., `v0.3.0`):
 
 - **Linux / macOS**:
   ```bash
-  ./web-gallery-linux
+  ./web-gallery-v<version>-linux
   ```
 - **Windows**:
   ```cmd
-  web-gallery-win.exe
+  web-gallery-v<version>-win.exe
   ```
 
 By default:
@@ -154,7 +154,7 @@ You can customize the host address and port by specifying the `HOSTNAME` and `PO
 
 ```bash
 # Example: Bind only to local loopback on port 8080
-HOSTNAME=127.0.0.1 PORT=8080 ./web-gallery-linux
+HOSTNAME=127.0.0.1 PORT=8080 ./web-gallery-v<version>-linux
 ```
 
 Access the web interface at the printed URL (defaults to [http://localhost:3000](http://localhost:3000) or whichever hostname and port you configure).
