@@ -26,6 +26,35 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/checkout@v5
 
+      - name: Set up Node.js
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: ${{ steps.release.outputs.release_created }}
+        run: npm ci
+
+      - name: Build standalone binaries
+        if: ${{ steps.release.outputs.release_created }}
+        run: npm run build:release
+
+      - name: Create release archives
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          tar -czf web-gallery-linux-x64.tar.gz -C dist web-gallery-linux setup-deps.sh
+          tar -czf web-gallery-macos-x64.tar.gz -C dist web-gallery-macos setup-deps.sh
+          zip -j web-gallery-windows-x64.zip dist/web-gallery-win.exe dist/setup-deps.ps1
+
+      - name: Upload release assets
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ steps.release.outputs.tag_name }} web-gallery-linux-x64.tar.gz web-gallery-macos-x64.tar.gz web-gallery-windows-x64.zip
+
       - name: Set up QEMU
         if: ${{ steps.release.outputs.release_created }}
         uses: docker/setup-qemu-action@v3
