@@ -6,13 +6,39 @@ import { drizzle } from "drizzle-orm/libsql";
 import { paths } from "@/lib/config";
 import * as schema from "@/lib/db/schema";
 
+// Ensure the directory containing the SQLite database exists
+const dbDir = path.dirname(paths.db);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
 const dbUrl = `file:${paths.db}`;
 
 const client = createClient({ url: dbUrl });
 export const db = drizzle(client, { schema });
 
 const MIGRATIONS_TABLE = "__drizzle_migrations";
-const migrationsFolder = path.join(process.cwd(), "drizzle");
+const getMigrationsFolder = () => {
+  const localFolder = path.join(process.cwd(), "drizzle");
+  if (fs.existsSync(localFolder)) {
+    return localFolder;
+  }
+  // Try to find drizzle folder at various VFS levels in packaged mode
+  const pathsToTry = [
+    path.join(__dirname, "..", "..", "..", "drizzle"),
+    path.join(__dirname, "..", "..", "..", "..", "drizzle"),
+    path.join(__dirname, "..", "..", "..", "..", "..", "drizzle"),
+    "/snapshot/web-gallery/drizzle",
+    "/snapshot/web-gallery/.next/standalone/drizzle",
+  ];
+  for (const p of pathsToTry) {
+    if (fs.existsSync(p)) {
+      return p;
+    }
+  }
+  return localFolder;
+};
+const migrationsFolder = getMigrationsFolder();
 
 interface MigrationEntry {
   tag: string;
