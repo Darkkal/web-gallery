@@ -46,6 +46,8 @@ ENV NODE_ENV=production
 
 # Copy the standalone server output (includes traced node_modules)
 COPY --from=builder /usr/src/app/.next/standalone ./
+# Copy next-server compiled files which are missed by standalone tracer under Turbopack
+COPY --from=builder /usr/src/app/node_modules/next/dist/compiled/next-server ./node_modules/next/dist/compiled/next-server
 # Standalone doesn't include static assets — copy separately
 COPY --from=builder /usr/src/app/.next/static ./.next/static
 # Public directory (empty placeholders for symlinks created by entrypoint)

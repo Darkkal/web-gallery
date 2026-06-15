@@ -20,6 +20,9 @@ npm-debug.log
 # Build output
 .next
 
+# Standalone binary release folder
+dist
+
 # Docker / Compose
 Dockerfile*
 docker-compose*

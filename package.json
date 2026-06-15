@@ -2,6 +2,7 @@
   "name": "web-gallery",
   "version": "0.3.0",
   "private": true,
+  "bin": "server.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,7 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "test:e2e": "playwright test",
-    "prepare": "husky"
+    "prepare": "husky",
+    "build:release": "node scripts/build-release.js"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0",
@@ -29,6 +31,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@yao-pkg/pkg": "^6.20.0",
     "drizzle-kit": "^0.31.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
@@ -37,6 +40,20 @@
   "lint-staged": {
     "*.(js|jsx|ts|tsx|json|css)": [
       "npx biome check --write --no-errors-on-unmatched"
+    ]
+  },
+  "pkg": {
+    "assets": [
+      ".next/**/*",
+      "public/**/*",
+      "drizzle/**/*",
+      "gallery-dl-default.conf",
+      "node_modules/**/*"
+    ],
+    "targets": [
+      "node22-linux-x64",
+      "node22-macos-x64",
+      "node22-win-x64"
     ]
   }
 }

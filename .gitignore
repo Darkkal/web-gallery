@@ -19,6 +19,7 @@
 
 # production
 /build
+/dist/
 
 # misc
 .DS_Store
@@ -45,6 +46,8 @@ next-env.d.ts
 # user generated files
 public/downloads/
 public/avatars/
+downloads/
+avatars/
 gallery-dl.conf
 gallery-dl.log
 *.sqlite3
