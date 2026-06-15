@@ -13,6 +13,7 @@ By leveraging powerful scraping tools like `gallery-dl` and `yt-dlp`, this appli
 - [Getting Started](#getting-started)
   - [Option A: Docker Compose (Recommended)](#option-a-docker-compose-recommended)
   - [Option B: Direct Installation (Node.js/npm)](#option-b-direct-installation-nodejsnpm)
+  - [Option C: Standalone Package (Zero Node.js Setup)](#option-c-standalone-package-zero-nodejs-setup)
   - [Usage](#usage)
 - [Technology Stack](#technology-stack)
 - [Development Mode](#development-mode)
