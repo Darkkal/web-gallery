@@ -42,9 +42,34 @@ export class ScraperRunner {
       "gallery-dl-default.conf",
     );
 
+    let resolvedDefaultConfigPath = defaultConfigPath;
+    if (!fs.existsSync(defaultConfigPath)) {
+      const pathsToTry = [
+        path.join(__dirname, "..", "..", "..", "gallery-dl-default.conf"),
+        path.join(__dirname, "..", "..", "..", "..", "gallery-dl-default.conf"),
+        path.join(
+          __dirname,
+          "..",
+          "..",
+          "..",
+          "..",
+          "..",
+          "gallery-dl-default.conf",
+        ),
+        "/snapshot/web-gallery/gallery-dl-default.conf",
+        "/snapshot/web-gallery/.next/standalone/gallery-dl-default.conf",
+      ];
+      for (const p of pathsToTry) {
+        if (fs.existsSync(p)) {
+          resolvedDefaultConfigPath = p;
+          break;
+        }
+      }
+    }
+
     if (!fs.existsSync(configPath)) {
-      if (fs.existsSync(defaultConfigPath)) {
-        fs.copyFileSync(defaultConfigPath, configPath);
+      if (fs.existsSync(resolvedDefaultConfigPath)) {
+        fs.copyFileSync(resolvedDefaultConfigPath, configPath);
       } else {
         console.warn(
           "Warning: gallery-dl-default.conf not found. Skipping default config creation.",
@@ -73,7 +98,17 @@ export class ScraperRunner {
     const args = strategy.buildArgs();
     console.log(`Starting ${tool} with args:`, args);
 
-    const child = spawn(tool, args, {
+    const getCommandPath = (command: string): string => {
+      const localBin = path.join(
+        process.cwd(),
+        "bin",
+        process.platform === "win32" ? `${command}.exe` : command,
+      );
+      return fs.existsSync(localBin) ? localBin : command;
+    };
+
+    const cmdPath = getCommandPath(tool);
+    const child = spawn(cmdPath, args, {
       shell: false,
       cwd: process.cwd(),
     });

@@ -110,6 +110,58 @@ The database migrations are applied automatically at startup when the applicatio
 > [!NOTE]
 > For production deployment, you can configure custom data/media storage folders by setting the `DATA_DIR` and `MEDIA_DIR` environment variables before starting the server. See [docs/configuration.md](./docs/configuration.md) for full reference.
 
+---
+
+### Option C: Standalone Package (Zero Node.js Setup)
+
+If you want to run Web Gallery directly on your host machine without installing Node.js/npm or running containers, you can use our pre-packaged standalone binary.
+
+#### 1. Download the Standalone Executable
+Download the compiled release binary for your platform (Linux, macOS, or Windows) from the Releases page.
+
+#### 2. Run the Dependency Installer
+Web Gallery requires `gallery-dl`, `ffmpeg`, and `ffprobe` to perform media scraping and process dimensions. We provide helper scripts in the release to download and configure these dependencies locally:
+
+- **Linux & macOS**:
+  ```bash
+  chmod +x scripts/setup-deps.sh
+  ./scripts/setup-deps.sh
+  ```
+- **Windows** (PowerShell):
+  ```powershell
+  .\scripts\setup-deps.ps1
+  ```
+
+This will automatically download and place the latest precompiled binaries (`gallery-dl`, `ffmpeg`, `ffprobe`) into a local `./bin/` folder. The application will automatically detect and prioritize these local binaries.
+
+#### 3. Run the Application
+Start the standalone server:
+
+- **Linux / macOS**:
+  ```bash
+  ./web-gallery-linux
+  ```
+- **Windows**:
+  ```cmd
+  web-gallery-win.exe
+  ```
+
+By default:
+- **Default Storage**: Writable application data and the database will be created in `./data/` (e.g. `./data/sqlite.db`), and downloaded media files will be saved in `./downloads/` inside the directory from which the executable is run.
+- **Console URL & Browser Launch**: The application prints the exact hosting URL (e.g., `[Server] Web Gallery is running at: http://localhost:3000`) and automatically attempts to open the site in your default system web browser.
+
+You can customize the host address and port by specifying the `HOSTNAME` and `PORT` environment variables:
+
+```bash
+# Example: Bind only to local loopback on port 8080
+HOSTNAME=127.0.0.1 PORT=8080 ./web-gallery-linux
+```
+
+Access the web interface at the printed URL (defaults to [http://localhost:3000](http://localhost:3000) or whichever hostname and port you configure).
+
+> [!NOTE]
+> You can override where the database, logs, and downloads are saved by setting `DATA_DIR` and `MEDIA_DIR` environment variables before executing the binary. Alternatively, you can place a `.env` file in the same directory as the executable, and the binary will automatically detect and load it on startup.
+
 ### Usage
 
 To start populating your timeline and gallery views with posts, you need to scrape some posts from a source.

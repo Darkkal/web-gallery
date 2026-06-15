@@ -750,7 +750,10 @@ async function processItem(
       .replace(/^\//, "")
       .split("/")
       .join(path.sep);
-    const absLookupPath = path.join(process.cwd(), "public", cleanRelPath);
+    const absLookupPath = path.join(
+      path.dirname(paths.downloads),
+      cleanRelPath,
+    );
     internalSourceId = sourceMap.get(absLookupPath) ?? null;
   }
 
@@ -828,7 +831,10 @@ async function processItem(
               title: title || null,
               content: content || null,
               metadataPath: task.jsonPath
-                ? task.jsonPath.substring(paths.dataDir.length)
+                ? path
+                    .relative(path.dirname(paths.downloads), task.jsonPath)
+                    .split(path.sep)
+                    .join("/")
                 : null,
               createdAt: new Date(),
             })

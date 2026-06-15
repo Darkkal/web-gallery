@@ -131,6 +131,30 @@ export async function saveSettings(settings: SystemSettings): Promise<void> {
   // 2. Update gallery-dl.conf
   const configPath = paths.galleryDl.config;
   const defaultConfigPath = path.join(process.cwd(), "gallery-dl-default.conf");
+  let resolvedDefaultConfigPath = defaultConfigPath;
+  if (!existsSync(defaultConfigPath)) {
+    const pathsToTry = [
+      path.join(__dirname, "..", "..", "..", "gallery-dl-default.conf"),
+      path.join(__dirname, "..", "..", "..", "..", "gallery-dl-default.conf"),
+      path.join(
+        __dirname,
+        "..",
+        "..",
+        "..",
+        "..",
+        "..",
+        "gallery-dl-default.conf",
+      ),
+      "/snapshot/web-gallery/gallery-dl-default.conf",
+      "/snapshot/web-gallery/.next/standalone/gallery-dl-default.conf",
+    ];
+    for (const p of pathsToTry) {
+      if (existsSync(p)) {
+        resolvedDefaultConfigPath = p;
+        break;
+      }
+    }
+  }
 
   let configJson: Record<string, unknown> = {};
 
@@ -149,10 +173,13 @@ export async function saveSettings(settings: SystemSettings): Promise<void> {
   }
 
   // If config is empty, read from default template first
-  if (Object.keys(configJson).length === 0 && existsSync(defaultConfigPath)) {
+  if (
+    Object.keys(configJson).length === 0 &&
+    existsSync(resolvedDefaultConfigPath)
+  ) {
     try {
       configJson = JSON.parse(
-        await fs.readFile(defaultConfigPath, "utf-8"),
+        await fs.readFile(resolvedDefaultConfigPath, "utf-8"),
       ) as Record<string, unknown>;
     } catch (e) {
       console.error("[Settings] Could not parse default template config:", e);

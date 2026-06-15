@@ -1,14 +1,25 @@
 import { execFile } from "node:child_process";
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
+import path from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+
+function getCommandPath(command: string): string {
+  const localBin = path.join(
+    process.cwd(),
+    "bin",
+    process.platform === "win32" ? `${command}.exe` : command,
+  );
+  return fsSync.existsSync(localBin) ? localBin : command;
+}
 
 async function getVideoDimensions(
   filePath: string,
 ): Promise<{ width: number; height: number } | null> {
   try {
-    const { stdout } = await execFileAsync("ffprobe", [
+    const { stdout } = await execFileAsync(getCommandPath("ffprobe"), [
       "-v",
       "error",
       "-select_streams",

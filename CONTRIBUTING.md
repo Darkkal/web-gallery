@@ -203,6 +203,14 @@ Individual pages export their own `metadata` for custom titles (e.g., `export co
 
 - **Rule**: When implementing features that create or delete posts, media items, tags, users, or affect extractor coverage, you MUST update the pre-computed statistics. Use `incrementStatistics(delta)` for targeted counter adjustments (additions/deletions) or `recomputeStatistics()` for full accuracy after bulk operations. See `src/lib/db/repositories/statistics.ts`.
 
+### 1.15 Standalone Release Packaging
+
+This project supports compiling a dependency-free standalone binary using `@yao-pkg/pkg` in **SEA (Single Executable Application)** mode.
+
+- **Build Script**: Developers can run `npm run build:release` which triggers `scripts/build-release.js`. This script compiles Next.js in standalone mode, copies static assets/drizzle migrations, patches `server.js` to run in the VFS snapshot, and packages the binary.
+- **Rule**: When adding new static files, templates, or folders that must be bundled with the binary, you MUST update the `assets` list in the `"pkg"` config within `package.json` to ensure they are captured by the compiler.
+- **Rule**: Avoid hardcoded references to `process.cwd() + "/public"` or assuming system binaries are globally available. Always check for local binaries in `./bin` using the `getCommandPath` helper and use `path.dirname(paths.downloads)` to resolve public assets correctly.
+
 ---
 
 ## 2. General Coding Guidelines
@@ -260,4 +268,3 @@ When running E2E tests locally, Playwright targets the server hosted by the Dock
   Wait for the build to complete and the container to be healthy before running the E2E tests.
 
 ---
-

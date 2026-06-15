@@ -1,5 +1,15 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    const fs = await import("node:fs");
+    const { paths } = await import("@/lib/config");
+
+    // Ensure critical local storage directories exist
+    for (const dir of [paths.dataDir, paths.downloads, paths.avatars]) {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+    }
+
     const { initDb } = await import("@/lib/db");
     await initDb();
 

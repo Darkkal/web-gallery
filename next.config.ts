@@ -26,6 +26,19 @@ const nextConfig: NextConfig = {
   // like @libsql/client.
   output: "standalone",
   serverExternalPackages: ["@libsql/client"],
+  outputFileTracingExcludes: {
+    "*": [
+      "./dist/**/*",
+      "./scratch/**/*",
+      "./tests/**/*",
+      "./playwright.config.ts",
+      "./test-results/**/*",
+      "./test-data/**/*",
+      "./test-media/**/*",
+      "./sqlite.db",
+      "./.env",
+    ],
+  },
   images: {
     // Wildcard patterns needed for scraper-sourced content from arbitrary domains.
     // Local paths (e.g. /downloads/...) are served directly and don't require these,
