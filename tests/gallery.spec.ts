@@ -126,12 +126,16 @@ test("gallery column controls change column counts", async ({ page }) => {
   await expect(page.getByTestId("loading-skeleton")).toBeHidden();
 
   // Find the column count label
-  const label = page.locator("span", { hasText: /Columns:/ });
+  const label = page.locator("span", { hasText: /Columns:/ }).first();
   await expect(label).toBeVisible();
 
   // Find and click "Decrease Columns" button
-  const decreaseBtn = page.getByRole("button", { name: "Decrease Columns" });
-  const increaseBtn = page.getByRole("button", { name: "Increase Columns" });
+  const decreaseBtn = page
+    .getByRole("button", { name: "Decrease Columns" })
+    .first();
+  const increaseBtn = page
+    .getByRole("button", { name: "Increase Columns" })
+    .first();
 
   await expect(decreaseBtn).toBeVisible();
   await expect(increaseBtn).toBeVisible();
