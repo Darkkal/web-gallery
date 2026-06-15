@@ -8,20 +8,23 @@ This document covers every configurable aspect of Web Gallery: environment varia
 
 All variables are optional. When unset, the application defaults to a self-contained development layout rooted at the current working directory.
 
+> [!TIP]
+> You can configure these environment variables by placing a `.env` file in the application root (or the directory containing the standalone binary). The application will automatically detect and load it on startup, resolving variables before starting the web server.
+
 ### Storage
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATA_DIR` | `process.cwd()` | Path for fast-access data: the SQLite database, scraper archives, and per-scrape log files. Put this on an SSD if possible. |
+| `DATA_DIR` | `path.join(process.cwd(), "data")` (i.e., `./data`) | Path for fast-access data: the SQLite database, scraper archives, and per-scrape log files. Put this on an SSD if possible. |
 | `MEDIA_DIR` | `process.cwd()` | Path for bulk media storage: downloaded media files and cached avatar images. Can be a separate, larger (HDD) volume. |
 
-When both are unset (typical in development), all data lands under the project root:
+When both are unset (typical in development / native binary runs), all data lands under the project root:
 
 ```
-./sqlite.db
-./public/downloads/   ← media files (served by Next.js static hosting)
-./public/avatars/     ← cached avatars
-./scrapers/gallery-dl/
+./data/sqlite.db
+./downloads/          ← media files (served by the dynamic media router)
+./avatars/            ← cached avatars
+./data/scrapers/gallery-dl/
 ```
 
 When set (Docker / production), paths resolve as:
@@ -60,15 +63,15 @@ gallery-dl is the scraping engine used to download media. The application manage
 
 | Mode | Path |
 |------|------|
-| Development (unset `DATA_DIR`) | `./scrapers/gallery-dl/gallery-dl.conf` |
+| Development (unset `DATA_DIR`) | `./data/scrapers/gallery-dl/gallery-dl.conf` |
 | Production / Docker | `$DATA_DIR/scrapers/gallery-dl/gallery-dl.conf` |
 
 A template with recommended defaults is included in the repository root as [`gallery-dl-default.conf`](../gallery-dl-default.conf). On first run the application does not automatically copy this — you should copy or symlink it yourself:
 
 ```bash
 # Development
-mkdir -p scrapers/gallery-dl
-cp gallery-dl-default.conf scrapers/gallery-dl/gallery-dl.conf
+mkdir -p data/scrapers/gallery-dl
+cp gallery-dl-default.conf data/scrapers/gallery-dl/gallery-dl.conf
 ```
 
 ### Key settings to configure

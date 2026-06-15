@@ -523,6 +523,15 @@ docker compose -f compose.debug.yaml up  # With bind-mounted source
 docker compose -f compose.test.yaml up   # E2E test runner
 ```
 
+### Standalone Binary Packaging (Production Releases)
+
+Web Gallery can be compiled into a single executable binary for Linux, macOS, and Windows. This is designed for users who want to run the application natively without setting up a Node.js runtime or Docker.
+
+- **Packaging Engine**: `@yao-pkg/pkg` in **SEA (Single Executable Application)** Mode.
+- **Virtual File System (VFS)**: Frontend assets (`.next/static`, `public` favicon/images), database migrations (`drizzle/`), and configuration templates are packaged directly inside the executable. The VFS layer intercepts `fs` module operations and maps files to `/snapshot/web-gallery/` at runtime, allowing the app to read static files and run database migrations out of the binary itself.
+- **Data Persistence**: Writable operations (like database updates to `sqlite.db` or writing settings to `settings.json`) bypass the read-only VFS and resolve to the real host filesystem (falling back to the current working directory, or controlled via `DATA_DIR` and `MEDIA_DIR` environment variables). These environment variables, along with server port and hostname, can also be configured using a `.env` file placed next to the binary at runtime.
+- **Local Dependencies (`./bin/`)**: The scraper runner and dimension utilities search for `gallery-dl`, `ffmpeg`, and `ffprobe` in a local `./bin/` folder first. This enables a portable, self-contained deployment using setup scripts (`scripts/setup-deps.sh` or `scripts/setup-deps.ps1`) to download dependencies.
+
 **Security headers** (configured in `next.config.ts`, applied to all routes):
 - `X-Frame-Options: DENY`
 - `X-Content-Type-Options: nosniff`
