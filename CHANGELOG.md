@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.0](https://github.com/Darkkal/web-gallery/compare/v0.3.0...v0.4.0) (2026-06-15)
+
+
+### Features
+
+* **lightbox:** button to refetch metadata ([31c66cf](https://github.com/Darkkal/web-gallery/commit/31c66cf696c67d94ff831df8255e053210d06441))
+* **release:** adapt db migration and default config lookups for ([33b5288](https://github.com/Darkkal/web-gallery/commit/33b5288689d4d562b95ee393c289683d7679ea38))
+* **release:** add standalone build scripts and dependency installation ([33b5288](https://github.com/Darkkal/web-gallery/commit/33b5288689d4d562b95ee393c289683d7679ea38))
+* **release:** support execution of portable binaries inside local bin ([33b5288](https://github.com/Darkkal/web-gallery/commit/33b5288689d4d562b95ee393c289683d7679ea38))
+* **search:** add autocomplete suggestions while typing ([ad66e3e](https://github.com/Darkkal/web-gallery/commit/ad66e3e725a59b51d9870cf3448c46927c5f47c3))
+* **search:** add spinner in filter bar while processing search ([ad66e3e](https://github.com/Darkkal/web-gallery/commit/ad66e3e725a59b51d9870cf3448c46927c5f47c3))
+* **statistics:** implement post statistics dashboard and fix query sorts ([80ef3ca](https://github.com/Darkkal/web-gallery/commit/80ef3caa29d73ec4ad028cd6b1770738f937586a))
+
+
+### Bug Fixes
+
+* **config:** add captions flag to pixiv extractor for missing data ([7efd136](https://github.com/Darkkal/web-gallery/commit/7efd13656532264ce8df7db3e9c949fd2679e2ba))
+
 ## [0.3.0](https://github.com/Darkkal/web-gallery/compare/v0.2.0...v0.3.0) (2026-05-31)
 
 
