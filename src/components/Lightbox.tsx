@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getPlaylistsForMediaItem } from "@/app/actions/playlists";
 import {
   addTagToPost,
   getPostTags,
-  removeTagFromPost,
+  removeTagsFromPost,
 } from "@/app/actions/tags";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import FormattedContent from "@/components/FormattedContent";
@@ -37,6 +38,7 @@ interface LightboxProps {
   onRefetch?: (postId: number) => Promise<void>;
   loopVideos?: boolean;
   isPageLoading?: boolean;
+  onTagClick?: (tagName: string) => void;
 }
 
 export default function Lightbox({
@@ -54,12 +56,51 @@ export default function Lightbox({
   onRefetch,
   loopVideos,
   isPageLoading = false,
+  onTagClick,
 }: LightboxProps) {
   const { item } = row;
   const [showInfo, setShowInfo] = useState(true);
   const [postTags, setPostTags] = useState<{ id: number; name: string }[]>([]);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isRecentlyMounted, setIsRecentlyMounted] = useState(true);
+  const [isRemovalMode, setIsRemovalMode] = useState(false);
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<number>>(new Set());
+  const router = useRouter();
+
+  const toggleTagSelection = (tagId: number) => {
+    setSelectedTagIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(tagId)) {
+        next.delete(tagId);
+      } else {
+        next.add(tagId);
+      }
+      return next;
+    });
+  };
+
+  const handleTagClick = (tagName: string) => {
+    if (onTagClick) {
+      onTagClick(tagName);
+    } else {
+      router.push(`/gallery?search=${encodeURIComponent(`tag:${tagName} `)}`);
+      onClose();
+    }
+  };
+
+  async function handleRemoveSelectedTags() {
+    if (!row.post?.id || selectedTagIds.size === 0) return;
+    try {
+      const tagIdsToRemove = Array.from(selectedTagIds);
+      const success = await removeTagsFromPost(row.post.id, tagIdsToRemove);
+      if (success) {
+        setPostTags((prev) => prev.filter((t) => !selectedTagIds.has(t.id)));
+        setSelectedTagIds(new Set());
+      }
+    } catch (err) {
+      alert(`Failed to remove tags: ${err}`);
+    }
+  }
 
   async function handleAddTag(tagName: string) {
     if (!row.post?.id) return;
@@ -75,17 +116,6 @@ export default function Lightbox({
     }
   }
 
-  async function handleRemoveTag(tagId: number) {
-    if (!row.post?.id) return;
-    try {
-      const success = await removeTagFromPost(row.post.id, tagId);
-      if (success) {
-        setPostTags((prev) => prev.filter((t) => t.id !== tagId));
-      }
-    } catch (err) {
-      alert(`Failed to remove tag: ${err}`);
-    }
-  }
   const [refetching, setRefetching] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -186,6 +216,7 @@ export default function Lightbox({
 
   // Fetch Post Tags
   useEffect(() => {
+    setSelectedTagIds(new Set());
     if (row.post?.id) {
       getPostTags(row.post.id).then(setPostTags).catch(console.error);
     } else {
@@ -642,25 +673,63 @@ export default function Lightbox({
         )}
 
         <div className={styles.section}>
-          <h3 className={styles.sectionTitle}>Tags</h3>
+          <div className={styles.tagsHeader}>
+            <h3 className={styles.sectionTitle}>Tags</h3>
+            <div className={styles.tagToggleContainer}>
+              <span className={styles.toggleLabel}>Enable Removal</span>
+              <label className={styles.switch}>
+                <input
+                  type="checkbox"
+                  checked={isRemovalMode}
+                  onChange={(e) => {
+                    setIsRemovalMode(e.target.checked);
+                    setSelectedTagIds(new Set());
+                  }}
+                />
+                <span className={styles.slider} />
+              </label>
+            </div>
+          </div>
+
           {postTags.length === 0 ? (
             <p className={styles.mutedText}>No tags</p>
           ) : (
             <div className={styles.tagsContainer}>
-              {postTags.map((tag) => (
-                <span key={tag.id} className={styles.tagChipEditable}>
-                  <span className={styles.tagName}>#{tag.name}</span>
+              {postTags.map((tag) =>
+                isRemovalMode ? (
                   <button
                     type="button"
-                    className={styles.tagRemoveBtn}
-                    onClick={() => handleRemoveTag(tag.id)}
-                    aria-label={`Remove tag ${tag.name}`}
+                    key={tag.id}
+                    className={styles.tagChipSelectable}
+                    data-selected={selectedTagIds.has(tag.id)}
+                    onClick={() => toggleTagSelection(tag.id)}
+                    aria-pressed={selectedTagIds.has(tag.id)}
                   >
-                    ✕
+                    <span className={styles.tagName}>#{tag.name}</span>
                   </button>
-                </span>
-              ))}
+                ) : (
+                  <button
+                    type="button"
+                    key={tag.id}
+                    className={styles.tagChipClickable}
+                    onClick={() => handleTagClick(tag.name)}
+                  >
+                    <span className={styles.tagName}>#{tag.name}</span>
+                  </button>
+                ),
+              )}
             </div>
+          )}
+
+          {isRemovalMode && postTags.length > 0 && (
+            <button
+              type="button"
+              className={styles.removeSelectedBtn}
+              onClick={handleRemoveSelectedTags}
+              disabled={selectedTagIds.size === 0}
+            >
+              Remove Selected ({selectedTagIds.size})
+            </button>
           )}
 
           <div className={styles.tagAddSection}>
