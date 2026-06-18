@@ -83,7 +83,7 @@ export default function Lightbox({
     if (onTagClick) {
       onTagClick(tagName);
     } else {
-      router.push(`/gallery?search=${encodeURIComponent(`tag:${tagName}`)}`);
+      router.push(`/gallery?search=${encodeURIComponent(`tag:${tagName} `)}`);
       onClose();
     }
   };

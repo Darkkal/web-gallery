@@ -370,7 +370,7 @@ function GalleryPageContent({
           loopVideos={loopVideos}
           isPageLoading={isPageLoading}
           onTagClick={(tagName) => {
-            setSearchQuery(`tag:${tagName}`);
+            setSearchQuery(`tag:${tagName} `);
             closeLightbox();
           }}
         />
