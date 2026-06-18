@@ -7,8 +7,14 @@ import { postTags, tags } from "@/lib/db/schema";
  */
 export async function createOrFindTag(
   name: string,
-): Promise<{ id: number; name: string }> {
-  await db.insert(tags).values({ name }).onConflictDoNothing();
+): Promise<{ tag: { id: number; name: string }; isNew: boolean }> {
+  const result = await db
+    .insert(tags)
+    .values({ name })
+    .onConflictDoNothing()
+    .returning();
+
+  const isNew = result.length > 0;
 
   const tag = await db.query.tags.findFirst({
     where: eq(tags.name, name),
@@ -18,7 +24,7 @@ export async function createOrFindTag(
     throw new Error(`Failed to find or create tag: ${name}`);
   }
 
-  return tag;
+  return { tag, isNew };
 }
 
 /**
