@@ -4,10 +4,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getPlaylistsForMediaItem } from "@/app/actions/playlists";
-import { getPostTags } from "@/app/actions/tags";
+import {
+  addTagToPost,
+  getPostTags,
+  removeTagFromPost,
+} from "@/app/actions/tags";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import FormattedContent from "@/components/FormattedContent";
 import styles from "@/components/Lightbox.module.css";
+import TagAutocompleteInput from "@/components/TagAutocompleteInput";
 import type {
   UnifiedGelbooruv02Data,
   UnifiedPixivData,
@@ -52,8 +57,35 @@ export default function Lightbox({
 }: LightboxProps) {
   const { item } = row;
   const [showInfo, setShowInfo] = useState(true);
-  const [pixivTags, setPixivTags] = useState<{ name: string }[]>([]);
+  const [postTags, setPostTags] = useState<{ id: number; name: string }[]>([]);
+  const [isAddingTag, setIsAddingTag] = useState(false);
   const [isRecentlyMounted, setIsRecentlyMounted] = useState(true);
+
+  async function handleAddTag(tagName: string) {
+    if (!row.post?.id) return;
+    try {
+      const newTag = await addTagToPost(row.post.id, tagName);
+      setPostTags((prev) => {
+        if (prev.some((t) => t.id === newTag.id)) return prev;
+        return [...prev, newTag];
+      });
+      setIsAddingTag(false);
+    } catch (err) {
+      alert(`Failed to add tag: ${err}`);
+    }
+  }
+
+  async function handleRemoveTag(tagId: number) {
+    if (!row.post?.id) return;
+    try {
+      const success = await removeTagFromPost(row.post.id, tagId);
+      if (success) {
+        setPostTags((prev) => prev.filter((t) => t.id !== tagId));
+      }
+    } catch (err) {
+      alert(`Failed to remove tag: ${err}`);
+    }
+  }
   const [refetching, setRefetching] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -152,19 +184,14 @@ export default function Lightbox({
     };
   }, []);
 
-  // Fetch Pixiv Tags
+  // Fetch Post Tags
   useEffect(() => {
-    if (pixiv?.id) {
-      getPostTags(pixiv.id).then(setPixivTags).catch(console.error);
+    if (row.post?.id) {
+      getPostTags(row.post.id).then(setPostTags).catch(console.error);
     } else {
-      // eslint-disable-next-line
-      setPixivTags([]);
+      setPostTags([]);
     }
-  }, [pixiv?.id]);
-
-  const tags = gelbooru?.tags
-    ? gelbooru.tags.map((tag) => ({ name: tag, id: 0 }))
-    : pixivTags;
+  }, [row.post?.id]);
 
   // Handle video playback errors
   useEffect(() => {
@@ -614,22 +641,55 @@ export default function Lightbox({
           </div>
         )}
 
-        {tags.length > 0 && (
-          <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>Tags</h3>
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>Tags</h3>
+          {postTags.length === 0 ? (
+            <p className={styles.mutedText}>No tags</p>
+          ) : (
             <div className={styles.tagsContainer}>
-              {tags.map((tag, i) => (
-                <span
-                  // biome-ignore lint/suspicious/noArrayIndexKey: Stable sorted tags
-                  key={i}
-                  className={styles.tagChip}
-                >
-                  #{tag.name}
+              {postTags.map((tag) => (
+                <span key={tag.id} className={styles.tagChipEditable}>
+                  <span className={styles.tagName}>#{tag.name}</span>
+                  <button
+                    type="button"
+                    className={styles.tagRemoveBtn}
+                    onClick={() => handleRemoveTag(tag.id)}
+                    aria-label={`Remove tag ${tag.name}`}
+                  >
+                    ✕
+                  </button>
                 </span>
               ))}
             </div>
+          )}
+
+          <div className={styles.tagAddSection}>
+            {isAddingTag ? (
+              <div className={styles.tagInputWrapper}>
+                <TagAutocompleteInput
+                  onTagSelected={handleAddTag}
+                  placeholder="Enter tag name..."
+                  excludeTags={postTags.map((t) => t.name)}
+                />
+                <button
+                  type="button"
+                  className={styles.tagCancelBtn}
+                  onClick={() => setIsAddingTag(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className={styles.sidebarActionBtn}
+                onClick={() => setIsAddingTag(true)}
+              >
+                + Add Tag
+              </button>
+            )}
           </div>
-        )}
+        </div>
 
         {(row.post?.url || (tweet?.tweetId && user)) && (
           <div className={styles.section}>

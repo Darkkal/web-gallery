@@ -583,3 +583,79 @@
   animation: spin 0.8s linear infinite;
   display: inline-block;
 }
+
+.tagChipEditable {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: hsl(var(--secondary) / 0.6);
+  color: hsl(var(--foreground));
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border) / 0.5);
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
+}
+
+.tagChipEditable:hover {
+  background: hsl(var(--secondary));
+  border-color: hsl(var(--border));
+}
+
+.tagName {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tagRemoveBtn {
+  background: none;
+  border: none;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 0.75rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.1s;
+  border-radius: 2px;
+}
+
+.tagRemoveBtn:hover {
+  color: hsl(var(--color-danger));
+  background: hsl(var(--color-danger) / 0.1);
+}
+
+.tagAddSection {
+  margin-top: 12px;
+}
+
+.tagInputWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.tagCancelBtn {
+  background: transparent;
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+  padding: 0.5rem 0.75rem;
+  font-size: 0.825rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.tagCancelBtn:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}

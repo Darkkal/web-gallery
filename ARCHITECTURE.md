@@ -122,7 +122,8 @@ web-gallery/
 │   │   ├── ThemeProvider.tsx       #   Dark/light theme via data-theme attribute
 │   │   ├── FormattedContent.tsx    #   Renders post body (links, hashtags, mentions)
 │   │   ├── InfiniteScrollSentinel.tsx # IntersectionObserver-based infinite scroll trigger
-│   │   └── AddToPlaylistModal.tsx  #   Modal to add media items to a playlist
+│   │   ├── AddToPlaylistModal.tsx  #   Modal to add media items to a playlist
+│   │   └── TagAutocompleteInput.tsx #  Input with autocomplete suggestions for tags
 │   ├── hooks/                      # Shared custom React hooks
 │   │   ├── useAutoplayVideo.ts     #   IntersectionObserver-based video autoplay
 │   │   ├── useDebouncedValue.ts    #   Debounce for search/sort inputs
@@ -313,7 +314,8 @@ src/app/gallery/
 ├── components/           # Sub-components (pure rendering)
 │   ├── FilterBar.tsx
 │   ├── GalleryItem.tsx
-│   └── BulkActionBar.tsx
+│   ├── BulkActionBar.tsx
+│   └── BulkTagPopover.tsx    #   Popover for bulk tagging selected gallery items
 └── page.module.css       # Shared CSS for this page and all sub-components
 ```
 

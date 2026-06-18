@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { deleteMediaItems, refetchPostData } from "@/app/actions/gallery";
 import BulkActionBar from "@/app/gallery/components/BulkActionBar";
+import BulkTagPopover from "@/app/gallery/components/BulkTagPopover";
 import FilterBar from "@/app/gallery/components/FilterBar";
 import GalleryItem from "@/app/gallery/components/GalleryItem";
 import styles from "@/app/gallery/page.module.css";
@@ -88,6 +89,7 @@ function GalleryPageContent({
   const [deleting, setDeleting] = useState(false);
   const [refetching, setRefetching] = useState(false);
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
+  const [isBulkTagOpen, setIsBulkTagOpen] = useState(false);
 
   const [suppressSearch, setSuppressSearch] = useState(false);
 
@@ -123,6 +125,18 @@ function GalleryPageContent({
     clearSelection,
     selectedCount,
   } = useSelection();
+
+  const handleBulkTagPostIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const group of items) {
+      for (const gi of group.groupItems) {
+        if (selectedIds.has(gi.item.id) && gi.post?.id) {
+          ids.add(gi.post.id);
+        }
+      }
+    }
+    return Array.from(ids);
+  }, [selectedIds, items]);
 
   const {
     selectedIndex,
@@ -235,6 +249,7 @@ function GalleryPageContent({
           selectedCount={selectedCount}
           onBulkDelete={handleBulkDelete}
           onAddToPlaylist={() => setIsAddToPlaylistOpen(true)}
+          onAddTags={() => setIsBulkTagOpen(true)}
           onBulkRefetch={handleBulkRefetch}
           deleting={deleting}
           refetching={refetching}
@@ -364,6 +379,20 @@ function GalleryPageContent({
           clearSelection();
         }}
         mediaItemIds={Array.from(selectedIds)}
+      />
+
+      <BulkTagPopover
+        isOpen={isBulkTagOpen}
+        onClose={() => {
+          setIsBulkTagOpen(false);
+          clearSelection();
+        }}
+        postIds={handleBulkTagPostIds}
+        onComplete={async () => {
+          setIsBulkTagOpen(false);
+          clearSelection();
+          await refresh();
+        }}
       />
     </div>
   );
