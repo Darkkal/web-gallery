@@ -93,6 +93,12 @@ export async function removeTagFromPost(postId: number, tagId: number) {
   return unlinked;
 }
 
+export async function removeTagsFromPost(postId: number, tagIds: number[]) {
+  if (tagIds.length === 0) return true;
+  const deletedCount = await tagsRepo.unlinkTagsFromPost(tagIds, postId);
+  return deletedCount > 0;
+}
+
 export async function bulkAddTagToPosts(postIds: number[], tagName: string) {
   const trimmed = tagName.trim();
   if (!trimmed) {
