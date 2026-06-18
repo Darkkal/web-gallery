@@ -369,6 +369,10 @@ function GalleryPageContent({
           onRefetch={handleRefetchSingle}
           loopVideos={loopVideos}
           isPageLoading={isPageLoading}
+          onTagClick={(tagName) => {
+            setSearchQuery(`tag:${tagName}`);
+            closeLightbox();
+          }}
         />
       )}
 

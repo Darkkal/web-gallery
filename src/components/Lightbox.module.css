@@ -584,25 +584,54 @@
   display: inline-block;
 }
 
-.tagChipEditable {
+.tagChipClickable {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
   background: hsl(var(--secondary) / 0.6);
   color: hsl(var(--foreground));
   font-size: 0.75rem;
   font-weight: 500;
-  padding: 0.25rem 0.5rem;
+  padding: 0.25rem 0.6rem;
   border-radius: var(--radius);
   border: 1px solid hsl(var(--border) / 0.5);
-  transition:
-    background-color 0.15s,
-    border-color 0.15s;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.tagChipEditable:hover {
+.tagChipClickable:hover {
+  background: hsl(var(--primary) / 0.12);
+  border-color: hsl(var(--primary) / 0.4);
+  color: hsl(var(--primary));
+}
+
+.tagChipSelectable {
+  display: inline-flex;
+  align-items: center;
+  background: hsl(var(--secondary) / 0.6);
+  color: hsl(var(--foreground));
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border) / 0.5);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tagChipSelectable:hover {
   background: hsl(var(--secondary));
   border-color: hsl(var(--border));
+}
+
+.tagChipSelectable[data-selected="true"] {
+  background: hsl(var(--color-danger) / 0.15);
+  border-color: hsl(var(--color-danger) / 0.6);
+  color: hsl(var(--color-danger));
+}
+
+.tagChipSelectable[data-selected="true"]:hover {
+  background: hsl(var(--color-danger) / 0.25);
+  border-color: hsl(var(--color-danger));
 }
 
 .tagName {
@@ -612,24 +641,99 @@
   white-space: nowrap;
 }
 
-.tagRemoveBtn {
-  background: none;
-  border: none;
-  color: hsl(var(--muted-foreground));
-  cursor: pointer;
-  padding: 0 2px;
-  font-size: 0.75rem;
-  line-height: 1;
+.tagsHeader {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  transition: color 0.1s;
-  border-radius: 2px;
+  margin-bottom: 12px;
 }
 
-.tagRemoveBtn:hover {
-  color: hsl(var(--color-danger));
-  background: hsl(var(--color-danger) / 0.1);
+.tagToggleContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggleLabel {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 20px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: hsl(var(--border));
+  transition: 0.3s;
+  border-radius: 20px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.switch input:checked + .slider {
+  background-color: hsl(var(--primary));
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(18px);
+}
+
+.removeSelectedBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 8px 12px;
+  background: hsl(var(--color-danger));
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.825rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 10px;
+  gap: 6px;
+}
+
+.removeSelectedBtn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px hsl(var(--color-danger) / 0.2);
+}
+
+.removeSelectedBtn:disabled {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .tagAddSection {
