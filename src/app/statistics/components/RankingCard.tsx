@@ -48,9 +48,6 @@ export default function RankingCard({
       return `/gallery?search=tag:${encodeURIComponent(`${itemName} `)}`;
     }
     if (itemType === "user") {
-      if (itemId) {
-        return `/gallery?search=handle:${encodeURIComponent(`${String(itemId)} `)}`;
-      }
       return `/gallery?search=user:${encodeURIComponent(`${itemName} `)}`;
     }
     return `/gallery?search=source:${encodeURIComponent(`${itemName} `)}`;
