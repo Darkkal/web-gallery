@@ -6,6 +6,7 @@ interface BulkActionBarProps {
   selectedCount: number;
   onBulkDelete: (deleteFiles: boolean) => void;
   onAddToPlaylist: () => void;
+  onAddTags: () => void;
   onBulkRefetch: () => void;
   deleting: boolean;
   refetching: boolean;
@@ -15,6 +16,7 @@ export default function BulkActionBar({
   selectedCount,
   onBulkDelete,
   onAddToPlaylist,
+  onAddTags,
   onBulkRefetch,
   deleting,
   refetching,
@@ -32,6 +34,14 @@ export default function BulkActionBar({
           disabled={deleting || refetching}
         >
           {refetching ? "Refetching..." : "Refetch Post Data"}
+        </button>
+        <button
+          type="button"
+          className={styles.playlistButton}
+          onClick={onAddTags}
+          disabled={deleting || refetching}
+        >
+          Add Tags
         </button>
         <button
           type="button"
