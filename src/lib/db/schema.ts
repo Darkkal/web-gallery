@@ -267,6 +267,27 @@ export const postDetailsGelbooruV02 = sqliteTable(
   }),
 );
 
+export const postDetailsEHentai = sqliteTable(
+  "post_details_ehentai",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    postId: integer("post_id")
+      .references(() => posts.id, { onDelete: "cascade" })
+      .notNull(),
+    gid: integer("gid"),
+    token: text("token"),
+    ehCategory: text("eh_category"),
+    uploader: text("uploader"),
+    language: text("language"),
+    filecount: integer("file_count"),
+    rating: text("rating"),
+    torrentcount: integer("torrent_count"),
+  },
+  (table) => ({
+    postIdIdx: index("idx_post_details_ehentai_post_id").on(table.postId),
+  }),
+);
+
 export const mediaItems = sqliteTable(
   "media_items",
   {
@@ -420,6 +441,10 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
     fields: [posts.id],
     references: [postDetailsGelbooruV02.postId],
   }),
+  ehentaiDetails: one(postDetailsEHentai, {
+    fields: [posts.id],
+    references: [postDetailsEHentai.postId],
+  }),
   mediaItems: many(mediaItems),
   tags: many(postTags),
 }));
@@ -449,6 +474,16 @@ export const postDetailsGelbooruV02Relations = relations(
   ({ one }) => ({
     post: one(posts, {
       fields: [postDetailsGelbooruV02.postId],
+      references: [posts.id],
+    }),
+  }),
+);
+
+export const postDetailsEHentaiRelations = relations(
+  postDetailsEHentai,
+  ({ one }) => ({
+    post: one(posts, {
+      fields: [postDetailsEHentai.postId],
       references: [posts.id],
     }),
   }),
