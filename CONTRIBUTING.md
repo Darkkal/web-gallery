@@ -144,7 +144,7 @@ src/app/actions/
 ├── scanning.ts   # Library scan control
 ├── settings.ts   # Settings updates & config sync
 ├── sources.ts    # Source CRUD
-├── tags.ts       # Tag queries
+├── tags.ts       # Tag queries and mutations
 └── timeline.ts   # Timeline mutations
 ```
 
