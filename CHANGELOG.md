@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.5.0](https://github.com/Darkkal/web-gallery/compare/v0.4.0...v0.5.0) (2026-06-18)
+
+
+### Features
+
+* **actions:** implement server action to remove tags from posts ([32ac035](https://github.com/Darkkal/web-gallery/commit/32ac03590341c1732ab84c58ee087eb2eb6990f2))
+* **actions:** implement tag mutation server actions ([8c27d8b](https://github.com/Darkkal/web-gallery/commit/8c27d8b7201e93b388af274be3e332e79b8f526e))
+* **config:** implement recursive configuration deepMerge helper ([dee800e](https://github.com/Darkkal/web-gallery/commit/dee800e7a18fd89951224cfcde9b1eeaf5a8514d))
+* **db:** add postDetailsEHentai table and FTS5 triggers ([dee800e](https://github.com/Darkkal/web-gallery/commit/dee800e7a18fd89951224cfcde9b1eeaf5a8514d))
+* **db:** add repository function for bulk unlinking tags ([32ac035](https://github.com/Darkkal/web-gallery/commit/32ac03590341c1732ab84c58ee087eb2eb6990f2))
+* **db:** add repository write operations for tags ([8c27d8b](https://github.com/Darkkal/web-gallery/commit/8c27d8b7201e93b388af274be3e332e79b8f526e))
+* **gallery:** add bulk tagging support to gallery ([8c27d8b](https://github.com/Darkkal/web-gallery/commit/8c27d8b7201e93b388af274be3e332e79b8f526e))
+* **library:** add e-hentai metadata processor and scanner logic ([dee800e](https://github.com/Darkkal/web-gallery/commit/dee800e7a18fd89951224cfcde9b1eeaf5a8514d))
+* **lightbox:** allow editing tags on posts ([8c27d8b](https://github.com/Darkkal/web-gallery/commit/8c27d8b7201e93b388af274be3e332e79b8f526e))
+* **lightbox:** implement tag removal toggle and multi-select deletion ([32ac035](https://github.com/Darkkal/web-gallery/commit/32ac03590341c1732ab84c58ee087eb2eb6990f2))
+* **release:** include package version in standalone binary and archive filenames ([b5d3c98](https://github.com/Darkkal/web-gallery/commit/b5d3c98a1dc5413c7349623461239cc118258a01))
+* **search:** sanitize special characters using unicode properties to prevent FTS5 crashes ([dff77ff](https://github.com/Darkkal/web-gallery/commit/dff77ff90c3c81000ea796a332e215b5ae3ecd18))
+* **sources:** implement domain mapping, timeline repository, and UI styling ([dee800e](https://github.com/Darkkal/web-gallery/commit/dee800e7a18fd89951224cfcde9b1eeaf5a8514d))
+* **statistics:** link ranking cards and items to gallery search queries ([dff77ff](https://github.com/Darkkal/web-gallery/commit/dff77ff90c3c81000ea796a332e215b5ae3ecd18))
+* **ui:** add reusable TagAutocompleteInput component ([8c27d8b](https://github.com/Darkkal/web-gallery/commit/8c27d8b7201e93b388af274be3e332e79b8f526e))
+
+
+### Performance Improvements
+
+* **db:** add foreign key indexes to improve query performance ([#112](https://github.com/Darkkal/web-gallery/issues/112)) ([7dd1382](https://github.com/Darkkal/web-gallery/commit/7dd13822ccc2e8c2fd0dd4a03537ae32bdba8604))
+
 ## [0.4.0](https://github.com/Darkkal/web-gallery/compare/v0.3.0...v0.4.0) (2026-06-15)
 
 
