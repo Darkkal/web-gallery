@@ -250,7 +250,14 @@ export async function syncLibrary(options?: SyncOptions) {
           ".png",
           ".gif",
           ".webp",
-        ].includes(ext)
+        ].includes(ext) ||
+        (ext === "" &&
+          (dir.toLowerCase().includes(`${path.sep}ehentai${path.sep}`) ||
+            dir.toLowerCase().includes(`${path.sep}exhentai${path.sep}`) ||
+            dir.toLowerCase().endsWith(`${path.sep}ehentai`) ||
+            dir.toLowerCase().endsWith(`${path.sep}exhentai`) ||
+            dir.toLowerCase().includes("/ehentai/") ||
+            dir.toLowerCase().includes("/exhentai/")))
       )
         group.mediaFiles.push(absPath);
     });
