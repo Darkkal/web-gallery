@@ -3,6 +3,8 @@
 import { count, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import * as postsRepo from "@/lib/db/repositories/posts";
+import { incrementStatistics } from "@/lib/db/repositories/statistics";
+import * as tagsRepo from "@/lib/db/repositories/tags";
 import { posts, postTags, tags } from "@/lib/db/schema";
 
 export async function getPostTags(postId: number) {
@@ -65,4 +67,50 @@ export async function getTopTags(
     .limit(100);
 
   return results;
+}
+
+export async function addTagToPost(postId: number, tagName: string) {
+  const trimmed = tagName.trim();
+  if (!trimmed) {
+    throw new Error("Tag name cannot be empty");
+  }
+  if (trimmed.length > 200) {
+    throw new Error("Tag name cannot exceed 200 characters");
+  }
+
+  const { tag, isNew } = await tagsRepo.createOrFindTag(trimmed);
+  await tagsRepo.linkTagToPost(tag.id, postId);
+
+  if (isNew) {
+    await incrementStatistics({ totalTags: 1 });
+  }
+
+  return tag;
+}
+
+export async function removeTagFromPost(postId: number, tagId: number) {
+  const unlinked = await tagsRepo.unlinkTagFromPost(tagId, postId);
+  return unlinked;
+}
+
+export async function bulkAddTagToPosts(postIds: number[], tagName: string) {
+  const trimmed = tagName.trim();
+  if (!trimmed) {
+    throw new Error("Tag name cannot be empty");
+  }
+  if (trimmed.length > 200) {
+    throw new Error("Tag name cannot exceed 200 characters");
+  }
+  if (postIds.length === 0) {
+    return { tag: null, linkedCount: 0 };
+  }
+
+  const { tag, isNew } = await tagsRepo.createOrFindTag(trimmed);
+  const linkedCount = await tagsRepo.bulkLinkTagToPosts(tag.id, postIds);
+
+  if (isNew) {
+    await incrementStatistics({ totalTags: 1 });
+  }
+
+  return { tag, linkedCount };
 }
