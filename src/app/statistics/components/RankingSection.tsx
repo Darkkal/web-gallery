@@ -126,6 +126,7 @@ export default function RankingSection({
             {visibleCards.map((item) => (
               <RankingCard
                 key={item.id || item.name}
+                id={item.id}
                 type={type}
                 name={item.name}
                 value={item.value}

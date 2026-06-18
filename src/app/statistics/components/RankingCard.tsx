@@ -1,6 +1,7 @@
 "use client";
 
 import { Image as ImageIcon, Sparkles, Tag, Twitter, User } from "lucide-react";
+import Link from "next/link";
 import styles from "../page.module.css";
 
 interface AssociatedItem {
@@ -19,6 +20,7 @@ interface RankingCardProps {
   topUsers?: AssociatedItem[];
   topExtractors?: AssociatedItem[];
   backgroundImage?: string;
+  id?: string | number;
 }
 
 export default function RankingCard({
@@ -30,10 +32,28 @@ export default function RankingCard({
   topUsers = [],
   topExtractors = [],
   backgroundImage,
+  id,
 }: RankingCardProps) {
   const isVideo = (pathStr?: string) => {
     if (!pathStr) return false;
     return /\.(mp4|webm|mkv|mov|avi|3gp)$/i.test(pathStr);
+  };
+
+  const getSearchLink = (
+    itemType: "tag" | "user" | "extractor",
+    itemName: string,
+    itemId?: string | number,
+  ) => {
+    if (itemType === "tag") {
+      return `/gallery?search=tag:${encodeURIComponent(itemName)}`;
+    }
+    if (itemType === "user") {
+      if (itemId) {
+        return `/gallery?search=handle:${encodeURIComponent(String(itemId))}`;
+      }
+      return `/gallery?search=user:${encodeURIComponent(itemName)}`;
+    }
+    return `/gallery?search=source:${encodeURIComponent(itemName)}`;
   };
 
   // Human-readable titles for associations
@@ -45,7 +65,11 @@ export default function RankingCard({
             <div className={styles.associationGroup}>
               <span className={styles.associationTitle}>Top Users</span>
               {topUsers.map((u) => (
-                <div key={u.name} className={styles.associationItem}>
+                <Link
+                  key={u.name}
+                  href={getSearchLink("user", u.name, u.id)}
+                  className={styles.associationLink}
+                >
                   {u.avatar ? (
                     <img
                       src={u.avatar}
@@ -60,7 +84,7 @@ export default function RankingCard({
                   )}
                   <span className={styles.associationName}>{u.name}</span>
                   <span className={styles.associationCount}>{u.postCount}</span>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -68,11 +92,15 @@ export default function RankingCard({
             <div className={styles.associationGroup}>
               <span className={styles.associationTitle}>Top Extractors</span>
               {topExtractors.map((e) => (
-                <div key={e.name} className={styles.associationItem}>
+                <Link
+                  key={e.name}
+                  href={getSearchLink("extractor", e.name)}
+                  className={styles.associationLink}
+                >
                   <Sparkles className={styles.miniIcon} />
                   <span className={styles.associationName}>{e.name}</span>
                   <span className={styles.associationCount}>{e.postCount}</span>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -87,11 +115,15 @@ export default function RankingCard({
             <div className={styles.associationGroup}>
               <span className={styles.associationTitle}>Top Tags</span>
               {topTags.map((t) => (
-                <div key={t.name} className={styles.associationItem}>
+                <Link
+                  key={t.name}
+                  href={getSearchLink("tag", t.name)}
+                  className={styles.associationLink}
+                >
                   <Tag className={styles.miniIcon} />
                   <span className={styles.associationName}>#{t.name}</span>
                   <span className={styles.associationCount}>{t.postCount}</span>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -99,11 +131,15 @@ export default function RankingCard({
             <div className={styles.associationGroup}>
               <span className={styles.associationTitle}>Top Extractors</span>
               {topExtractors.map((e) => (
-                <div key={e.name} className={styles.associationItem}>
+                <Link
+                  key={e.name}
+                  href={getSearchLink("extractor", e.name)}
+                  className={styles.associationLink}
+                >
                   <Sparkles className={styles.miniIcon} />
                   <span className={styles.associationName}>{e.name}</span>
                   <span className={styles.associationCount}>{e.postCount}</span>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -118,11 +154,15 @@ export default function RankingCard({
           <div className={styles.associationGroup}>
             <span className={styles.associationTitle}>Top Tags</span>
             {topTags.map((t) => (
-              <div key={t.name} className={styles.associationItem}>
+              <Link
+                key={t.name}
+                href={getSearchLink("tag", t.name)}
+                className={styles.associationLink}
+              >
                 <Tag className={styles.miniIcon} />
                 <span className={styles.associationName}>#{t.name}</span>
                 <span className={styles.associationCount}>{t.postCount}</span>
-              </div>
+              </Link>
             ))}
           </div>
         )}
@@ -130,7 +170,11 @@ export default function RankingCard({
           <div className={styles.associationGroup}>
             <span className={styles.associationTitle}>Top Users</span>
             {topUsers.map((u) => (
-              <div key={u.name} className={styles.associationItem}>
+              <Link
+                key={u.name}
+                href={getSearchLink("user", u.name, u.id)}
+                className={styles.associationLink}
+              >
                 {u.avatar ? (
                   <img
                     src={u.avatar}
@@ -145,7 +189,7 @@ export default function RankingCard({
                 )}
                 <span className={styles.associationName}>{u.name}</span>
                 <span className={styles.associationCount}>{u.postCount}</span>
-              </div>
+              </Link>
             ))}
           </div>
         )}
@@ -191,7 +235,10 @@ export default function RankingCard({
       {/* Card Content */}
       <div className={styles.rankingCardContent}>
         <div className={styles.rankingCardHeader}>
-          <div className={styles.entityInfo}>
+          <Link
+            className={styles.entityLink}
+            href={getSearchLink(type, name, id)}
+          >
             {type === "user" &&
               (avatar ? (
                 <img
@@ -211,7 +258,7 @@ export default function RankingCard({
             <span className={styles.entityName} title={name}>
               {type === "tag" ? `#${name}` : name}
             </span>
-          </div>
+          </Link>
 
           <div className={styles.entityBadge}>
             <span className={styles.entityBadgeValue}>
