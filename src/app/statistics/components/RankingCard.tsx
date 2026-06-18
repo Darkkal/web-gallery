@@ -45,15 +45,15 @@ export default function RankingCard({
     itemId?: string | number,
   ) => {
     if (itemType === "tag") {
-      return `/gallery?search=tag:${encodeURIComponent(itemName)}`;
+      return `/gallery?search=tag:${encodeURIComponent(`${itemName} `)}`;
     }
     if (itemType === "user") {
       if (itemId) {
-        return `/gallery?search=handle:${encodeURIComponent(String(itemId))}`;
+        return `/gallery?search=handle:${encodeURIComponent(`${String(itemId)} `)}`;
       }
-      return `/gallery?search=user:${encodeURIComponent(itemName)}`;
+      return `/gallery?search=user:${encodeURIComponent(`${itemName} `)}`;
     }
-    return `/gallery?search=source:${encodeURIComponent(itemName)}`;
+    return `/gallery?search=source:${encodeURIComponent(`${itemName} `)}`;
   };
 
   // Human-readable titles for associations

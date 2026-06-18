@@ -31,6 +31,7 @@ test.describe("statistics navigation to gallery search", () => {
 
     const entityHref = await entityLink.getAttribute("href");
     expect(entityHref).toContain("/gallery?search=");
+    expect(entityHref?.endsWith("%20")).toBe(true);
 
     // Click the entity link and check redirection
     await entityLink.click();
@@ -45,6 +46,7 @@ test.describe("statistics navigation to gallery search", () => {
       await expect(associationLink).toBeVisible();
       const assocHref = await associationLink.getAttribute("href");
       expect(assocHref).toContain("/gallery?search=");
+      expect(assocHref?.endsWith("%20")).toBe(true);
 
       // Click the association link and check redirection
       await associationLink.click();
