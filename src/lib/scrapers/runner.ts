@@ -13,6 +13,30 @@ export interface ScrapeLimits {
   stopAfterPosts?: number;
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: Deep merge requires handling untyped JSON structures
+function deepMerge(target: any, source: any): any {
+  if (
+    target &&
+    typeof target === "object" &&
+    source &&
+    typeof source === "object"
+  ) {
+    if (Array.isArray(source)) {
+      return source;
+    }
+    const result = { ...target };
+    for (const key of Object.keys(source)) {
+      if (key in target) {
+        result[key] = deepMerge(target[key], source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+    return result;
+  }
+  return source !== undefined ? source : target;
+}
+
 export class ScraperRunner {
   private basePath: string;
 
@@ -67,15 +91,27 @@ export class ScraperRunner {
       }
     }
 
-    if (!fs.existsSync(configPath)) {
-      if (fs.existsSync(resolvedDefaultConfigPath)) {
-        fs.copyFileSync(resolvedDefaultConfigPath, configPath);
-      } else {
-        console.warn(
-          "Warning: gallery-dl-default.conf not found. Skipping default config creation.",
+    let defaultConfigJson: Record<string, unknown> = {};
+    if (fs.existsSync(resolvedDefaultConfigPath)) {
+      try {
+        defaultConfigJson = JSON.parse(
+          fs.readFileSync(resolvedDefaultConfigPath, "utf-8"),
         );
-      }
+      } catch {}
     }
+
+    let existingConfigJson: Record<string, unknown> = {};
+    if (fs.existsSync(configPath)) {
+      try {
+        existingConfigJson = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      } catch {}
+    }
+
+    // Merge existing config on top of the default template config
+    const configJson = deepMerge(defaultConfigJson, existingConfigJson);
+
+    // Write updated config
+    fs.writeFileSync(configPath, JSON.stringify(configJson, null, 4), "utf-8");
   }
 
   run(

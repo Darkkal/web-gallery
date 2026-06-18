@@ -112,6 +112,34 @@ export async function getAppSettings(): Promise<AppSettings> {
  * Saves both app and scraper settings to settings.json,
  * and updates gallery-dl.conf dynamically.
  */
+// biome-ignore lint/suspicious/noExplicitAny: Deep merge requires handling untyped JSON structures
+function deepMerge(target: any, source: any): any {
+  if (
+    target &&
+    typeof target === "object" &&
+    source &&
+    typeof source === "object"
+  ) {
+    if (Array.isArray(source)) {
+      return source;
+    }
+    const result = { ...target };
+    for (const key of Object.keys(source)) {
+      if (key in target) {
+        result[key] = deepMerge(target[key], source[key]);
+      } else {
+        result[key] = source[key];
+      }
+    }
+    return result;
+  }
+  return source !== undefined ? source : target;
+}
+
+/**
+ * Saves both app and scraper settings to settings.json,
+ * and updates gallery-dl.conf dynamically.
+ */
 export async function saveSettings(settings: SystemSettings): Promise<void> {
   // Ensure DATA_DIR and scraper directories exist
   const dirs = [paths.dataDir, paths.galleryDl.root];
@@ -156,35 +184,33 @@ export async function saveSettings(settings: SystemSettings): Promise<void> {
     }
   }
 
-  let configJson: Record<string, unknown> = {};
-
-  if (existsSync(configPath)) {
+  let defaultConfigJson: Record<string, unknown> = {};
+  if (existsSync(resolvedDefaultConfigPath)) {
     try {
-      configJson = JSON.parse(await fs.readFile(configPath, "utf-8")) as Record<
-        string,
-        unknown
-      >;
-    } catch (e) {
-      console.error(
-        "[Settings] Could not parse gallery-dl.conf, resetting to default:",
-        e,
-      );
-    }
-  }
-
-  // If config is empty, read from default template first
-  if (
-    Object.keys(configJson).length === 0 &&
-    existsSync(resolvedDefaultConfigPath)
-  ) {
-    try {
-      configJson = JSON.parse(
+      defaultConfigJson = JSON.parse(
         await fs.readFile(resolvedDefaultConfigPath, "utf-8"),
       ) as Record<string, unknown>;
     } catch (e) {
       console.error("[Settings] Could not parse default template config:", e);
     }
   }
+
+  let existingConfigJson: Record<string, unknown> = {};
+  if (existsSync(configPath)) {
+    try {
+      existingConfigJson = JSON.parse(
+        await fs.readFile(configPath, "utf-8"),
+      ) as Record<string, unknown>;
+    } catch (e) {
+      console.error(
+        "[Settings] Could not parse gallery-dl.conf, using default:",
+        e,
+      );
+    }
+  }
+
+  // Merge existing config on top of the default template config
+  const configJson = deepMerge(defaultConfigJson, existingConfigJson);
 
   // Merge scraper settings into configJson in a type-safe way
   const downloader = (configJson.downloader || {}) as Record<string, unknown>;
