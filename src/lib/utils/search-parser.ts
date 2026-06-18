@@ -103,8 +103,9 @@ export function parseSearchQuery(search: string = ""): ParsedSearchQuery {
   });
 
   // FTS5 syntax safety: remove characters that could cause SQLite parse errors if unbalanced/misused
+  // Preserves letters, numbers, spaces, colons (for column filters), and underscores.
   cleanQuery = cleanQuery
-    .replace(/[()"{}^*-]/g, " ")
+    .replace(/[^\p{L}\p{N}\s:_]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 
