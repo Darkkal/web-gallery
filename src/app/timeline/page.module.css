@@ -163,6 +163,16 @@
   color: #0096fa;
 }
 
+.badge.ehentai {
+  background: hsla(142, 70%, 45%, 0.15);
+  color: hsl(142, 70%, 45%);
+}
+
+.badge.exhentai {
+  background: hsla(0, 75%, 50%, 0.15);
+  color: hsl(0, 75%, 55%);
+}
+
 .sourceLink {
   color: hsl(var(--muted-foreground));
   text-decoration: none;

@@ -250,7 +250,14 @@ export async function syncLibrary(options?: SyncOptions) {
           ".png",
           ".gif",
           ".webp",
-        ].includes(ext)
+        ].includes(ext) ||
+        (ext === "" &&
+          (dir.toLowerCase().includes(`${path.sep}ehentai${path.sep}`) ||
+            dir.toLowerCase().includes(`${path.sep}exhentai${path.sep}`) ||
+            dir.toLowerCase().endsWith(`${path.sep}ehentai`) ||
+            dir.toLowerCase().endsWith(`${path.sep}exhentai`) ||
+            dir.toLowerCase().includes("/ehentai/") ||
+            dir.toLowerCase().includes("/exhentai/")))
       )
         group.mediaFiles.push(absPath);
     });
@@ -323,6 +330,8 @@ export async function syncLibrary(options?: SyncOptions) {
         { id: "pixiv", description: "Pixiv" },
         { id: "gelbooruv02", description: "Gelbooru/Safebooru" },
         { id: "gallery-dl", description: "Generic gallery-dl" },
+        { id: "ehentai", description: "E-Hentai" },
+        { id: "exhentai", description: "ExHentai" },
       ])
       .onConflictDoNothing();
 
@@ -335,7 +344,7 @@ export async function syncLibrary(options?: SyncOptions) {
     const processedPaths = new Set<string>();
     const tasks: ProcessTask[] = [];
 
-    for (const [, group] of dirGroups) {
+    for (const [dirPath, group] of dirGroups) {
       const mediaToJson = new Map<string, string>();
       const usedJsons = new Set<string>();
 
@@ -371,6 +380,24 @@ export async function syncLibrary(options?: SyncOptions) {
             }
           }
         }
+
+        // 3. Fallback for gallery-based platforms (e-hentai, exhentai) where images are named by page
+        // (e.g. 001.jpg, 002.jpg) and don't match the metadata filename (e.g. {gid}.json / None.json)
+        // but reside in the same directory.
+        if (!bestMatchJson && group.jsonFiles.length === 1) {
+          const dirLower = dirPath.toLowerCase();
+          if (
+            dirLower.includes(`${path.sep}ehentai${path.sep}`) ||
+            dirLower.includes(`${path.sep}exhentai${path.sep}`) ||
+            dirLower.endsWith(`${path.sep}ehentai`) ||
+            dirLower.endsWith(`${path.sep}exhentai`) ||
+            dirLower.includes("/ehentai/") ||
+            dirLower.includes("/exhentai/")
+          ) {
+            bestMatchJson = group.jsonFiles[0];
+          }
+        }
+
         if (bestMatchJson) {
           mediaToJson.set(mediaPath, bestMatchJson);
           usedJsons.add(bestMatchJson);

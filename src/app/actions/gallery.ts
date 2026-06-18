@@ -82,6 +82,10 @@ export async function refetchPostData(postIds: number[]) {
               isHostnameInDomain(hostname, "safebooru.org")
             ) {
               type = "gelbooruv02";
+            } else if (isHostnameInDomain(hostname, "e-hentai.org")) {
+              type = "ehentai";
+            } else if (isHostnameInDomain(hostname, "exhentai.org")) {
+              type = "exhentai";
             }
           } catch {}
 

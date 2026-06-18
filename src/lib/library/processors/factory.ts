@@ -1,4 +1,5 @@
 import type { IMetadataProcessor } from "@/lib/library/processors/base";
+import { EHentaiProcessor } from "@/lib/library/processors/ehentai";
 import { GelbooruProcessor } from "@/lib/library/processors/gelbooru";
 import { PixivProcessor } from "@/lib/library/processors/pixiv";
 import { TwitterProcessor } from "@/lib/library/processors/twitter";
@@ -12,6 +13,9 @@ export const MetadataProcessorFactory = {
         return new PixivProcessor();
       case "gelbooruv02":
         return new GelbooruProcessor();
+      case "ehentai":
+      case "exhentai":
+        return new EHentaiProcessor(extractorType);
       default:
         return null;
     }

@@ -9,7 +9,7 @@ import {
 } from "@/lib/db/schema";
 
 export async function addSource(url: string, name?: string) {
-  let type: "twitter" | "pixiv" | "gallery-dl" | "gelbooruv02" = "gallery-dl";
+  let type: string = "gallery-dl";
 
   try {
     const parsed = new URL(url);
@@ -31,6 +31,16 @@ export async function addSource(url: string, name?: string) {
       hostname.endsWith(".safebooru.org")
     ) {
       type = "gelbooruv02";
+    } else if (
+      hostname === "e-hentai.org" ||
+      hostname.endsWith(".e-hentai.org")
+    ) {
+      type = "ehentai";
+    } else if (
+      hostname === "exhentai.org" ||
+      hostname.endsWith(".exhentai.org")
+    ) {
+      type = "exhentai";
     }
   } catch {
     // Treat as generic gallery-dl

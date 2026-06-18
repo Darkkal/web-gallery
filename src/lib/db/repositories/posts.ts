@@ -28,7 +28,7 @@ import { parseSearchQuery } from "@/lib/utils/search-parser";
 
 export type TimelinePost = {
   id: string;
-  type: "twitter" | "pixiv" | "other";
+  type: "twitter" | "pixiv" | "ehentai" | "exhentai" | "other";
   internalDbId?: number;
   date: Date;
   author?: {
@@ -261,9 +261,11 @@ export async function getTimelinePosts(filters?: {
 
   const timelinePosts: TimelinePost[] = rawPosts.map((row) => {
     let stats: TimelinePost["stats"];
-    let type: "twitter" | "pixiv" | "other" = "other";
+    let type: "twitter" | "pixiv" | "ehentai" | "exhentai" | "other" = "other";
     if (row.post.extractorType === "twitter") type = "twitter";
     else if (row.post.extractorType === "pixiv") type = "pixiv";
+    else if (row.post.extractorType === "ehentai") type = "ehentai";
+    else if (row.post.extractorType === "exhentai") type = "exhentai";
 
     let author: TimelinePost["author"];
     let pixivMetadata: TimelinePost["pixivMetadata"];
@@ -281,6 +283,11 @@ export async function getTimelinePosts(filters?: {
         handle: row.user?.nick || undefined,
         avatar: row.user?.id ? `/api/avatar/twitter/${row.user.id}` : undefined,
         url: row.user ? `https://twitter.com/${row.user.nick}` : undefined,
+      };
+    } else if (type === "ehentai" || type === "exhentai") {
+      author = {
+        name: row.post.userId || "Anonymous",
+        handle: undefined,
       };
     } else if (type === "pixiv") {
       stats = {

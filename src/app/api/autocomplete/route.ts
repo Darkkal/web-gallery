@@ -45,7 +45,13 @@ export async function GET(request: NextRequest) {
       case "source":
       case "extractor": {
         // For source and extractor, return static values matching posts.extractorType
-        const staticValues = ["twitter", "pixiv", "gelbooruv02"];
+        const staticValues = [
+          "twitter",
+          "pixiv",
+          "gelbooruv02",
+          "ehentai",
+          "exhentai",
+        ];
         suggestions = staticValues
           .filter((v) => v.startsWith(q.toLowerCase()))
           .map((v) => ({
