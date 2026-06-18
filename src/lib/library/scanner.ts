@@ -323,6 +323,8 @@ export async function syncLibrary(options?: SyncOptions) {
         { id: "pixiv", description: "Pixiv" },
         { id: "gelbooruv02", description: "Gelbooru/Safebooru" },
         { id: "gallery-dl", description: "Generic gallery-dl" },
+        { id: "ehentai", description: "E-Hentai" },
+        { id: "exhentai", description: "ExHentai" },
       ])
       .onConflictDoNothing();
 
