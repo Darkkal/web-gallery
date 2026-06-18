@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { postTags, tags } from "@/lib/db/schema";
 
@@ -79,6 +79,24 @@ export async function bulkLinkTagToPosts(
     .insert(postTags)
     .values(insertRows)
     .onConflictDoNothing()
+    .returning();
+
+  return result.length;
+}
+
+/**
+ * Unlinks multiple tags from a post.
+ * Returns the count of links removed.
+ */
+export async function unlinkTagsFromPost(
+  tagIds: number[],
+  postId: number,
+): Promise<number> {
+  if (tagIds.length === 0) return 0;
+
+  const result = await db
+    .delete(postTags)
+    .where(and(inArray(postTags.tagId, tagIds), eq(postTags.postId, postId)))
     .returning();
 
   return result.length;
