@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import {
+  index,
   integer,
   primaryKey,
   sqliteTable,
@@ -28,61 +29,82 @@ export const sources = sqliteTable("sources", {
   deletedAt: integer("deleted_at", { mode: "timestamp" }),
 });
 
-export const scraperDownloadLogs = sqliteTable("scraper_download_logs", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  sourceId: integer("source_id")
-    .references(() => sources.id, { onDelete: "cascade" })
-    .notNull(),
-  filePath: text("file_path").notNull().unique(), // Unique path to map back to source
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
-    () => new Date(),
-  ),
-});
-
-export const scrapingTasks = sqliteTable("scraping_tasks", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  sourceId: integer("source_id")
-    .references(() => sources.id, { onDelete: "cascade" })
-    .notNull(),
-  name: text("name"),
-  downloadOptions: text("download_options", { mode: "json" }).$type<{
-    stopAfterCompleted?: number;
-    stopAfterSkipped?: number;
-    stopAfterPosts?: number;
-  }>(),
-  scheduleInterval: integer("schedule_interval"), // in seconds
-  scheduleCron: text("schedule_cron"), // cron pattern string
-  nextRunAt: integer("next_run_at", { mode: "timestamp" }),
-  lastRunAt: integer("last_run_at", { mode: "timestamp" }),
-  enabled: integer("enabled", { mode: "boolean" }).default(true),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
-    () => new Date(),
-  ),
-});
-
-export const scrapeHistory = sqliteTable("scrape_history", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  sourceId: integer("source_id")
-    .references(() => sources.id, { onDelete: "cascade" })
-    .notNull(),
-  startTime: integer("start_time", { mode: "timestamp" }).notNull(),
-  endTime: integer("end_time", { mode: "timestamp" }),
-  status: text("status")
-    .$type<"running" | "completed" | "stopped" | "failed">()
-    .notNull(),
-  filesDownloaded: integer("files_downloaded").default(0),
-  bytesDownloaded: integer("bytes_downloaded").default(0),
-  errorCount: integer("error_count").default(0),
-  skippedCount: integer("skipped_count").default(0),
-  postsProcessed: integer("posts_processed").default(0),
-  averageSpeed: integer("average_speed").default(0), // bytes per second
-  lastError: text("last_error"),
-  logPath: text("log_path"),
-  cursor: text("cursor"), // gallery-dl resume cursor for continuing failed scrapes
-  taskId: integer("task_id").references(() => scrapingTasks.id, {
-    onDelete: "set null",
+export const scraperDownloadLogs = sqliteTable(
+  "scraper_download_logs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    sourceId: integer("source_id")
+      .references(() => sources.id, { onDelete: "cascade" })
+      .notNull(),
+    filePath: text("file_path").notNull().unique(), // Unique path to map back to source
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    sourceIdIdx: index("idx_scraper_download_logs_source_id").on(
+      table.sourceId,
+    ),
   }),
-});
+);
+
+export const scrapingTasks = sqliteTable(
+  "scraping_tasks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    sourceId: integer("source_id")
+      .references(() => sources.id, { onDelete: "cascade" })
+      .notNull(),
+    name: text("name"),
+    downloadOptions: text("download_options", { mode: "json" }).$type<{
+      stopAfterCompleted?: number;
+      stopAfterSkipped?: number;
+      stopAfterPosts?: number;
+    }>(),
+    scheduleInterval: integer("schedule_interval"), // in seconds
+    scheduleCron: text("schedule_cron"), // cron pattern string
+    nextRunAt: integer("next_run_at", { mode: "timestamp" }),
+    lastRunAt: integer("last_run_at", { mode: "timestamp" }),
+    enabled: integer("enabled", { mode: "boolean" }).default(true),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    sourceIdIdx: index("idx_scraping_tasks_source_id").on(table.sourceId),
+  }),
+);
+
+export const scrapeHistory = sqliteTable(
+  "scrape_history",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    sourceId: integer("source_id")
+      .references(() => sources.id, { onDelete: "cascade" })
+      .notNull(),
+    startTime: integer("start_time", { mode: "timestamp" }).notNull(),
+    endTime: integer("end_time", { mode: "timestamp" }),
+    status: text("status")
+      .$type<"running" | "completed" | "stopped" | "failed">()
+      .notNull(),
+    filesDownloaded: integer("files_downloaded").default(0),
+    bytesDownloaded: integer("bytes_downloaded").default(0),
+    errorCount: integer("error_count").default(0),
+    skippedCount: integer("skipped_count").default(0),
+    postsProcessed: integer("posts_processed").default(0),
+    averageSpeed: integer("average_speed").default(0), // bytes per second
+    lastError: text("last_error"),
+    logPath: text("log_path"),
+    cursor: text("cursor"), // gallery-dl resume cursor for continuing failed scrapes
+    taskId: integer("task_id").references(() => scrapingTasks.id, {
+      onDelete: "set null",
+    }),
+  },
+  (table) => ({
+    sourceIdIdx: index("idx_scrape_history_source_id").on(table.sourceId),
+    taskIdIdx: index("idx_scrape_history_task_id").on(table.taskId),
+  }),
+);
 
 export const scanHistory = sqliteTable("scan_history", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -132,108 +154,143 @@ export const pixivUsers = sqliteTable("pixiv_users", {
   isAcceptRequest: integer("is_accept_request", { mode: "boolean" }),
 });
 
-export const posts = sqliteTable("posts", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  extractorType: text("extractor_type").notNull(), // 'twitter', 'pixiv', 'gelbooruv02'
-  jsonSourceId: text("json_source_id"), // Original platform ID (tweet_id, pixiv_id)
-  internalSourceId: integer("internal_source_id").references(() => sources.id, {
-    onDelete: "cascade",
+export const posts = sqliteTable(
+  "posts",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    extractorType: text("extractor_type").notNull(), // 'twitter', 'pixiv', 'gelbooruv02'
+    jsonSourceId: text("json_source_id"), // Original platform ID (tweet_id, pixiv_id)
+    internalSourceId: integer("internal_source_id").references(
+      () => sources.id,
+      {
+        onDelete: "cascade",
+      },
+    ),
+    userId: text("user_id"), // Generic user identifier
+    date: text("date"), // Original creation date
+    title: text("title"),
+    content: text("content"), // caption, body, etc.
+    url: text("url"), // Link to original post
+    metadataPath: text("metadata_path"), // Path to the JSON metadata file
+    isSourceDeleted: integer("is_source_deleted", { mode: "boolean" }).default(
+      false,
+    ),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+  },
+  (table) => ({
+    internalSourceIdIdx: index("idx_posts_internal_source_id").on(
+      table.internalSourceId,
+    ),
   }),
-  userId: text("user_id"), // Generic user identifier
-  date: text("date"), // Original creation date
-  title: text("title"),
-  content: text("content"), // caption, body, etc.
-  url: text("url"), // Link to original post
-  metadataPath: text("metadata_path"), // Path to the JSON metadata file
-  isSourceDeleted: integer("is_source_deleted", { mode: "boolean" }).default(
-    false,
-  ),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
-    () => new Date(),
-  ),
-  deletedAt: integer("deleted_at", { mode: "timestamp" }),
-});
+);
 
-export const postDetailsTwitter = sqliteTable("post_details_twitter", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  postId: integer("post_id")
-    .references(() => posts.id, { onDelete: "cascade" })
-    .notNull(),
-  retweetId: text("retweet_id"),
-  quoteId: text("quote_id"),
-  replyId: text("reply_id"),
-  conversationId: text("conversation_id"),
-  lang: text("lang"),
-  source: text("source"),
-  sensitive: integer("sensitive", { mode: "boolean" }),
-  sensitiveFlags: text("sensitive_flags", { mode: "json" }),
-  favoriteCount: integer("favorite_count"),
-  quoteCount: integer("quote_count"),
-  replyCount: integer("reply_count"),
-  retweetCount: integer("retweet_count"),
-  bookmarkCount: integer("bookmark_count"),
-  viewCount: integer("view_count"),
-  category: text("category"),
-  subcategory: text("subcategory"),
-});
-
-export const postDetailsPixiv = sqliteTable("post_details_pixiv", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  postId: integer("post_id")
-    .references(() => posts.id, { onDelete: "cascade" })
-    .notNull(),
-  width: integer("width"),
-  height: integer("height"),
-  pageCount: integer("page_count"),
-  restrict: integer("restrict"),
-  xRestrict: integer("x_restrict"),
-  sanityLevel: integer("sanity_level"),
-  totalView: integer("total_view"),
-  totalBookmarks: integer("total_bookmarks"),
-  isBookmarked: integer("is_bookmarked", { mode: "boolean" }),
-  visible: integer("visible", { mode: "boolean" }),
-  isMuted: integer("is_muted", { mode: "boolean" }),
-  illustAiType: integer("illust_ai_type"),
-  illustBookStyle: integer("illust_book_style"),
-  tags: text("tags", { mode: "json" }),
-  category: text("category"),
-  subcategory: text("subcategory"),
-  type: text("type"), // illust, manga, ugoira
-});
-
-export const postDetailsGelbooruV02 = sqliteTable("post_details_gelbooruv02", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  postId: integer("post_id")
-    .references(() => posts.id, { onDelete: "cascade" })
-    .notNull(),
-  rating: text("rating"),
-  score: integer("score"),
-  md5: text("md5"),
-  width: integer("width"),
-  height: integer("height"),
-  tags: text("tags", { mode: "json" }),
-  directory: text("directory"),
-  source: text("source"),
-});
-
-export const mediaItems = sqliteTable("media_items", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  filePath: text("file_path").notNull(),
-  mediaType: text("media_type")
-    .$type<"image" | "video" | "audio" | "text">()
-    .default("image"),
-  capturedAt: integer("captured_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
-    () => new Date(),
-  ),
-  width: integer("width"),
-  height: integer("height"),
-
-  // Relationship
-  postId: integer("post_id").references(() => posts.id, {
-    onDelete: "set null",
+export const postDetailsTwitter = sqliteTable(
+  "post_details_twitter",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    postId: integer("post_id")
+      .references(() => posts.id, { onDelete: "cascade" })
+      .notNull(),
+    retweetId: text("retweet_id"),
+    quoteId: text("quote_id"),
+    replyId: text("reply_id"),
+    conversationId: text("conversation_id"),
+    lang: text("lang"),
+    source: text("source"),
+    sensitive: integer("sensitive", { mode: "boolean" }),
+    sensitiveFlags: text("sensitive_flags", { mode: "json" }),
+    favoriteCount: integer("favorite_count"),
+    quoteCount: integer("quote_count"),
+    replyCount: integer("reply_count"),
+    retweetCount: integer("retweet_count"),
+    bookmarkCount: integer("bookmark_count"),
+    viewCount: integer("view_count"),
+    category: text("category"),
+    subcategory: text("subcategory"),
+  },
+  (table) => ({
+    postIdIdx: index("idx_post_details_twitter_post_id").on(table.postId),
   }),
-});
+);
+
+export const postDetailsPixiv = sqliteTable(
+  "post_details_pixiv",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    postId: integer("post_id")
+      .references(() => posts.id, { onDelete: "cascade" })
+      .notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    pageCount: integer("page_count"),
+    restrict: integer("restrict"),
+    xRestrict: integer("x_restrict"),
+    sanityLevel: integer("sanity_level"),
+    totalView: integer("total_view"),
+    totalBookmarks: integer("total_bookmarks"),
+    isBookmarked: integer("is_bookmarked", { mode: "boolean" }),
+    visible: integer("visible", { mode: "boolean" }),
+    isMuted: integer("is_muted", { mode: "boolean" }),
+    illustAiType: integer("illust_ai_type"),
+    illustBookStyle: integer("illust_book_style"),
+    tags: text("tags", { mode: "json" }),
+    category: text("category"),
+    subcategory: text("subcategory"),
+    type: text("type"), // illust, manga, ugoira
+  },
+  (table) => ({
+    postIdIdx: index("idx_post_details_pixiv_post_id").on(table.postId),
+  }),
+);
+
+export const postDetailsGelbooruV02 = sqliteTable(
+  "post_details_gelbooruv02",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    postId: integer("post_id")
+      .references(() => posts.id, { onDelete: "cascade" })
+      .notNull(),
+    rating: text("rating"),
+    score: integer("score"),
+    md5: text("md5"),
+    width: integer("width"),
+    height: integer("height"),
+    tags: text("tags", { mode: "json" }),
+    directory: text("directory"),
+    source: text("source"),
+  },
+  (table) => ({
+    postIdIdx: index("idx_post_details_gelbooruv02_post_id").on(table.postId),
+  }),
+);
+
+export const mediaItems = sqliteTable(
+  "media_items",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    filePath: text("file_path").notNull(),
+    mediaType: text("media_type")
+      .$type<"image" | "video" | "audio" | "text">()
+      .default("image"),
+    capturedAt: integer("captured_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+    width: integer("width"),
+    height: integer("height"),
+
+    // Relationship
+    postId: integer("post_id").references(() => posts.id, {
+      onDelete: "set null",
+    }),
+  },
+  (table) => ({
+    postIdIdx: index("idx_media_items_post_id").on(table.postId),
+  }),
+);
 
 export const playlists = sqliteTable("playlists", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -248,19 +305,28 @@ export const playlists = sqliteTable("playlists", {
   ),
 });
 
-export const playlistItems = sqliteTable("playlist_items", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  playlistId: integer("playlist_id")
-    .references(() => playlists.id, { onDelete: "cascade" })
-    .notNull(),
-  mediaItemId: integer("media_item_id")
-    .references(() => mediaItems.id, { onDelete: "cascade" })
-    .notNull(),
-  position: integer("position").notNull().default(0),
-  addedAt: integer("added_at", { mode: "timestamp" }).$defaultFn(
-    () => new Date(),
-  ),
-});
+export const playlistItems = sqliteTable(
+  "playlist_items",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    playlistId: integer("playlist_id")
+      .references(() => playlists.id, { onDelete: "cascade" })
+      .notNull(),
+    mediaItemId: integer("media_item_id")
+      .references(() => mediaItems.id, { onDelete: "cascade" })
+      .notNull(),
+    position: integer("position").notNull().default(0),
+    addedAt: integer("added_at", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    playlistIdIdx: index("idx_playlist_items_playlist_id").on(table.playlistId),
+    mediaItemIdIdx: index("idx_playlist_items_media_item_id").on(
+      table.mediaItemId,
+    ),
+  }),
+);
 
 export const tags = sqliteTable("tags", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -279,6 +345,7 @@ export const postTags = sqliteTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.tagId, t.postId] }),
+    postIdIdx: index("idx_post_tags_post_id").on(t.postId),
   }),
 );
 
