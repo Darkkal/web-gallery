@@ -11,6 +11,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "test:e2e": "playwright test",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:unit:coverage": "vitest run --coverage",
     "prepare": "husky",
     "build:release": "node scripts/build-release.js"
   },
@@ -31,11 +34,13 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.9",
     "@yao-pkg/pkg": "^6.20.0",
     "drizzle-kit": "^0.31.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "^4.1.9"
   },
   "lint-staged": {
     "*.(js|jsx|ts|tsx|json|css)": [
