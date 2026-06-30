@@ -1,16 +1,16 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { postTags, tagCategories, tags } from "@/lib/db/schema";
-import type { TagCategory } from "@/types/media";
+import type { TagCategory, TagWithCategory } from "@/types/media";
 
 /**
- * Inserts a tag if it doesn't exist, and returns the tag record (id, name, categoryId).
+ * Inserts a tag if it doesn't exist, and returns the tag record with its category (id, name, categoryId, category).
  */
 export async function createOrFindTag(
   name: string,
   categoryId?: number | null,
 ): Promise<{
-  tag: { id: number; name: string; categoryId: number | null };
+  tag: TagWithCategory;
   isNew: boolean;
 }> {
   const result = await db
@@ -23,6 +23,7 @@ export async function createOrFindTag(
 
   const tag = await db.query.tags.findFirst({
     where: eq(tags.name, name),
+    with: { category: true },
   });
 
   if (!tag) {
@@ -201,6 +202,12 @@ export async function deleteCategory(id: number): Promise<boolean> {
   if (category.isBuiltin) {
     throw new Error("Built-in categories cannot be deleted");
   }
+
+  // Explicitly set categoryId to null for all tags in this category to avoid FK constraint issues
+  await db
+    .update(tags)
+    .set({ categoryId: null })
+    .where(eq(tags.categoryId, id));
 
   const result = await db
     .delete(tagCategories)

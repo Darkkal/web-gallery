@@ -22,7 +22,7 @@ import type {
 } from "@/lib/metadata";
 import { handleKeyActivate } from "@/lib/utils/a11y";
 import { encodeFilePath } from "@/lib/utils/format";
-import type { GalleryRow } from "@/types/media";
+import type { GalleryRow, TagWithCategory } from "@/types/media";
 
 interface LightboxProps {
   row: GalleryRow;
@@ -61,7 +61,7 @@ export default function Lightbox({
 }: LightboxProps) {
   const { item } = row;
   const [showInfo, setShowInfo] = useState(true);
-  const [postTags, setPostTags] = useState<{ id: number; name: string }[]>([]);
+  const [postTags, setPostTags] = useState<TagWithCategory[]>([]);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isRecentlyMounted, setIsRecentlyMounted] = useState(true);
   const [isRemovalMode, setIsRemovalMode] = useState(false);
@@ -701,10 +701,19 @@ export default function Lightbox({
                   <button
                     type="button"
                     key={tag.id}
-                    className={styles.tagChipSelectable}
+                    className={`${styles.tagChipSelectable} ${tag.category ? styles.hasCategory : ""}`}
                     data-selected={selectedTagIds.has(tag.id)}
                     onClick={() => toggleTagSelection(tag.id)}
                     aria-pressed={selectedTagIds.has(tag.id)}
+                    style={
+                      tag.category
+                        ? ({
+                            "--tag-hue": tag.category.colorHue,
+                            "--tag-sat": `${tag.category.colorSaturation}%`,
+                            "--tag-lgt": `${tag.category.colorLightness}%`,
+                          } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <span className={styles.tagName}>#{tag.name}</span>
                   </button>
@@ -712,8 +721,17 @@ export default function Lightbox({
                   <button
                     type="button"
                     key={tag.id}
-                    className={styles.tagChipClickable}
+                    className={`${styles.tagChipClickable} ${tag.category ? styles.hasCategory : ""}`}
                     onClick={() => handleTagClick(tag.name)}
+                    style={
+                      tag.category
+                        ? ({
+                            "--tag-hue": tag.category.colorHue,
+                            "--tag-sat": `${tag.category.colorSaturation}%`,
+                            "--tag-lgt": `${tag.category.colorLightness}%`,
+                          } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <span className={styles.tagName}>#{tag.name}</span>
                   </button>
