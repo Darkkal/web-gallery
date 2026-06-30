@@ -58,6 +58,8 @@ Client pages consume this with a "Load More" button that calls the Route Handler
 - **Rule**: When adding support for a new platform, implement a new strategy/processor. Never add `if/else` platform logic to base classes.
 - **Rule**: Post-scrape scans must be incremental (file-level targeted via `queueIncrementalScan`) and go through the scan queue. The manual "Scan Library" button triggers a full scan via `queueScan({ scanType: "full" })`. Never call `syncLibrary()` directly — always use the queue functions to ensure serialization.
 - **Rule**: If a new extractor introduces new searchable metadata columns that are added to the FTS5 virtual table, you MUST update the `ftsColumnAliases` dictionary in `src/lib/utils/search-parser.ts` to map any friendly search prefixes to the new FTS5 column. This dictionary doubles as the allowlist for valid column filters.
+- **Rule**: Tag categories are resolved using query-time relationships. Metadata processors (like Gelbooru or E-Hentai) must strip category prefixes (e.g. `character:`, `artist:`, `copyright:`) from the tag name and map them to their corresponding `categoryId` from the preloaded `categoryMap` cache. Do not store prefixed tags in the database.
+
 
 ### 1.5 Styling System — CSS Modules + Design Tokens
 
@@ -70,6 +72,7 @@ Client pages consume this with a "Load More" button that calls the Route Handler
 - **Rule**: NEVER use Tailwind utility classes — Tailwind is not installed.
 - **Rule**: NEVER hardcode hex colors (`#4ade80`, `#888`) or inline `style={{ color: ... }}`. Use CSS Module classes referencing `hsl(var(--token))`.
 - **Rule**: Only use inline `style={{}}` for truly dynamic runtime values (e.g., `backgroundImage` with a URL, conditional cursor styles). All static styling belongs in CSS Modules.
+- **Rule**: Category badges and chip highlights must use inline styles to pass dynamic HSL color variables (`--tag-hue`, `--tag-sat`, `--tag-lgt`) populated from the category database values. These custom variables are then referenced using `hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt))` in the co-located CSS modules.
 - **Rule**: For status indicators, use `data-attribute` selectors in CSS rather than conditional inline styles:
 
   ```tsx

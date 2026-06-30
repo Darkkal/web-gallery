@@ -449,7 +449,7 @@ gallerydl_extractor_types   (id: 'twitter' | 'pixiv' | 'gelbooruv02' | ...)
                                               │
                                               └──> playlists (name, description, thumbnail)
 
-tags ──< post_tags >──< posts
+tag_categories ──< tags ──< post_tags >──< posts
 
 twitter_users  (profile, stats — standalone, linked via posts.userId)
 pixiv_users    (profile — standalone, linked via posts.userId)
@@ -465,6 +465,7 @@ statistics_history (standalone: daily snapshots for historical cumulative growth
 - `media_items.postId → posts.id` (`SET NULL` on delete — media survives post deletion)
 - `playlist_items` is the many-to-many join between `media_items` and `playlists` (maintaining order position)
 - `post_tags` is the many-to-many join between `posts` and `tags`
+- `tags.categoryId → tag_categories.id` (`SET NULL` on delete — assigns a customizable HSL-colored category to a tag)
 - Platform detail tables (`post_details_*`) are one-to-one with `posts`
 
 ---
