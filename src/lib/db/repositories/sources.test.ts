@@ -25,7 +25,7 @@ activeDb = testDb;
 
 // Import modules under test
 import { eq } from "drizzle-orm";
-import { sources } from "../schema";
+import { scrapeHistory, sources } from "../schema";
 import {
   addSource,
   deleteSource,
@@ -144,7 +144,7 @@ describe("Sources Repository", () => {
 
       // Add scrape history
       const now = new Date();
-      await testDb.insert(testDbHelper.db.query.scrapeHistory.table).values({
+      await testDb.insert(scrapeHistory).values({
         sourceId: source.id,
         startTime: now,
         status: "completed",

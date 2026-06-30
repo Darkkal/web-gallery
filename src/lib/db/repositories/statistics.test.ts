@@ -84,7 +84,8 @@ const testDb = testDbHelper.db;
 activeDb = testDb;
 
 import { getAppSettings } from "@/lib/settings";
-import { postTags } from "../schema";
+import type { AppSettings } from "@/types/settings";
+import { libraryStatistics, postTags } from "../schema";
 import {
   getHistory,
   getStatistics,
@@ -105,7 +106,7 @@ describe("Statistics Repository", () => {
     await testDbHelper.clearDb();
     vi.mocked(getAppSettings).mockResolvedValue({
       computeStorageStatistics: true,
-    } as unknown as Parameters<typeof vi.mocked<() => Promise<unknown>>>[0]);
+    } as unknown as AppSettings);
   });
 
   describe("recomputeStatistics", () => {
@@ -130,20 +131,18 @@ describe("Statistics Repository", () => {
     it("should fallback to previous storage size if computeStorageStatistics is false", async () => {
       vi.mocked(getAppSettings).mockResolvedValue({
         computeStorageStatistics: false,
-      } as unknown as Parameters<typeof vi.mocked<() => Promise<unknown>>>[0]);
+      } as unknown as AppSettings);
 
       // Pre-seed some statistics with a custom storage size
-      await testDb
-        .insert(testDbHelper.db.query.libraryStatistics.table)
-        .values({
-          totalPosts: 0,
-          totalMediaItems: 0,
-          totalTags: 0,
-          totalUsers: 0,
-          totalExtractors: 0,
-          storageBytes: 9999,
-          updatedAt: Date.now(),
-        });
+      await testDb.insert(libraryStatistics).values({
+        totalPosts: 0,
+        totalMediaItems: 0,
+        totalTags: 0,
+        totalUsers: 0,
+        totalExtractors: 0,
+        storageBytes: 9999,
+        updatedAt: Date.now(),
+      });
 
       const stats = await recomputeStatistics();
       expect(stats.storageBytes).toBe(9999);
