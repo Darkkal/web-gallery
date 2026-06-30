@@ -94,6 +94,7 @@ export function setupTestDb() {
     const tables = [
       "post_tags",
       "tags",
+      "tag_categories",
       "playlist_items",
       "playlists",
       "media_items",

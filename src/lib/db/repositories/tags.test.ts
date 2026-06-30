@@ -1,6 +1,12 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { setupTestDb } from "../../../../tests/unit/helpers/db";
-import { seedPost, seedSource } from "../../../../tests/unit/helpers/seed";
+import {
+  seedBuiltinCategories,
+  seedPost,
+  seedSource,
+  seedTag,
+  seedTagCategory,
+} from "../../../../tests/unit/helpers/seed";
 
 let activeDb: ReturnType<typeof setupTestDb>["db"];
 
@@ -19,13 +25,19 @@ activeDb = testDbHelper.db;
 
 // Import the module under test after vi.mock
 import { eq } from "drizzle-orm";
-import { postTags, tags } from "../schema";
+import { postTags, tagCategories, tags } from "../schema";
 import {
   bulkLinkTagToPosts,
+  bulkSetTagCategory,
+  createCategory,
   createOrFindTag,
+  deleteCategory,
+  getAllCategories,
   linkTagToPost,
+  setTagCategory,
   unlinkTagFromPost,
   unlinkTagsFromPost,
+  updateCategory,
 } from "./tags";
 
 describe("Tags Repository", () => {
@@ -179,6 +191,154 @@ describe("Tags Repository", () => {
       const post = await seedPost(testDbHelper.db, source.id);
       const count = await unlinkTagsFromPost([], post.id);
       expect(count).toBe(0);
+    });
+  });
+
+  describe("createOrFindTag with categoryId", () => {
+    it("should set categoryId on new tags, and preserve existing tag categoryId on conflict", async () => {
+      const category = await seedTagCategory(testDbHelper.db, "character");
+      const { tag, isNew } = await createOrFindTag(
+        "character_tag",
+        category.id,
+      );
+      expect(isNew).toBe(true);
+      expect(tag.categoryId).toBe(category.id);
+
+      const otherCategory = await seedTagCategory(testDbHelper.db, "artist");
+      const secondCall = await createOrFindTag(
+        "character_tag",
+        otherCategory.id,
+      );
+      expect(secondCall.isNew).toBe(false);
+      expect(secondCall.tag.categoryId).toBe(category.id); // Should preserve original character.id
+    });
+  });
+
+  describe("getAllCategories", () => {
+    it("should retrieve all categories including builtins", async () => {
+      await seedBuiltinCategories(testDbHelper.db);
+      await seedTagCategory(testDbHelper.db, "custom_cat");
+
+      const cats = await getAllCategories();
+      expect(cats.length).toBe(6);
+      expect(cats.map((c) => c.name)).toContain("custom_cat");
+      expect(cats.find((c) => c.name === "general")?.isBuiltin).toBe(true);
+    });
+  });
+
+  describe("createCategory", () => {
+    it("should create a custom category", async () => {
+      const cat = await createCategory({
+        name: "special",
+        colorHue: 200,
+        colorSaturation: 80,
+        colorLightness: 50,
+      });
+
+      expect(cat.name).toBe("special");
+      expect(cat.isBuiltin).toBe(false);
+      expect(cat.colorHue).toBe(200);
+
+      // Verify in DB
+      const result = await testDbHelper.db
+        .select()
+        .from(tagCategories)
+        .where(eq(tagCategories.name, "special"));
+      expect(result.length).toBe(1);
+    });
+  });
+
+  describe("updateCategory", () => {
+    it("should update custom category colors and name", async () => {
+      const cat = await seedTagCategory(testDbHelper.db, "custom");
+      const updated = await updateCategory(cat.id, {
+        name: "renamed-custom",
+        colorHue: 100,
+      });
+
+      expect(updated.name).toBe("renamed-custom");
+      expect(updated.colorHue).toBe(100);
+    });
+
+    it("should fail to rename a builtin category but allow updating its color", async () => {
+      await seedBuiltinCategories(testDbHelper.db);
+      const [general] = await testDbHelper.db
+        .select()
+        .from(tagCategories)
+        .where(eq(tagCategories.name, "general"))
+        .limit(1);
+
+      await expect(
+        updateCategory(general.id, { name: "not-general" }),
+      ).rejects.toThrow("Built-in categories cannot be renamed");
+
+      const updated = await updateCategory(general.id, { colorHue: 300 });
+      expect(updated.colorHue).toBe(300);
+      expect(updated.name).toBe("general");
+    });
+  });
+
+  describe("deleteCategory", () => {
+    it("should delete custom category and set referenced tag category_id to NULL", async () => {
+      const cat = await seedTagCategory(testDbHelper.db, "custom");
+      const tag = await seedTag(testDbHelper.db, "tagged", cat.id);
+
+      const success = await deleteCategory(cat.id);
+      expect(success).toBe(true);
+
+      const dbTag = await testDbHelper.db
+        .select()
+        .from(tags)
+        .where(eq(tags.id, tag.id))
+        .limit(1);
+      expect(dbTag[0].categoryId).toBeNull();
+    });
+
+    it("should fail to delete a builtin category", async () => {
+      await seedBuiltinCategories(testDbHelper.db);
+      const [general] = await testDbHelper.db
+        .select()
+        .from(tagCategories)
+        .where(eq(tagCategories.name, "general"))
+        .limit(1);
+
+      await expect(deleteCategory(general.id)).rejects.toThrow(
+        "Built-in categories cannot be deleted",
+      );
+    });
+  });
+
+  describe("setTagCategory", () => {
+    it("should set category of a tag", async () => {
+      const cat = await seedTagCategory(testDbHelper.db, "my-category");
+      const tag = await seedTag(testDbHelper.db, "my-tag");
+
+      const success = await setTagCategory(tag.id, cat.id);
+      expect(success).toBe(true);
+
+      const dbTag = await testDbHelper.db
+        .select()
+        .from(tags)
+        .where(eq(tags.id, tag.id))
+        .limit(1);
+      expect(dbTag[0].categoryId).toBe(cat.id);
+    });
+  });
+
+  describe("bulkSetTagCategory", () => {
+    it("should set category on multiple tags", async () => {
+      const cat = await seedTagCategory(testDbHelper.db, "bulk-category");
+      const tag1 = await seedTag(testDbHelper.db, "t1");
+      const tag2 = await seedTag(testDbHelper.db, "t2");
+
+      const count = await bulkSetTagCategory([tag1.id, tag2.id], cat.id);
+      expect(count).toBe(2);
+
+      const dbTags = await testDbHelper.db
+        .select()
+        .from(tags)
+        .where(eq(tags.categoryId, cat.id));
+      expect(dbTags.length).toBe(2);
     });
   });
 });
