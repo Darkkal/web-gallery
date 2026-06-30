@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/Darkkal/web-gallery/compare/v0.5.0...v0.5.1) (2026-06-30)
+
+
+### Bug Fixes
+
+* **media:** improve compatibility with complex gallery-dl filenames ([cd63071](https://github.com/Darkkal/web-gallery/commit/cd63071fdb4725a208204677ab9255dbd7f4f432))
+
 ## [0.5.0](https://github.com/Darkkal/web-gallery/compare/v0.4.0...v0.5.0) (2026-06-18)
 
 
