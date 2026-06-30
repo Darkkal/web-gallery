@@ -7,10 +7,18 @@ import type {
   postDetailsTwitter,
   posts,
   sources,
+  tagCategories,
+  tags,
   twitterUsers,
 } from "@/lib/db/schema";
 
 export interface MediaItem extends InferSelectModel<typeof mediaItems> {}
+
+export interface TagCategory extends InferSelectModel<typeof tagCategories> {}
+
+export interface TagWithCategory extends InferSelectModel<typeof tags> {
+  category: TagCategory | null;
+}
 
 export interface GalleryRow {
   item: MediaItem;
