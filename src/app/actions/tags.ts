@@ -1,72 +1,127 @@
 "use server";
 
-import { count, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import * as postsRepo from "@/lib/db/repositories/posts";
 import { incrementStatistics } from "@/lib/db/repositories/statistics";
 import * as tagsRepo from "@/lib/db/repositories/tags";
-import { posts, postTags, tags } from "@/lib/db/schema";
+import { posts, postTags, tagCategories, tags } from "@/lib/db/schema";
+import type { TagCategory } from "@/types/media";
 
 export async function getPostTags(postId: number) {
   return postsRepo.getPostTags(postId);
 }
 
-interface TagResult {
+export interface ActionTagResult {
+  id: number;
   name: string;
   count: number;
+  category: TagCategory | null;
 }
 
 export async function getTopTags(
   sort: "count" | "new" | "recent" = "count",
-): Promise<TagResult[]> {
+  categoryFilter: string = "all",
+): Promise<ActionTagResult[]> {
+  const conditions = [isNull(posts.deletedAt)];
+  if (categoryFilter !== "all") {
+    conditions.push(eq(tagCategories.name, categoryFilter));
+  }
+
   if (sort === "new") {
     const results = await db
       .select({
+        id: tags.id,
         name: tags.name,
         count: count(postTags.tagId),
+        category: {
+          id: tagCategories.id,
+          name: tagCategories.name,
+          colorHue: tagCategories.colorHue,
+          colorSaturation: tagCategories.colorSaturation,
+          colorLightness: tagCategories.colorLightness,
+          isBuiltin: tagCategories.isBuiltin,
+        },
       })
       .from(tags)
+      .leftJoin(tagCategories, eq(tags.categoryId, tagCategories.id))
       .leftJoin(postTags, eq(tags.id, postTags.tagId))
       .leftJoin(posts, eq(postTags.postId, posts.id))
-      .where(isNull(posts.deletedAt))
+      .where(and(...conditions))
       .groupBy(tags.id)
       .orderBy(desc(tags.id))
       .limit(100);
-    return results;
+
+    return results.map((r) => ({
+      id: r.id,
+      name: r.name,
+      count: r.count,
+      category: r.category?.id ? (r.category as TagCategory) : null,
+    }));
   }
 
   if (sort === "recent") {
     const results = await db
       .select({
+        id: tags.id,
         name: tags.name,
         lastDate: sql<string>`MAX(${posts.date})`,
         count: count(postTags.tagId),
+        category: {
+          id: tagCategories.id,
+          name: tagCategories.name,
+          colorHue: tagCategories.colorHue,
+          colorSaturation: tagCategories.colorSaturation,
+          colorLightness: tagCategories.colorLightness,
+          isBuiltin: tagCategories.isBuiltin,
+        },
       })
       .from(tags)
+      .leftJoin(tagCategories, eq(tags.categoryId, tagCategories.id))
       .innerJoin(postTags, eq(tags.id, postTags.tagId))
       .innerJoin(posts, eq(postTags.postId, posts.id))
-      .where(isNull(posts.deletedAt))
+      .where(and(...conditions))
       .groupBy(tags.id)
       .orderBy(desc(sql`MAX(${posts.date})`))
       .limit(100);
 
-    return results;
+    return results.map((r) => ({
+      id: r.id,
+      name: r.name,
+      count: r.count,
+      category: r.category?.id ? (r.category as TagCategory) : null,
+    }));
   }
 
   const results = await db
     .select({
+      id: tags.id,
       name: tags.name,
       count: count(postTags.tagId),
+      category: {
+        id: tagCategories.id,
+        name: tagCategories.name,
+        colorHue: tagCategories.colorHue,
+        colorSaturation: tagCategories.colorSaturation,
+        colorLightness: tagCategories.colorLightness,
+        isBuiltin: tagCategories.isBuiltin,
+      },
     })
     .from(tags)
+    .leftJoin(tagCategories, eq(tags.categoryId, tagCategories.id))
     .innerJoin(postTags, eq(tags.id, postTags.tagId))
     .innerJoin(posts, eq(postTags.postId, posts.id))
-    .where(isNull(posts.deletedAt))
+    .where(and(...conditions))
     .groupBy(tags.id)
     .orderBy(desc(count(postTags.tagId)))
     .limit(100);
 
-  return results;
+  return results.map((r) => ({
+    id: r.id,
+    name: r.name,
+    count: r.count,
+    category: r.category?.id ? (r.category as TagCategory) : null,
+  }));
 }
 
 export async function addTagToPost(postId: number, tagName: string) {
@@ -119,4 +174,64 @@ export async function bulkAddTagToPosts(postIds: number[], tagName: string) {
   }
 
   return { tag, linkedCount };
+}
+
+export async function getCategories(): Promise<TagCategory[]> {
+  return tagsRepo.getAllCategories();
+}
+
+export async function createTagCategory(data: {
+  name: string;
+  colorHue: number;
+  colorSaturation: number;
+  colorLightness: number;
+}): Promise<TagCategory> {
+  const trimmedName = data.name.trim();
+  if (!trimmedName) {
+    throw new Error("Category name cannot be empty");
+  }
+  if (trimmedName.length > 50) {
+    throw new Error("Category name cannot exceed 50 characters");
+  }
+
+  return tagsRepo.createCategory({
+    name: trimmedName,
+    colorHue: data.colorHue,
+    colorSaturation: data.colorSaturation,
+    colorLightness: data.colorLightness,
+  });
+}
+
+export async function updateTagCategory(
+  id: number,
+  data: Partial<{
+    name: string;
+    colorHue: number;
+    colorSaturation: number;
+    colorLightness: number;
+  }>,
+): Promise<TagCategory> {
+  if (data.name !== undefined) {
+    const trimmedName = data.name.trim();
+    if (!trimmedName) {
+      throw new Error("Category name cannot be empty");
+    }
+    if (trimmedName.length > 50) {
+      throw new Error("Category name cannot exceed 50 characters");
+    }
+    data.name = trimmedName;
+  }
+
+  return tagsRepo.updateCategory(id, data);
+}
+
+export async function deleteTagCategory(id: number): Promise<boolean> {
+  return tagsRepo.deleteCategory(id);
+}
+
+export async function setTagCategory(
+  tagId: number,
+  categoryId: number | null,
+): Promise<boolean> {
+  return tagsRepo.setTagCategory(tagId, categoryId);
 }
