@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { fetchSettingsAction } from "@/app/actions/settings";
+import { getCategories } from "@/app/actions/tags";
 import SettingsPageClient from "@/app/settings/page-client";
 
 export const metadata: Metadata = {
@@ -7,10 +8,19 @@ export const metadata: Metadata = {
 };
 
 export default async function SettingsPage() {
-  const settings = await fetchSettingsAction();
+  const [settings, categories] = await Promise.all([
+    fetchSettingsAction(),
+    getCategories(),
+  ]);
 
-  // Ensure settings is fully serializable
+  // Ensure data is fully serializable
   const initialSettings = JSON.parse(JSON.stringify(settings));
+  const initialCategories = JSON.parse(JSON.stringify(categories));
 
-  return <SettingsPageClient initialSettings={initialSettings} />;
+  return (
+    <SettingsPageClient
+      initialSettings={initialSettings}
+      initialCategories={initialCategories}
+    />
+  );
 }
