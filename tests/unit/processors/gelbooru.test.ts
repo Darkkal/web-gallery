@@ -40,7 +40,7 @@ describe("Gelbooru Processor Tag Category Import", () => {
     }
 
     const context: ProcessorContext = {
-      tx: activeDb,
+      tx: activeDb as any,
       existingTwitterUsers: new Set(),
       existingPixivUsers: new Set(),
       existingTags: new Map(),

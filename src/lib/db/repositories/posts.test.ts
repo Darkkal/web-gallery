@@ -4,6 +4,7 @@ import {
   seedPost,
   seedSource,
   seedTag,
+  seedTagCategory,
 } from "../../../../tests/unit/helpers/seed";
 
 const testDbHelper = setupTestDb();
@@ -146,10 +147,23 @@ describe("Posts Repository", () => {
         { postId: post.id, tagId: tag2.id },
       ]);
 
+      const cat = await seedTagCategory(testDb, "artist");
       const list = await getPostTags(post.id);
       expect(list.length).toBe(2);
       expect(list.map((t) => t.name)).toContain("cool");
       expect(list.map((t) => t.name)).toContain("awesome");
+
+      // Test with category set
+      const tagWithCat = await seedTag(testDb, "categorized_tag", cat.id);
+      await testDb
+        .insert(postTags)
+        .values({ postId: post.id, tagId: tagWithCat.id });
+      const updatedList = await getPostTags(post.id);
+      expect(updatedList.length).toBe(3);
+      const target = updatedList.find((t) => t.name === "categorized_tag");
+      expect(target).not.toBeUndefined();
+      expect(target?.categoryId).toBe(cat.id);
+      expect(target?.category?.name).toBe("artist");
     });
   });
 });
