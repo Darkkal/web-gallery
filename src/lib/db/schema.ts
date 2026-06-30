@@ -349,9 +349,23 @@ export const playlistItems = sqliteTable(
   }),
 );
 
+export const tagCategories = sqliteTable("tag_categories", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  colorHue: integer("color_hue").notNull(),
+  colorSaturation: integer("color_saturation").notNull(),
+  colorLightness: integer("color_lightness").notNull(),
+  isBuiltin: integer("is_builtin", { mode: "boolean" })
+    .notNull()
+    .default(false),
+});
+
 export const tags = sqliteTable("tags", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull().unique(),
+  categoryId: integer("category_id").references(() => tagCategories.id, {
+    onDelete: "set null",
+  }),
 });
 
 export const postTags = sqliteTable(
@@ -512,8 +526,16 @@ export const playlistItemsRelations = relations(playlistItems, ({ one }) => ({
   }),
 }));
 
-export const tagsRelations = relations(tags, ({ many }) => ({
+export const tagCategoriesRelations = relations(tagCategories, ({ many }) => ({
+  tags: many(tags),
+}));
+
+export const tagsRelations = relations(tags, ({ one, many }) => ({
   postTags: many(postTags),
+  category: one(tagCategories, {
+    fields: [tags.categoryId],
+    references: [tagCategories.id],
+  }),
 }));
 
 export const postTagsRelations = relations(postTags, ({ one }) => ({
