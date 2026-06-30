@@ -191,6 +191,7 @@ Individual pages export their own `metadata` for custom titles (e.g., `export co
 
 - `next.config.ts` has wildcard `remotePatterns` for scraper-sourced content from arbitrary domains.
 - Only use `unoptimized` on `next/image` for truly local file paths that bypass Next.js optimization. Images served through API routes (e.g., avatar proxy) should leverage Next.js image optimization.
+- **Rule**: When passing local file paths (e.g., scraped media from `item.filePath`) to `<Image>` or `<video>` tags, you MUST wrap the path with `encodeFilePath()` from `@/lib/utils/format`. This ensures filenames containing characters like `?` or `#` are not truncated or misinterpreted by the browser as query parameters.
 
 ### 1.13 Task Scheduling (FIFO Queue and Croner)
 
