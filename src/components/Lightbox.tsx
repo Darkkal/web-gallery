@@ -21,6 +21,7 @@ import type {
   UnifiedUserData,
 } from "@/lib/metadata";
 import { handleKeyActivate } from "@/lib/utils/a11y";
+import { encodeFilePath } from "@/lib/utils/format";
 import type { GalleryRow } from "@/types/media";
 
 interface LightboxProps {
@@ -338,7 +339,7 @@ export default function Lightbox({
             // biome-ignore lint/a11y/useMediaCaption: User generated content does not have captions
             <video
               ref={videoRef}
-              src={item.filePath}
+              src={encodeFilePath(item.filePath)}
               className={styles.video}
               controls
               loop={loopVideos}
@@ -364,7 +365,7 @@ export default function Lightbox({
             </div>
           ) : (
             <Image
-              src={item.filePath}
+              src={encodeFilePath(item.filePath)}
               alt={row.post?.title || "Gallery Image"}
               className={styles.image}
               onClick={(e) => {

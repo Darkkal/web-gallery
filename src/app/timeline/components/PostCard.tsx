@@ -7,6 +7,7 @@ import styles from "@/app/timeline/page.module.css";
 import FormattedContent from "@/components/FormattedContent";
 import { useAutoplayVideo } from "@/hooks/useAutoplayVideo";
 import { handleKeyActivate } from "@/lib/utils/a11y";
+import { encodeFilePath } from "@/lib/utils/format";
 import type { TimelinePost } from "@/types/posts";
 
 interface PostCardProps {
@@ -206,14 +207,14 @@ export default function PostCard({
               >
                 {media.type === "video" ? (
                   <PostVideo
-                    src={media.url}
+                    src={encodeFilePath(media.url)}
                     loop={!!loopVideos}
                     autoplayEnabled={!!autoplayVideos}
                     muteEnabled={!!muteAutoplayVideos}
                   />
                 ) : (
                   <Image
-                    src={media.url}
+                    src={encodeFilePath(media.url)}
                     alt=""
                     className={styles.media}
                     width={300}

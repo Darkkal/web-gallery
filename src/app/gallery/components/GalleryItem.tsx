@@ -4,6 +4,7 @@ import Image from "next/image";
 import styles from "@/app/gallery/page.module.css";
 import { useAutoplayVideo } from "@/hooks/useAutoplayVideo";
 import { handleKeyActivate } from "@/lib/utils/a11y";
+import { encodeFilePath } from "@/lib/utils/format";
 import type { GalleryGroup } from "@/types/media";
 
 interface GalleryItemProps {
@@ -77,7 +78,7 @@ export default function GalleryItem({
         <>
           <video
             ref={videoRef}
-            src={item.filePath}
+            src={encodeFilePath(item.filePath)}
             className={styles.media}
             muted
             loop
@@ -95,7 +96,7 @@ export default function GalleryItem({
         </>
       ) : (
         <Image
-          src={item.filePath}
+          src={encodeFilePath(item.filePath)}
           alt={row.post?.title || "Media thumbnail"}
           className={styles.media}
           width={400}

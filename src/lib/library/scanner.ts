@@ -356,11 +356,13 @@ export async function syncLibrary(options?: SyncOptions) {
         for (const jsonPath of group.jsonFiles) {
           const jsonName = path.basename(jsonPath, ".json");
 
-          // 1. Exact match or prefix match (Twitter/Pixiv)
+          // 1. Exact match or prefix match (Twitter/Pixiv/Reddit)
           if (
             mediaName === jsonName ||
             (mediaName.startsWith(jsonName) &&
-              ["-", "_", "."].includes(mediaName[jsonName.length]))
+              ["-", "_", ".", " ", "(", "["].includes(
+                mediaName[jsonName.length],
+              ))
           ) {
             if (jsonName.length > bestMatchLen) {
               bestMatchLen = jsonName.length;
@@ -371,8 +373,13 @@ export async function syncLibrary(options?: SyncOptions) {
           else if (
             mediaName.includes(`_${jsonName}_`) ||
             mediaName.includes(`-${jsonName}-`) ||
+            mediaName.includes(` ${jsonName} `) ||
             mediaName.endsWith(`_${jsonName}`) ||
-            mediaName.startsWith(`${jsonName}_`)
+            mediaName.endsWith(`-${jsonName}`) ||
+            mediaName.endsWith(` ${jsonName}`) ||
+            mediaName.startsWith(`${jsonName}_`) ||
+            mediaName.startsWith(`${jsonName}-`) ||
+            mediaName.startsWith(`${jsonName} `)
           ) {
             if (jsonName.length > bestMatchLen) {
               bestMatchLen = jsonName.length;

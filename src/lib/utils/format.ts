@@ -54,3 +54,13 @@ export function formatDuration(seconds: number): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
+
+/**
+ * Safely encodes a file path, ensuring each segment is URI-encoded
+ * to preserve valid URL syntax while escaping spaces and special characters like '?'.
+ */
+export function encodeFilePath(filePath: string): string {
+  if (!filePath) return "";
+  // Split by '/' to encode each path segment individually
+  return filePath.split("/").map(encodeURIComponent).join("/");
+}
