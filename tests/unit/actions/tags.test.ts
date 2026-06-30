@@ -1,6 +1,12 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { setupTestDb } from "../helpers/db";
-import { seedPost, seedSource, seedTag } from "../helpers/seed";
+import {
+  seedBuiltinCategories,
+  seedPost,
+  seedSource,
+  seedTag,
+  seedTagCategory,
+} from "../helpers/seed";
 
 const testDbHelper = setupTestDb();
 
@@ -19,16 +25,22 @@ vi.mock("@/lib/db", () => {
 const testDb = testDbHelper.db;
 activeDb = testDb;
 
+import { eq } from "drizzle-orm";
 import {
   addTagToPost,
   bulkAddTagToPosts,
+  createTagCategory,
+  deleteTagCategory,
+  getCategories,
   getPostTags,
   getTopTags,
   removeTagFromPost,
   removeTagsFromPost,
+  setTagCategory,
+  updateTagCategory,
 } from "@/app/actions/tags";
 import { recomputeStatistics } from "@/lib/db/repositories/statistics";
-import { postTags } from "@/lib/db/schema";
+import { postTags, tagCategories } from "@/lib/db/schema";
 
 describe("Tags Server Actions", () => {
   beforeAll(async () => {
@@ -192,6 +204,98 @@ describe("Tags Server Actions", () => {
 
       const list2 = await getPostTags(post2.id);
       expect(list2.map((t) => t.name)).toContain("shared-tag");
+    });
+  });
+
+  describe("Category Actions", () => {
+    it("should get categories", async () => {
+      await seedBuiltinCategories(testDb);
+      const cats = await getCategories();
+      expect(cats.length).toBe(5);
+      expect(cats.map((c) => c.name)).toContain("character");
+    });
+
+    it("should create custom tag category with validation", async () => {
+      await expect(
+        createTagCategory({
+          name: "",
+          colorHue: 0,
+          colorSaturation: 0,
+          colorLightness: 0,
+        }),
+      ).rejects.toThrow("Category name cannot be empty");
+
+      await expect(
+        createTagCategory({
+          name: "a".repeat(51),
+          colorHue: 0,
+          colorSaturation: 0,
+          colorLightness: 0,
+        }),
+      ).rejects.toThrow("Category name cannot exceed 50 characters");
+
+      const cat = await createTagCategory({
+        name: "custom",
+        colorHue: 120,
+        colorSaturation: 50,
+        colorLightness: 50,
+      });
+      expect(cat.name).toBe("custom");
+      expect(cat.isBuiltin).toBe(false);
+    });
+
+    it("should update tag category with validation", async () => {
+      const cat = await seedTagCategory(testDb, "edit-me");
+
+      await expect(updateTagCategory(cat.id, { name: "" })).rejects.toThrow(
+        "Category name cannot be empty",
+      );
+
+      const updated = await updateTagCategory(cat.id, {
+        name: "edited",
+        colorHue: 240,
+      });
+      expect(updated.name).toBe("edited");
+      expect(updated.colorHue).toBe(240);
+    });
+
+    it("should delete custom tag category", async () => {
+      const cat = await seedTagCategory(testDb, "delete-me");
+      const success = await deleteTagCategory(cat.id);
+      expect(success).toBe(true);
+    });
+
+    it("should set tag category", async () => {
+      const cat = await seedTagCategory(testDb, "target-cat");
+      const tag = await seedTag(testDb, "some-tag");
+      const success = await setTagCategory(tag.id, cat.id);
+      expect(success).toBe(true);
+    });
+  });
+
+  describe("getTopTags with category filtering", () => {
+    it("should filter top tags by category name", async () => {
+      const catCharacter = await seedTagCategory(testDb, "character");
+      const catArtist = await seedTagCategory(testDb, "artist");
+
+      const tagChar = await seedTag(testDb, "miku", catCharacter.id);
+      const tagArt = await seedTag(testDb, "wlop", catArtist.id);
+
+      const source = await seedSource(testDb);
+      const post = await seedPost(testDb, source.id);
+
+      await testDb.insert(postTags).values([
+        { postId: post.id, tagId: tagChar.id },
+        { postId: post.id, tagId: tagArt.id },
+      ]);
+
+      const filteredChar = await getTopTags("count", "character");
+      expect(filteredChar.length).toBe(1);
+      expect(filteredChar[0].name).toBe("miku");
+      expect(filteredChar[0].category?.name).toBe("character");
+
+      const filteredAll = await getTopTags("count", "all");
+      expect(filteredAll.length).toBe(2);
     });
   });
 });
