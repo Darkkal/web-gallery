@@ -570,3 +570,23 @@ Separating fast-access data (database, scraper state) from bulk media allows ope
 ### FIFO schedule execution for SQLite safety
 To prevent multiple concurrent scheduled scraping tasks from locking or corrupting the SQLite database, all scheduled runs are serialized through a sequential FIFO queue. The next scheduled task begins execution only after the current scraper process completes and its database synchronization finishes.
 
+---
+
+## 9. Testing Architecture
+
+Testing in Web Gallery is split into two primary layers: **E2E Tests** (via Playwright) and **Unit/Integration Tests** (via Vitest). 
+
+### 9.1 Playwright E2E Tests
+- **Scope**: Validates complete user-facing browser flows (e.g. settings updates, gallery interaction, media deletion, scraper scheduling) on a running production Next.js build.
+- **Isolation**: Runs against a pre-built Docker container defined in `compose.test.yaml`, pointing to a dedicated test SQLite file and downloads folder.
+- **Concurrency**: State-modifying tests (scrapers, settings) are run sequentially (via Playwright serial projects configured in `playwright.config.ts`) to avoid SQLite file lock contentions.
+
+### 9.2 Vitest Unit/Integration Tests
+- **Scope**: Directly tests database repositories (`src/lib/db/repositories/`) and Server Actions (`src/app/actions/`) in isolation.
+- **In-Memory SQLite DB**: To ensure speed, zero host dependency, and perfect isolation, tests execute against a lightweight in-memory SQLite database instance (`:memory:`).
+- **Dynamic Schema Generation**: At setup, the test helper reads `drizzle/meta/_journal.json` to identify all migration files and dynamically executes the generated SQL script-by-script to build the database schema in memory.
+- **Drizzle Interception**: Tests leverage a live getter mock binding for `@/lib/db` to intercept Drizzle calls at import time and redirect them to the active test database.
+- **Mocking and Spying**: Built-in NodeJS ESM modules (such as `node:fs` and `node:fs/promises` for statistics and media deletions) are mocked using `vi.mock` wrappers with actual fallbacks (`vi.importActual`) to intercept specific target directories without breaking the migration SQL reader.
+- **CI/CD Integration**: The unit test suite is run automatically on every push and pull request via a GitHub Action (`.github/workflows/unit-tests.yml`).
+
+

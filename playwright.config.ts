@@ -14,6 +14,8 @@ const SERIAL_TESTS = ["**/settings.spec.ts", "**/timeline.spec.ts"];
  */
 export default defineConfig({
   testDir: "./tests",
+  /* Only run E2E spec files, ignoring unit tests ending in .test.ts */
+  testMatch: "**/*.spec.ts",
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */

@@ -268,3 +268,55 @@ When running E2E tests locally, Playwright targets the server hosted by the Dock
   Wait for the build to complete and the container to be healthy before running the E2E tests.
 
 ---
+
+## 4. Testing Guidelines
+
+This project uses Vitest for unit and integration testing of the database repositories and server actions.
+
+### 4.1 Test Commands
+
+- **Run all unit tests**: `npm run test:unit`
+- **Run in watch mode**: `npm run test:unit:watch`
+- **Generate coverage report**: `npm run test:unit:coverage`
+
+### 4.2 Test File Location Strategy (Hybrid Approach)
+
+To maintain a clean codebase and avoid Next.js route conflicts:
+- **Database Repositories**: Co-located in `src/lib/db/repositories/*.test.ts`.
+- **Server Actions**: Centralized in `tests/unit/actions/*.test.ts`. This ensures Next.js does not treat test files as route handlers or server-rendered pages.
+
+### 4.3 Database Mocking in Tests
+
+We use a lightweight, in-memory SQLite database (`:memory:`) to run tests quickly and isolated from the production environment:
+1. **Dynamic Migration Playback**: The test helper (`tests/unit/helpers/db.ts`) reads the migration schema files under `drizzle/` at startup and applies them dynamically to construct the database schema in memory.
+2. **Database Singleton Interception**: We mock `@/lib/db` using a live getter:
+   ```ts
+   let activeDb: any;
+   vi.mock("@/lib/db", () => ({
+     get db() { return activeDb; },
+     initDb: vi.fn(),
+   }));
+   ```
+   At test startup, we set `activeDb = testDbHelper.db`, redirecting all application DB calls to the test database.
+3. **Database Truncation**: We call `await testDbHelper.clearDb()` in `beforeEach` to truncate all tables between tests.
+
+### 4.4 Seed Factories
+
+Avoid manually constructing Drizzle insert statements for every test. Instead, use seed factories in `tests/unit/helpers/seed.ts` (e.g. `seedPost`, `seedMediaItem`, `seedTag`, `seedSource`) to quickly create records with consistent and sensible defaults.
+
+### 4.5 Intercepting the Filesystem
+
+Do NOT mock `node:fs` globally as this will break Drizzle's migration loader. Instead, use localized mock factories with `vi.importActual` fallbacks to intercept specific directories (like the downloads directory):
+```ts
+vi.mock("node:fs", async () => {
+  const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+  return {
+    ...actual,
+    existsSync: (path: any) => {
+      if (typeof path === "string" && path.includes("downloads")) return true;
+      return actual.existsSync(path);
+    },
+  };
+});
+```
+
