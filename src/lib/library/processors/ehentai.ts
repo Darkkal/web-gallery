@@ -153,7 +153,7 @@ export class EHentaiProcessor implements IMetadataProcessor<EHentaiMeta> {
           const suffix = tagName.substring(colonIndex + 1);
           if (suffix) {
             tagName = suffix.trim();
-            let categoryName = "general";
+            let categoryName: string | null = null;
             if (prefix === "artist") categoryName = "artist";
             else if (prefix === "character" || prefix === "cosplayer")
               categoryName = "character";
@@ -165,10 +165,10 @@ export class EHentaiProcessor implements IMetadataProcessor<EHentaiMeta> {
               categoryName = "copyright";
             else if (prefix === "language" || prefix === "reclass")
               categoryName = "meta";
-            else if (["male", "female", "mixed", "other"].includes(prefix))
-              categoryName = "general";
 
-            categoryId = categoryMap?.get(categoryName) ?? null;
+            if (categoryName) {
+              categoryId = categoryMap?.get(categoryName) ?? null;
+            }
           }
         }
 

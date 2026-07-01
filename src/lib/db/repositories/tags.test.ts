@@ -220,9 +220,9 @@ describe("Tags Repository", () => {
       await seedTagCategory(testDbHelper.db, "custom_cat");
 
       const cats = await getAllCategories();
-      expect(cats.length).toBe(6);
+      expect(cats.length).toBe(5);
       expect(cats.map((c) => c.name)).toContain("custom_cat");
-      expect(cats.find((c) => c.name === "general")?.isBuiltin).toBe(true);
+      expect(cats.find((c) => c.name === "character")?.isBuiltin).toBe(true);
     });
   });
 
@@ -262,19 +262,19 @@ describe("Tags Repository", () => {
 
     it("should fail to rename a builtin category but allow updating its color", async () => {
       await seedBuiltinCategories(testDbHelper.db);
-      const [general] = await testDbHelper.db
+      const [character] = await testDbHelper.db
         .select()
         .from(tagCategories)
-        .where(eq(tagCategories.name, "general"))
+        .where(eq(tagCategories.name, "character"))
         .limit(1);
 
       await expect(
-        updateCategory(general.id, { name: "not-general" }),
+        updateCategory(character.id, { name: "not-character" }),
       ).rejects.toThrow("Built-in categories cannot be renamed");
 
-      const updated = await updateCategory(general.id, { colorHue: 300 });
+      const updated = await updateCategory(character.id, { colorHue: 300 });
       expect(updated.colorHue).toBe(300);
-      expect(updated.name).toBe("general");
+      expect(updated.name).toBe("character");
     });
   });
 
@@ -296,13 +296,13 @@ describe("Tags Repository", () => {
 
     it("should fail to delete a builtin category", async () => {
       await seedBuiltinCategories(testDbHelper.db);
-      const [general] = await testDbHelper.db
+      const [character] = await testDbHelper.db
         .select()
         .from(tagCategories)
-        .where(eq(tagCategories.name, "general"))
+        .where(eq(tagCategories.name, "character"))
         .limit(1);
 
-      await expect(deleteCategory(general.id)).rejects.toThrow(
+      await expect(deleteCategory(character.id)).rejects.toThrow(
         "Built-in categories cannot be deleted",
       );
     });

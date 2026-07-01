@@ -211,7 +211,7 @@ describe("Tags Server Actions", () => {
     it("should get categories", async () => {
       await seedBuiltinCategories(testDb);
       const cats = await getCategories();
-      expect(cats.length).toBe(5);
+      expect(cats.length).toBe(4);
       expect(cats.map((c) => c.name)).toContain("character");
     });
 

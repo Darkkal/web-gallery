@@ -122,10 +122,10 @@ describe("EHentai Processor Tag Category Import", () => {
     expect(reclass?.category?.name).toBe("meta");
 
     const female = dbTags.find((t) => t.name === "sole_female");
-    expect(female?.category?.name).toBe("general");
+    expect(female?.category).toBeNull();
 
     const male = dbTags.find((t) => t.name === "sole_male");
-    expect(male?.category?.name).toBe("general");
+    expect(male?.category).toBeNull();
 
     const general = dbTags.find((t) => t.name === "some_general_tag");
     expect(general?.category).toBeNull();

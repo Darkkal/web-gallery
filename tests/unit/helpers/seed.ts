@@ -113,13 +113,6 @@ export async function seedTagCategory(
 export async function seedBuiltinCategories(db: TestDb) {
   const builtinCategories = [
     {
-      name: "general",
-      colorHue: 0,
-      colorSaturation: 0,
-      colorLightness: 60,
-      isBuiltin: true,
-    },
-    {
       name: "character",
       colorHue: 140,
       colorSaturation: 60,

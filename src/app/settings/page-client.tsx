@@ -148,7 +148,7 @@ export default function SettingsPageClient({
   const handleDeleteCategory = async (id: number) => {
     if (
       !confirm(
-        "Are you sure you want to delete this category? All tags in this category will be uncategorized (set to general).",
+        "Are you sure you want to delete this category? All tags in this category will be uncategorized.",
       )
     ) {
       return;

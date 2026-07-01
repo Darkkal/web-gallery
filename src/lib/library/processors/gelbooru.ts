@@ -179,14 +179,16 @@ export class GelbooruProcessor implements IMetadataProcessor<GelbooruMeta> {
             const suffix = tagName.substring(colonIndex + 1);
             if (suffix) {
               tagName = suffix.trim();
-              let categoryName = "general";
+              let categoryName: string | null = null;
               if (prefix === "character") categoryName = "character";
               else if (prefix === "copyright") categoryName = "copyright";
               else if (prefix === "artist") categoryName = "artist";
               else if (prefix === "metadata" || prefix === "meta")
                 categoryName = "meta";
 
-              categoryId = categoryMap?.get(categoryName) ?? null;
+              if (categoryName) {
+                categoryId = categoryMap?.get(categoryName) ?? null;
+              }
             }
           }
 

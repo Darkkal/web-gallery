@@ -161,13 +161,6 @@ async function applyMigrations(): Promise<void> {
 async function seedBuiltinCategories(): Promise<void> {
   const builtinCategories = [
     {
-      name: "general",
-      colorHue: 0,
-      colorSaturation: 0,
-      colorLightness: 60,
-      isBuiltin: true,
-    },
-    {
       name: "character",
       colorHue: 140,
       colorSaturation: 60,
