@@ -25,6 +25,8 @@ export interface TagManageItem {
   name: string;
   category: TagCategory | null;
   postCount: number;
+  aliasOfTagId: number | null;
+  aliasName: string | null;
 }
 
 export interface GalleryRow {

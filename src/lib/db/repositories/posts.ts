@@ -396,5 +396,6 @@ export async function getPostTags(postId: number) {
     id: r.tag.id,
     categoryId: r.tag.categoryId,
     category: r.tag.category,
+    aliasOfTagId: r.tag.aliasOfTagId,
   }));
 }

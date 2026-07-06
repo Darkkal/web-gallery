@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import {
@@ -63,6 +63,10 @@ export async function recomputeStatistics(): Promise<LibraryStatistics> {
     .select({ count: sql<number>`count(*)` })
     .from(mediaItems);
   const tagsRes = await db.select({ count: sql<number>`count(*)` }).from(tags);
+  const canonicalTagsRes = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(tags)
+    .where(isNull(tags.aliasOfTagId));
   const twitterUsersRes = await db
     .select({ count: sql<number>`count(*)` })
     .from(twitterUsers);
@@ -76,6 +80,7 @@ export async function recomputeStatistics(): Promise<LibraryStatistics> {
   const totalPosts = postsRes[0]?.count ?? 0;
   const totalMediaItems = mediaRes[0]?.count ?? 0;
   const totalTags = tagsRes[0]?.count ?? 0;
+  const totalCanonicalTags = canonicalTagsRes[0]?.count ?? 0;
   const totalUsers =
     (twitterUsersRes[0]?.count ?? 0) + (pixivUsersRes[0]?.count ?? 0);
   const totalExtractors = extractorsRes[0]?.count ?? 0;
@@ -98,6 +103,7 @@ export async function recomputeStatistics(): Promise<LibraryStatistics> {
     totalPosts,
     totalMediaItems,
     totalTags,
+    totalCanonicalTags,
     totalUsers,
     totalExtractors,
     storageBytes,
@@ -136,6 +142,10 @@ export async function incrementStatistics(
     current.totalMediaItems + (delta.totalMediaItems ?? 0),
   );
   const totalTags = Math.max(0, current.totalTags + (delta.totalTags ?? 0));
+  const totalCanonicalTags = Math.max(
+    0,
+    current.totalCanonicalTags + (delta.totalCanonicalTags ?? 0),
+  );
   const totalUsers = Math.max(0, current.totalUsers + (delta.totalUsers ?? 0));
   const totalExtractors = Math.max(
     0,
@@ -153,6 +163,7 @@ export async function incrementStatistics(
       totalPosts,
       totalMediaItems,
       totalTags,
+      totalCanonicalTags,
       totalUsers,
       totalExtractors,
       storageBytes,
@@ -215,6 +226,9 @@ export async function recordHistorySnapshot(dateType: HistoryDateType) {
     const ratio = stats.totalPosts > 0 ? cumulativePosts / stats.totalPosts : 0;
     const cumulativeMedia = Math.round(ratio * stats.totalMediaItems);
     const cumulativeTags = Math.round(ratio * stats.totalTags);
+    const cumulativeCanonicalTags = Math.round(
+      ratio * stats.totalCanonicalTags,
+    );
     const cumulativeUsers = Math.round(ratio * stats.totalUsers);
     const cumulativeExtractors = Math.round(ratio * stats.totalExtractors);
     const cumulativeStorage = Math.round(ratio * stats.storageBytes);
@@ -225,6 +239,7 @@ export async function recordHistorySnapshot(dateType: HistoryDateType) {
       totalPosts: cumulativePosts,
       totalMediaItems: cumulativeMedia,
       totalTags: cumulativeTags,
+      totalCanonicalTags: cumulativeCanonicalTags,
       totalUsers: cumulativeUsers,
       totalExtractors: cumulativeExtractors,
       storageBytes: cumulativeStorage,
@@ -243,6 +258,7 @@ export async function recordHistorySnapshot(dateType: HistoryDateType) {
             totalPosts: sql`excluded.total_posts`,
             totalMediaItems: sql`excluded.total_media_items`,
             totalTags: sql`excluded.total_tags`,
+            totalCanonicalTags: sql`excluded.total_canonical_tags`,
             totalUsers: sql`excluded.total_users`,
             totalExtractors: sql`excluded.total_extractors`,
             storageBytes: sql`excluded.storage_bytes`,
@@ -303,6 +319,9 @@ export async function getHistory(
     const ratio = stats.totalPosts > 0 ? cumulativePosts / stats.totalPosts : 0;
     const cumulativeMedia = Math.round(ratio * stats.totalMediaItems);
     const cumulativeTags = Math.round(ratio * stats.totalTags);
+    const cumulativeCanonicalTags = Math.round(
+      ratio * stats.totalCanonicalTags,
+    );
     const cumulativeUsers = Math.round(ratio * stats.totalUsers);
     const cumulativeExtractors = Math.round(ratio * stats.totalExtractors);
     const cumulativeStorage = Math.round(ratio * stats.storageBytes);
@@ -312,6 +331,7 @@ export async function getHistory(
       totalPosts: cumulativePosts,
       totalMediaItems: cumulativeMedia,
       totalTags: cumulativeTags,
+      totalCanonicalTags: cumulativeCanonicalTags,
       totalUsers: cumulativeUsers,
       totalExtractors: cumulativeExtractors,
       storageBytes: cumulativeStorage,

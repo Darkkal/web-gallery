@@ -366,6 +366,9 @@ export const tags = sqliteTable("tags", {
   categoryId: integer("category_id").references(() => tagCategories.id, {
     onDelete: "set null",
   }),
+  aliasOfTagId: integer("alias_of_tag_id").references((): any => tags.id, {
+    onDelete: "set null",
+  }),
 });
 
 export const postTags = sqliteTable(
@@ -536,6 +539,14 @@ export const tagsRelations = relations(tags, ({ one, many }) => ({
     fields: [tags.categoryId],
     references: [tagCategories.id],
   }),
+  aliasOf: one(tags, {
+    fields: [tags.aliasOfTagId],
+    references: [tags.id],
+    relationName: "tag_aliases",
+  }),
+  aliases: many(tags, {
+    relationName: "tag_aliases",
+  }),
 }));
 
 export const postTagsRelations = relations(postTags, ({ one }) => ({
@@ -554,6 +565,7 @@ export const libraryStatistics = sqliteTable("library_statistics", {
   totalPosts: integer("total_posts").notNull().default(0),
   totalMediaItems: integer("total_media_items").notNull().default(0),
   totalTags: integer("total_tags").notNull().default(0),
+  totalCanonicalTags: integer("total_canonical_tags").notNull().default(0),
   totalUsers: integer("total_users").notNull().default(0),
   totalExtractors: integer("total_extractors").notNull().default(0),
   storageBytes: integer("storage_bytes").notNull().default(0),
@@ -569,6 +581,7 @@ export const statisticsHistory = sqliteTable(
     totalPosts: integer("total_posts").notNull().default(0),
     totalMediaItems: integer("total_media_items").notNull().default(0),
     totalTags: integer("total_tags").notNull().default(0),
+    totalCanonicalTags: integer("total_canonical_tags").notNull().default(0),
     totalUsers: integer("total_users").notNull().default(0),
     totalExtractors: integer("total_extractors").notNull().default(0),
     storageBytes: integer("storage_bytes").notNull().default(0),

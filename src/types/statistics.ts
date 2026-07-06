@@ -2,6 +2,7 @@ export interface LibraryStatistics {
   totalPosts: number;
   totalMediaItems: number;
   totalTags: number;
+  totalCanonicalTags: number;
   totalUsers: number;
   totalExtractors: number;
   storageBytes: number;
@@ -13,6 +14,7 @@ export interface StatisticsHistoryPoint {
   totalPosts: number;
   totalMediaItems: number;
   totalTags: number;
+  totalCanonicalTags: number;
   totalUsers: number;
   totalExtractors: number;
   storageBytes: number;
