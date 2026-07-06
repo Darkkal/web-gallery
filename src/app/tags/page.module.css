@@ -162,3 +162,155 @@
   color: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt));
   border: 1px solid hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt) / 0.3);
 }
+
+.rightHeaderControls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.viewToggle {
+  display: flex;
+  background: hsl(var(--secondary));
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
+}
+
+.toggleBtn {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggleBtn:hover {
+  color: hsl(var(--foreground));
+}
+
+.toggleBtn[data-active="true"] {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Tree View Styles */
+.treeContainer {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.treeList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.treeNodeWrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.treeNodeRow {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+  min-height: 40px;
+}
+
+.treeNodeRow:hover {
+  background: hsl(var(--accent) / 0.4);
+}
+
+.treeExpanderCol {
+  width: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.treeExpanderButton {
+  background: transparent;
+  border: none;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.treeExpanderButton:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
+.treeLeafBullet {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: hsl(var(--muted-foreground) / 0.4);
+}
+
+.treeContentCol {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-left: 8px;
+}
+
+.treeNodeLink {
+  font-size: 15px;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.treeNodeLink:hover {
+  color: hsl(var(--primary));
+}
+
+.treeMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.treePostCount {
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+}
+
+.treeChildren {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
