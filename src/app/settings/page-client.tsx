@@ -18,28 +18,18 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { saveSettingsAction } from "@/app/actions/settings";
-import {
-  createTagCategory,
-  deleteTagCategory,
-  updateTagCategory,
-} from "@/app/actions/tags";
 import styles from "@/app/settings/page.module.css";
-import type { TagCategory } from "@/types/media";
 import { DEFAULT_SETTINGS, type SystemSettings } from "@/types/settings";
 
 interface SettingsPageClientProps {
   initialSettings: SystemSettings;
-  initialCategories: TagCategory[];
 }
 
 export default function SettingsPageClient({
   initialSettings,
-  initialCategories,
 }: SettingsPageClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"app" | "scraper" | "categories">(
-    "app",
-  );
+  const [activeTab, setActiveTab] = useState<"app" | "scraper">("app");
   const [settings, setSettings] = useState<SystemSettings>(initialSettings);
   const [isSaving, setIsSaving] = useState(false);
   const [notification, setNotification] = useState<{
@@ -47,135 +37,6 @@ export default function SettingsPageClient({
     message: string;
   } | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
-
-  const [categoriesList, setCategoriesList] =
-    useState<TagCategory[]>(initialCategories);
-
-  // Category Form State
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [newCategoryHue, setNewCategoryHue] = useState(200);
-  const [newCategorySat, setNewCategorySat] = useState(70);
-  const [newCategoryLgt, setNewCategoryLgt] = useState(50);
-
-  // Editing state
-  const [editingCategory, setEditingCategory] = useState<TagCategory | null>(
-    null,
-  );
-  const [editCategoryName, setEditCategoryName] = useState("");
-  const [editCategoryHue, setEditCategoryHue] = useState(200);
-  const [editCategorySat, setEditCategorySat] = useState(70);
-  const [editCategoryLgt, setEditCategoryLgt] = useState(50);
-
-  const handleStartEditCategory = (cat: TagCategory) => {
-    setEditingCategory(cat);
-    setEditCategoryName(cat.name);
-    setEditCategoryHue(cat.colorHue);
-    setEditCategorySat(cat.colorSaturation);
-    setEditCategoryLgt(cat.colorLightness);
-  };
-
-  const handleCancelEditCategory = () => {
-    setEditingCategory(null);
-    setEditCategoryName("");
-  };
-
-  const handleCreateCategory = async () => {
-    const trimmed = newCategoryName.trim();
-    if (!trimmed) {
-      setNotification({
-        type: "error",
-        message: "Category name cannot be empty.",
-      });
-      return;
-    }
-
-    try {
-      const category = await createTagCategory({
-        name: trimmed.toLowerCase(),
-        colorHue: newCategoryHue,
-        colorSaturation: newCategorySat,
-        colorLightness: newCategoryLgt,
-      });
-
-      setCategoriesList((prev) => [...prev, category]);
-      setNewCategoryName("");
-      setNotification({
-        type: "success",
-        message: `Category "${trimmed}" created.`,
-      });
-    } catch (err) {
-      setNotification({
-        type: "error",
-        message:
-          err instanceof Error ? err.message : "Error creating category.",
-      });
-    }
-  };
-
-  const handleSaveEditCategory = async () => {
-    if (!editingCategory) return;
-    const trimmed = editCategoryName.trim();
-    if (!trimmed) {
-      setNotification({
-        type: "error",
-        message: "Category name cannot be empty.",
-      });
-      return;
-    }
-
-    try {
-      const category = await updateTagCategory(editingCategory.id, {
-        name: trimmed.toLowerCase(),
-        colorHue: editCategoryHue,
-        colorSaturation: editCategorySat,
-        colorLightness: editCategoryLgt,
-      });
-
-      setCategoriesList((prev) =>
-        prev.map((c) => (c.id === editingCategory.id ? category : c)),
-      );
-      setEditingCategory(null);
-      setNotification({ type: "success", message: `Category updated.` });
-    } catch (err) {
-      setNotification({
-        type: "error",
-        message:
-          err instanceof Error ? err.message : "Error updating category.",
-      });
-    }
-  };
-
-  const handleDeleteCategory = async (id: number) => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this category? All tags in this category will be uncategorized.",
-      )
-    ) {
-      return;
-    }
-
-    try {
-      const success = await deleteTagCategory(id);
-      if (success) {
-        setCategoriesList((prev) => prev.filter((c) => c.id !== id));
-        if (editingCategory?.id === id) {
-          setEditingCategory(null);
-        }
-        setNotification({ type: "success", message: "Category deleted." });
-      } else {
-        setNotification({
-          type: "error",
-          message: "Failed to delete category.",
-        });
-      }
-    } catch (err) {
-      setNotification({
-        type: "error",
-        message:
-          err instanceof Error ? err.message : "Error deleting category.",
-      });
-    }
-  };
 
   // Set hydration status on mount
   useEffect(() => {
@@ -412,14 +273,6 @@ export default function SettingsPageClient({
           >
             <SlidersHorizontal size={18} />
             <span>Scraper Settings</span>
-          </button>
-          <button
-            type="button"
-            className={`${styles.tabButton} ${activeTab === "categories" ? styles.activeTabButton : ""}`}
-            onClick={() => setActiveTab("categories")}
-          >
-            <TagIcon size={18} />
-            <span>Tag Categories</span>
           </button>
         </nav>
 
@@ -1058,234 +911,24 @@ export default function SettingsPageClient({
             </div>
           )}
 
-          {activeTab === "categories" && (
-            <div className={styles.tabContent}>
-              <h2 className={styles.sectionTitle}>
-                <TagIcon size={18} />
-                <span>Manage Tag Categories</span>
-              </h2>
-              <p className={styles.helperText} style={{ marginBottom: "20px" }}>
-                Tag categories allow you to organize, filter, and color-code
-                tags across the library. System-defined categories are built-in
-                and cannot be renamed or deleted, but you can customize their
-                HSL colors.
-              </p>
-
-              <div className={styles.categoriesGrid}>
-                {/* Category List */}
-                <div className={styles.categoryList}>
-                  {categoriesList.map((cat) => (
-                    <div key={cat.id} className={styles.categoryCard}>
-                      <div className={styles.categoryCardHeader}>
-                        <div className={styles.categoryInfo}>
-                          <h3 className={styles.categoryCardName}>
-                            {cat.name}
-                          </h3>
-                          <span
-                            className={
-                              cat.isBuiltin
-                                ? styles.badgeBuiltin
-                                : styles.badgeCustom
-                            }
-                          >
-                            {cat.isBuiltin ? "System" : "Custom"}
-                          </span>
-                        </div>
-                        <div className={styles.categoryActions}>
-                          <button
-                            type="button"
-                            className={styles.editBtn}
-                            onClick={() => handleStartEditCategory(cat)}
-                            title="Edit Color/Name"
-                          >
-                            <Edit3 size={14} />
-                          </button>
-                          {!cat.isBuiltin && (
-                            <button
-                              type="button"
-                              className={styles.deleteBtn}
-                              onClick={() => handleDeleteCategory(cat.id)}
-                              title="Delete Category"
-                            >
-                              <Trash size={14} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className={styles.categoryColorDetails}>
-                        <div
-                          className={styles.colorCircle}
-                          style={{
-                            backgroundColor: `hsl(${cat.colorHue} ${cat.colorSaturation}% ${cat.colorLightness}%)`,
-                          }}
-                        />
-                        <span className={styles.colorText}>
-                          hsl({cat.colorHue}, {cat.colorSaturation}%,{" "}
-                          {cat.colorLightness}%)
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Form to Create/Edit */}
-                <div className={styles.categoryFormPanel}>
-                  <h3 className={styles.formPanelTitle}>
-                    {editingCategory ? "Edit Category" : "Create New Category"}
-                  </h3>
-
-                  <div className={styles.formGroup}>
-                    <label htmlFor="catName" className={styles.label}>
-                      Category Name
-                    </label>
-                    <input
-                      id="catName"
-                      type="text"
-                      placeholder="e.g. character, custom"
-                      value={
-                        editingCategory ? editCategoryName : newCategoryName
-                      }
-                      disabled={editingCategory?.isBuiltin}
-                      onChange={(e) =>
-                        editingCategory
-                          ? setEditCategoryName(e.target.value)
-                          : setNewCategoryName(e.target.value)
-                      }
-                      className={styles.input}
-                    />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <div className={styles.colorSliderHeader}>
-                      <span className={styles.label}>
-                        Hue (
-                        {editingCategory ? editCategoryHue : newCategoryHue}°)
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="360"
-                      value={editingCategory ? editCategoryHue : newCategoryHue}
-                      onChange={(e) =>
-                        editingCategory
-                          ? setEditCategoryHue(parseInt(e.target.value, 10))
-                          : setNewCategoryHue(parseInt(e.target.value, 10))
-                      }
-                      className={styles.sliderInput}
-                    />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <div className={styles.colorSliderHeader}>
-                      <span className={styles.label}>
-                        Saturation (
-                        {editingCategory ? editCategorySat : newCategorySat}%)
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={editingCategory ? editCategorySat : newCategorySat}
-                      onChange={(e) =>
-                        editingCategory
-                          ? setEditCategorySat(parseInt(e.target.value, 10))
-                          : setNewCategorySat(parseInt(e.target.value, 10))
-                      }
-                      className={styles.sliderInput}
-                    />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <div className={styles.colorSliderHeader}>
-                      <span className={styles.label}>
-                        Lightness (
-                        {editingCategory ? editCategoryLgt : newCategoryLgt}%)
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={editingCategory ? editCategoryLgt : newCategoryLgt}
-                      onChange={(e) =>
-                        editingCategory
-                          ? setEditCategoryLgt(parseInt(e.target.value, 10))
-                          : setNewCategoryLgt(parseInt(e.target.value, 10))
-                      }
-                      className={styles.sliderInput}
-                    />
-                  </div>
-
-                  <div className={styles.colorPreviewSection}>
-                    <span className={styles.label}>Color Preview</span>
-                    <div className={styles.colorPreviewCard}>
-                      <span
-                        className={styles.previewBadge}
-                        style={{
-                          backgroundColor: `hsl(${editingCategory ? editCategoryHue : newCategoryHue} ${editingCategory ? editCategorySat : newCategorySat}% ${editingCategory ? editCategoryLgt : newCategoryLgt}% / 0.15)`,
-                          color: `hsl(${editingCategory ? editCategoryHue : newCategoryHue} ${editingCategory ? editCategorySat : newCategorySat}% ${editingCategory ? editCategoryLgt : newCategoryLgt}%)`,
-                          borderColor: `hsl(${editingCategory ? editCategoryHue : newCategoryHue} ${editingCategory ? editCategorySat : newCategorySat}% ${editingCategory ? editCategoryLgt : newCategoryLgt}% / 0.3)`,
-                          borderWidth: "1px",
-                          borderStyle: "solid",
-                        }}
-                      >
-                        {editingCategory
-                          ? editCategoryName || "preview"
-                          : newCategoryName || "preview"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className={styles.formButtons}>
-                    {editingCategory && (
-                      <button
-                        type="button"
-                        className={`${styles.button} ${styles.cancelButton}`}
-                        onClick={handleCancelEditCategory}
-                      >
-                        Cancel
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className={`${styles.button} ${styles.saveButton}`}
-                      onClick={
-                        editingCategory
-                          ? handleSaveEditCategory
-                          : handleCreateCategory
-                      }
-                    >
-                      {editingCategory ? "Save Changes" : "Create Category"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab !== "categories" && (
-            <div className={styles.footer}>
-              <button
-                type="button"
-                onClick={handleResetDefaults}
-                className={`${styles.button} ${styles.cancelButton}`}
-              >
-                <RotateCcw size={16} />
-                <span>Reset Defaults</span>
-              </button>
-              <button
-                type="submit"
-                disabled={isSaving}
-                className={`${styles.button} ${styles.saveButton}`}
-              >
-                <Save size={16} />
-                <span>{isSaving ? "Saving Changes..." : "Save Changes"}</span>
-              </button>
-            </div>
-          )}
+          <div className={styles.footer}>
+            <button
+              type="button"
+              onClick={handleResetDefaults}
+              className={`${styles.button} ${styles.cancelButton}`}
+            >
+              <RotateCcw size={16} />
+              <span>Reset Defaults</span>
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className={`${styles.button} ${styles.saveButton}`}
+            >
+              <Save size={16} />
+              <span>{isSaving ? "Saving Changes..." : "Save Changes"}</span>
+            </button>
+          </div>
         </div>
       </form>
     </div>
