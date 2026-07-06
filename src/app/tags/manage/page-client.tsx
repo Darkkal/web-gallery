@@ -54,6 +54,9 @@ export default function TagsManageClient({
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
 
+  const cursorRef = useRef(cursor);
+  cursorRef.current = cursor;
+
   // Filters state
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -114,7 +117,7 @@ export default function TagsManageClient({
     async (reset = false) => {
       setLoading(true);
       try {
-        const currentCursor = reset ? "" : cursor || "";
+        const currentCursor = reset ? "" : cursorRef.current || "";
         const limit = 50;
         const res = await fetch(
           `/api/tags?search=${encodeURIComponent(searchQuery)}&category=${encodeURIComponent(categoryFilter)}&sortBy=${sortBy}&limit=${limit}&cursor=${currentCursor}`,
@@ -124,7 +127,7 @@ export default function TagsManageClient({
 
         setTags((prev) => (reset ? data.items : [...prev, ...data.items]));
         setCursor(data.nextCursor);
-        setHasMore(data.hasMore);
+        setHasMore(data.nextCursor !== null);
       } catch (err) {
         setNotification({
           type: "error",
@@ -134,7 +137,7 @@ export default function TagsManageClient({
         setLoading(false);
       }
     },
-    [searchQuery, categoryFilter, sortBy, cursor],
+    [searchQuery, categoryFilter, sortBy],
   );
 
   useEffect(() => {
