@@ -323,3 +323,14 @@ export async function bulkSetTagAlias(
 ) {
   return tagsRepo.bulkSetTagAlias(tagIds, aliasOfTagId);
 }
+
+export async function setTagParent(tagId: number, parentTagId: number | null) {
+  return tagsRepo.setTagParent(tagId, parentTagId);
+}
+
+export async function bulkSetTagParent(
+  tagIds: number[],
+  parentTagId: number | null,
+) {
+  return tagsRepo.bulkSetTagParent(tagIds, parentTagId);
+}

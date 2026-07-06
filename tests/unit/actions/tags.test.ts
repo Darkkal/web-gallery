@@ -30,6 +30,7 @@ import {
   bulkAddTagToPosts,
   bulkSetTagAlias,
   bulkSetTagCategory,
+  bulkSetTagParent,
   cleanupOrphanedTags,
   createTagCategory,
   deleteTag,
@@ -45,6 +46,7 @@ import {
   renameTag,
   setTagAlias,
   setTagCategory,
+  setTagParent,
   updateTagCategory,
 } from "@/app/actions/tags";
 import { recomputeStatistics } from "@/lib/db/repositories/statistics";
@@ -418,6 +420,25 @@ describe("Tags Server Actions", () => {
       await recomputeStatistics();
 
       const count = await bulkSetTagAlias([alias1.id, alias2.id], canonical.id);
+      expect(count).toBe(2);
+    });
+  });
+
+  describe("Hierarchy Server Actions", () => {
+    it("should set tag parent successfully", async () => {
+      const parent = await seedTag(testDb, "parent");
+      const child = await seedTag(testDb, "child");
+
+      const success = await setTagParent(child.id, parent.id);
+      expect(success).toBe(true);
+    });
+
+    it("should bulk set tag parent successfully", async () => {
+      const parent = await seedTag(testDb, "parent");
+      const child1 = await seedTag(testDb, "child1");
+      const child2 = await seedTag(testDb, "child2");
+
+      const count = await bulkSetTagParent([child1.id, child2.id], parent.id);
       expect(count).toBe(2);
     });
   });
