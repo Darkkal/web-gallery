@@ -332,6 +332,7 @@ export async function getTagsPaginated(options?: {
       name: tags.name,
       categoryId: tags.categoryId,
       aliasOfTagId: tags.aliasOfTagId,
+      parentTagId: tags.parentTagId,
       postCount: sql<number>`count(${postTags.postId})`.as("postCount"),
     })
     .from(tags)
@@ -433,6 +434,7 @@ export async function getTagsPaginated(options?: {
   }
 
   const aliasTags = aliasedTable(tags, "alias_tags");
+  const parentTags = aliasedTable(tags, "parent_tags");
 
   const results = await db
     .select({
@@ -441,6 +443,8 @@ export async function getTagsPaginated(options?: {
       postCount: tagCounts.postCount,
       aliasOfTagId: tagCounts.aliasOfTagId,
       aliasName: aliasTags.name,
+      parentTagId: tagCounts.parentTagId,
+      parentName: parentTags.name,
       category: {
         id: tagCategories.id,
         name: tagCategories.name,
@@ -453,6 +457,7 @@ export async function getTagsPaginated(options?: {
     .from(tagCounts)
     .leftJoin(tagCategories, eq(tagCounts.categoryId, tagCategories.id))
     .leftJoin(aliasTags, eq(tagCounts.aliasOfTagId, aliasTags.id))
+    .leftJoin(parentTags, eq(tagCounts.parentTagId, parentTags.id))
     .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
     .orderBy(...orderBys)
     .limit(limit);
@@ -464,6 +469,8 @@ export async function getTagsPaginated(options?: {
     category: row.category?.id ? row.category : null,
     aliasOfTagId: row.aliasOfTagId,
     aliasName: row.aliasName,
+    parentTagId: row.parentTagId,
+    parentName: row.parentName,
   })) as TagManageItem[];
 
   let nextCursor: string | null = null;
@@ -755,6 +762,142 @@ export async function bulkSetTagAlias(
       await incrementStatistics({ totalCanonicalTags: canonicalDiff });
     }
   }
+
+  return result.length;
+}
+
+/**
+ * Sets a tag's parent in the hierarchy.
+ */
+export async function setTagParent(
+  tagId: number,
+  parentTagId: number | null,
+): Promise<boolean> {
+  if (parentTagId === tagId) {
+    throw new Error("A tag cannot be its own parent");
+  }
+
+  const currentTag = await db.query.tags.findFirst({
+    where: eq(tags.id, tagId),
+  });
+  if (!currentTag) {
+    throw new Error(`Tag not found: ${tagId}`);
+  }
+
+  if (currentTag.aliasOfTagId !== null) {
+    throw new Error(
+      "Cannot set parent directly on an alias tag. Set it on the canonical tag instead.",
+    );
+  }
+
+  if (parentTagId !== null) {
+    const parentTag = await db.query.tags.findFirst({
+      where: eq(tags.id, parentTagId),
+    });
+    if (!parentTag) {
+      throw new Error(`Parent tag not found: ${parentTagId}`);
+    }
+    if (parentTag.aliasOfTagId !== null) {
+      throw new Error("Cannot set parent to a tag that is itself an alias");
+    }
+
+    // Check for circular dependency: parentTagId cannot have tagId as an ancestor
+    let currentAncestorId: number | null = parentTagId;
+    const visited = new Set<number>();
+    while (currentAncestorId !== null) {
+      if (currentAncestorId === tagId) {
+        throw new Error(
+          "Cannot set parent because it would create a circular dependency",
+        );
+      }
+      if (visited.has(currentAncestorId)) {
+        break;
+      }
+      visited.add(currentAncestorId);
+      const [ancestor] = await db
+        .select({ parentTagId: tags.parentTagId })
+        .from(tags)
+        .where(eq(tags.id, currentAncestorId))
+        .limit(1);
+      currentAncestorId = ancestor?.parentTagId ?? null;
+    }
+  }
+
+  const result = await db
+    .update(tags)
+    .set({ parentTagId })
+    .where(eq(tags.id, tagId))
+    .returning();
+
+  return result.length > 0;
+}
+
+/**
+ * Bulk sets the parent for multiple tags.
+ */
+export async function bulkSetTagParent(
+  tagIds: number[],
+  parentTagId: number | null,
+): Promise<number> {
+  if (tagIds.length === 0) return 0;
+
+  if (parentTagId !== null) {
+    if (tagIds.includes(parentTagId)) {
+      throw new Error(
+        "A tag cannot be set as its own parent or one of the tags being bulk-updated",
+      );
+    }
+    const parentTag = await db.query.tags.findFirst({
+      where: eq(tags.id, parentTagId),
+    });
+    if (!parentTag) {
+      throw new Error(`Parent tag not found: ${parentTagId}`);
+    }
+    if (parentTag.aliasOfTagId !== null) {
+      throw new Error("Cannot set parent to a tag that is itself an alias");
+    }
+
+    // Circular check for each tag in tagIds
+    for (const tagId of tagIds) {
+      let currentAncestorId: number | null = parentTagId;
+      const visited = new Set<number>();
+      while (currentAncestorId !== null) {
+        if (currentAncestorId === tagId) {
+          throw new Error(
+            "One or more selections would create a circular dependency",
+          );
+        }
+        if (visited.has(currentAncestorId)) {
+          break;
+        }
+        visited.add(currentAncestorId);
+        const [ancestor] = await db
+          .select({ parentTagId: tags.parentTagId })
+          .from(tags)
+          .where(eq(tags.id, currentAncestorId))
+          .limit(1);
+        currentAncestorId = ancestor?.parentTagId ?? null;
+      }
+    }
+  }
+
+  const currentTags = await db
+    .select({ id: tags.id, aliasOfTagId: tags.aliasOfTagId })
+    .from(tags)
+    .where(inArray(tags.id, tagIds));
+
+  const hasAlias = currentTags.some((t) => t.aliasOfTagId !== null);
+  if (hasAlias) {
+    throw new Error(
+      "Cannot set parent directly on alias tags. Set it on canonical tags instead.",
+    );
+  }
+
+  const result = await db
+    .update(tags)
+    .set({ parentTagId })
+    .where(inArray(tags.id, tagIds))
+    .returning();
 
   return result.length;
 }

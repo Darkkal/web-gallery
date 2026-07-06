@@ -30,6 +30,7 @@ import {
   bulkLinkTagToPosts,
   bulkSetTagAlias,
   bulkSetTagCategory,
+  bulkSetTagParent,
   cleanupOrphanedTags,
   createCategory,
   createOrFindTag,
@@ -44,6 +45,7 @@ import {
   renameTag,
   setTagAlias,
   setTagCategory,
+  setTagParent,
   unlinkTagFromPost,
   unlinkTagsFromPost,
   updateCategory,
@@ -785,6 +787,123 @@ describe("Tags Repository", () => {
         .from(tags)
         .where(eq(tags.aliasOfTagId, canonical.id));
       expect(dbAliases.length).toBe(2);
+    });
+  });
+
+  describe("setTagParent", () => {
+    it("should set the parent of a tag successfully", async () => {
+      const parent = await seedTag(testDbHelper.db, "animal");
+      const child = await seedTag(testDbHelper.db, "cat");
+
+      const success = await setTagParent(child.id, parent.id);
+      expect(success).toBe(true);
+
+      const dbChild = await testDbHelper.db
+        .select()
+        .from(tags)
+        .where(eq(tags.id, child.id))
+        .limit(1);
+      expect(dbChild[0].parentTagId).toBe(parent.id);
+    });
+
+    it("should throw if setting parent as itself", async () => {
+      const tag = await seedTag(testDbHelper.db, "cat");
+      await expect(setTagParent(tag.id, tag.id)).rejects.toThrow(
+        "A tag cannot be its own parent",
+      );
+    });
+
+    it("should throw if parent tag is an alias", async () => {
+      const canonical = await seedTag(testDbHelper.db, "dog");
+      const alias = await seedTag(testDbHelper.db, "puppy");
+      const child = await seedTag(testDbHelper.db, "shiba");
+
+      await setTagAlias(alias.id, canonical.id);
+
+      await expect(setTagParent(child.id, alias.id)).rejects.toThrow(
+        "Cannot set parent to a tag that is itself an alias",
+      );
+    });
+
+    it("should throw if tag is an alias", async () => {
+      const parent = await seedTag(testDbHelper.db, "dog");
+      const canonical = await seedTag(testDbHelper.db, "canine");
+      const alias = await seedTag(testDbHelper.db, "puppy");
+
+      await setTagAlias(alias.id, canonical.id);
+
+      await expect(setTagParent(alias.id, parent.id)).rejects.toThrow(
+        "Cannot set parent directly on an alias tag",
+      );
+    });
+
+    it("should throw if circular dependency is created", async () => {
+      const tagA = await seedTag(testDbHelper.db, "A");
+      const tagB = await seedTag(testDbHelper.db, "B");
+      const tagC = await seedTag(testDbHelper.db, "C");
+
+      // Setup A -> B -> C
+      await setTagParent(tagB.id, tagA.id);
+      await setTagParent(tagC.id, tagB.id);
+
+      // Attempting to set parent of A as C (C -> B -> A -> C cycle)
+      await expect(setTagParent(tagA.id, tagC.id)).rejects.toThrow(
+        "Cannot set parent because it would create a circular dependency",
+      );
+    });
+  });
+
+  describe("bulkSetTagParent", () => {
+    it("should bulk set parent successfully", async () => {
+      const parent = await seedTag(testDbHelper.db, "animal");
+      const child1 = await seedTag(testDbHelper.db, "cat");
+      const child2 = await seedTag(testDbHelper.db, "dog");
+
+      const count = await bulkSetTagParent([child1.id, child2.id], parent.id);
+      expect(count).toBe(2);
+
+      const dbChildren = await testDbHelper.db
+        .select()
+        .from(tags)
+        .where(eq(tags.parentTagId, parent.id));
+      expect(dbChildren.length).toBe(2);
+    });
+
+    it("should throw if bulk update contains parent tag ID", async () => {
+      const parent = await seedTag(testDbHelper.db, "animal");
+      const child = await seedTag(testDbHelper.db, "cat");
+
+      await expect(
+        bulkSetTagParent([child.id, parent.id], parent.id),
+      ).rejects.toThrow("A tag cannot be set as its own parent");
+    });
+
+    it("should throw if any of bulk tag list are aliases", async () => {
+      const parent = await seedTag(testDbHelper.db, "animal");
+      const canonical = await seedTag(testDbHelper.db, "cat");
+      const alias = await seedTag(testDbHelper.db, "kitty");
+
+      await setTagAlias(alias.id, canonical.id);
+
+      await expect(
+        bulkSetTagParent([canonical.id, alias.id], parent.id),
+      ).rejects.toThrow("Cannot set parent directly on alias tags");
+    });
+
+    it("should throw if any selection creates circular dependency", async () => {
+      const tagA = await seedTag(testDbHelper.db, "A");
+      const tagB = await seedTag(testDbHelper.db, "B");
+      const tagC = await seedTag(testDbHelper.db, "C");
+
+      // Setup A -> B
+      await setTagParent(tagB.id, tagA.id);
+
+      // Attempting to set parent of A as B (A -> B -> A cycle)
+      await expect(
+        bulkSetTagParent([tagA.id, tagC.id], tagB.id),
+      ).rejects.toThrow(
+        "One or more selections would create a circular dependency",
+      );
     });
   });
 });

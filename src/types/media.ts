@@ -27,6 +27,8 @@ export interface TagManageItem {
   postCount: number;
   aliasOfTagId: number | null;
   aliasName: string | null;
+  parentTagId: number | null;
+  parentName: string | null;
 }
 
 export interface GalleryRow {
