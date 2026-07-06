@@ -403,6 +403,7 @@ export async function getPostTags(postId: number) {
     categoryId: r.tag.categoryId,
     category: r.tag.category,
     aliasOfTagId: r.tag.aliasOfTagId,
+    parentTagId: r.tag.parentTagId,
   }));
 }
 
