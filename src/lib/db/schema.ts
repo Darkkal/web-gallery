@@ -369,6 +369,9 @@ export const tags = sqliteTable("tags", {
   aliasOfTagId: integer("alias_of_tag_id").references((): any => tags.id, {
     onDelete: "set null",
   }),
+  parentTagId: integer("parent_tag_id").references((): any => tags.id, {
+    onDelete: "set null",
+  }),
 });
 
 export const postTags = sqliteTable(
@@ -546,6 +549,14 @@ export const tagsRelations = relations(tags, ({ one, many }) => ({
   }),
   aliases: many(tags, {
     relationName: "tag_aliases",
+  }),
+  parentTag: one(tags, {
+    fields: [tags.parentTagId],
+    references: [tags.id],
+    relationName: "tag_parents",
+  }),
+  childTags: many(tags, {
+    relationName: "tag_parents",
   }),
 }));
 
