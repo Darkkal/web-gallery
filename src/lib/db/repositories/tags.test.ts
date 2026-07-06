@@ -24,7 +24,7 @@ const testDbHelper = setupTestDb();
 activeDb = testDbHelper.db;
 
 // Import the module under test after vi.mock
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { postTags, tagCategories, tags } from "../schema";
 import {
   bulkLinkTagToPosts,
@@ -332,6 +332,40 @@ describe("Tags Repository", () => {
         .limit(1);
       expect(dbTag[0].categoryId).toBe(cat.id);
     });
+
+    it("should propagate category to aliases and throw if setting category directly on an alias", async () => {
+      const cat = await seedTagCategory(testDbHelper.db, "parent-category");
+      const canonical = await seedTag(testDbHelper.db, "canonical-tag");
+      const alias = await seedTag(testDbHelper.db, "alias-tag");
+
+      // Set alias
+      await setTagAlias(alias.id, canonical.id);
+
+      // Try setting category directly on alias
+      await expect(setTagCategory(alias.id, cat.id)).rejects.toThrow(
+        "Cannot directly set category on an alias tag",
+      );
+
+      // Set category on canonical tag
+      const success = await setTagCategory(canonical.id, cat.id);
+      expect(success).toBe(true);
+
+      // Verify canonical has category
+      const dbCanonical = await testDbHelper.db
+        .select()
+        .from(tags)
+        .where(eq(tags.id, canonical.id))
+        .limit(1);
+      expect(dbCanonical[0].categoryId).toBe(cat.id);
+
+      // Verify alias has inherited category
+      const dbAlias = await testDbHelper.db
+        .select()
+        .from(tags)
+        .where(eq(tags.id, alias.id))
+        .limit(1);
+      expect(dbAlias[0].categoryId).toBe(cat.id);
+    });
   });
 
   describe("bulkSetTagCategory", () => {
@@ -346,8 +380,37 @@ describe("Tags Repository", () => {
       const dbTags = await testDbHelper.db
         .select()
         .from(tags)
-        .where(eq(tags.categoryId, cat.id));
-      expect(dbTags.length).toBe(2);
+        .where(inArray(tags.id, [tag1.id, tag2.id]));
+      expect(dbTags[0].categoryId).toBe(cat.id);
+      expect(dbTags[1].categoryId).toBe(cat.id);
+    });
+
+    it("should propagate category to aliases and throw if bulk setting category directly on an alias", async () => {
+      const cat = await seedTagCategory(
+        testDbHelper.db,
+        "bulk-parent-category",
+      );
+      const canonical = await seedTag(testDbHelper.db, "bulk-canonical");
+      const alias = await seedTag(testDbHelper.db, "bulk-alias");
+
+      await setTagAlias(alias.id, canonical.id);
+
+      // Try bulk setting category directly on alias
+      await expect(bulkSetTagCategory([alias.id], cat.id)).rejects.toThrow(
+        "Cannot directly set category on alias tags",
+      );
+
+      // Bulk set category on canonical tag
+      const count = await bulkSetTagCategory([canonical.id], cat.id);
+      expect(count).toBe(2);
+
+      // Verify alias also got the category
+      const dbAlias = await testDbHelper.db
+        .select()
+        .from(tags)
+        .where(eq(tags.id, alias.id))
+        .limit(1);
+      expect(dbAlias[0].categoryId).toBe(cat.id);
     });
   });
 
@@ -638,6 +701,44 @@ describe("Tags Repository", () => {
         .where(eq(tags.id, alias.id))
         .limit(1);
       expect(dbAlias[0].aliasOfTagId).toBe(canonical.id);
+    });
+
+    it("should inherit canonical tag's category when setting alias and preserve category on clear", async () => {
+      const cat = await seedTagCategory(testDbHelper.db, "inherited-cat");
+      const canonical = await seedTag(testDbHelper.db, "canonical");
+      const alias = await seedTag(testDbHelper.db, "alias");
+
+      await setTagCategory(canonical.id, cat.id);
+
+      // Initially alias has no category
+      const dbAlias1 = await testDbHelper.db
+        .select()
+        .from(tags)
+        .where(eq(tags.id, alias.id))
+        .limit(1);
+      expect(dbAlias1[0].categoryId).toBeNull();
+
+      // Setting alias
+      await setTagAlias(alias.id, canonical.id);
+
+      // Alias should now have the inherited category
+      const dbAlias2 = await testDbHelper.db
+        .select()
+        .from(tags)
+        .where(eq(tags.id, alias.id))
+        .limit(1);
+      expect(dbAlias2[0].categoryId).toBe(cat.id);
+
+      // Clear alias
+      await setTagAlias(alias.id, null);
+
+      // Alias should still keep the category
+      const dbAlias3 = await testDbHelper.db
+        .select()
+        .from(tags)
+        .where(eq(tags.id, alias.id))
+        .limit(1);
+      expect(dbAlias3[0].categoryId).toBe(cat.id);
     });
 
     it("should throw if aliasing to itself", async () => {
