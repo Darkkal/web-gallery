@@ -15,6 +15,7 @@ interface TreeNode {
   categoryId: number | null;
   category: TagCategory | null;
   postCount: number;
+  childCount: number;
   hasChildren: boolean;
   children: TreeNode[];
   isExpanded: boolean;
@@ -40,6 +41,10 @@ export default function TagsPageClient({
   const [treeHasMore, setTreeHasMore] = useState(true);
   const [treeLoading, setTreeLoading] = useState(false);
 
+  const [treeSortBy, setTreeSortBy] = useState<"name" | "childCount">("name");
+  const [hierarchiesFirst, setHierarchiesFirst] = useState(false);
+  const [hideOrphans, setHideOrphans] = useState(false);
+
   const treeCursorRef = useRef(treeCursor);
   treeCursorRef.current = treeCursor;
 
@@ -53,7 +58,7 @@ export default function TagsPageClient({
       try {
         const currentCursor = reset ? "" : treeCursorRef.current || "";
         const res = await fetch(
-          `/api/tags/children?category=${initialCategory}&limit=50&cursor=${encodeURIComponent(currentCursor)}`,
+          `/api/tags/children?category=${initialCategory}&limit=50&cursor=${encodeURIComponent(currentCursor)}&sortBy=${treeSortBy}&hierarchiesFirst=${hierarchiesFirst}&hideOrphans=${hideOrphans}`,
         );
         if (res.ok) {
           const data = await res.json();
@@ -77,7 +82,7 @@ export default function TagsPageClient({
         setTreeLoading(false);
       }
     },
-    [initialCategory],
+    [initialCategory, treeSortBy, hierarchiesFirst, hideOrphans],
   );
 
   // Sync settings when tree is first loaded or category changes
@@ -115,7 +120,9 @@ export default function TagsPageClient({
 
   const lazyLoadChildren = async (parentId: number) => {
     try {
-      const res = await fetch(`/api/tags/children?parentTagId=${parentId}`);
+      const res = await fetch(
+        `/api/tags/children?parentTagId=${parentId}&sortBy=${treeSortBy}&hierarchiesFirst=${hierarchiesFirst}`,
+      );
       if (res.ok) {
         const data = await res.json();
         const childNodes: TreeNode[] = data.items.map(
@@ -210,6 +217,15 @@ export default function TagsPageClient({
                   {node.category.name}
                 </span>
               )}
+              {node.childCount > 0 && (
+                <span
+                  className={styles.categoryBadge}
+                  style={{ textTransform: "none" }}
+                >
+                  {node.childCount}{" "}
+                  {node.childCount === 1 ? "subtag" : "subtags"}
+                </span>
+              )}
               {node.postCount !== undefined && (
                 <span className={styles.treePostCount}>
                   {node.postCount} posts
@@ -282,6 +298,39 @@ export default function TagsPageClient({
               >
                 Recently Used
               </Link>
+            </div>
+          )}
+
+          {viewMode === "tree" && (
+            <div className={styles.controls}>
+              <select
+                className={styles.select}
+                value={treeSortBy}
+                onChange={(e) =>
+                  setTreeSortBy(e.target.value as "name" | "childCount")
+                }
+              >
+                <option value="name">Alphabetical</option>
+                <option value="childCount">By Subtag Count</option>
+              </select>
+
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={hierarchiesFirst}
+                  onChange={(e) => setHierarchiesFirst(e.target.checked)}
+                />
+                Hierarchies First
+              </label>
+
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={hideOrphans}
+                  onChange={(e) => setHideOrphans(e.target.checked)}
+                />
+                Hide Flat Tags
+              </label>
             </div>
           )}
         </div>
