@@ -602,11 +602,30 @@ export default function TagsManageClient({
 
     startTransition(async () => {
       try {
-        const ids = Array.from(selectedTagIds);
+        const totalSelected = selectedTagIds.size;
+        const ids = Array.from(selectedTagIds).filter((id) => {
+          const t = tags.find((tag) => tag.id === id);
+          return t ? t.aliasOfTagId === null : true;
+        });
+
+        if (ids.length === 0) {
+          setNotification({
+            type: "error",
+            message:
+              "Cannot assign category directly to alias tags. Set it on the canonical tag instead.",
+          });
+          return;
+        }
+
         await bulkSetTagCategory(ids, catId);
+
+        const skippedCount = totalSelected - ids.length;
         setNotification({
           type: "success",
-          message: "Category updated successfully for selected tags.",
+          message:
+            skippedCount > 0
+              ? `Category updated for canonical tags. Skipped ${skippedCount} alias tags (they inherit category from their canonical tag).`
+              : "Category updated successfully for selected tags.",
         });
         setSelectedTagIds(new Set());
         fetchTags(true);
