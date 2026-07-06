@@ -66,6 +66,7 @@ export default function Lightbox({
   const [isRecentlyMounted, setIsRecentlyMounted] = useState(true);
   const [isRemovalMode, setIsRemovalMode] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<Set<number>>(new Set());
+  const [suggestedAncestors, setSuggestedAncestors] = useState<string[]>([]);
   const router = useRouter();
 
   const toggleTagSelection = (tagId: number) => {
@@ -103,7 +104,7 @@ export default function Lightbox({
     }
   }
 
-  async function handleAddTag(tagName: string) {
+  async function handleAddTag(tagName: string, ancestors?: string[]) {
     if (!row.post?.id) return;
     try {
       const newTag = await addTagToPost(row.post.id, tagName);
@@ -112,6 +113,23 @@ export default function Lightbox({
         return [...prev, newTag];
       });
       setIsAddingTag(false);
+
+      if (ancestors && ancestors.length > 0) {
+        // filter out ancestors already on the post
+        const activeTagsLower = [
+          ...postTags.map((t) => t.name.toLowerCase()),
+          newTag.name.toLowerCase(),
+        ];
+        const remaining = ancestors.filter(
+          (anc) => !activeTagsLower.includes(anc.toLowerCase()),
+        );
+        setSuggestedAncestors(remaining);
+      } else {
+        // if no ancestors are suggested, check if the added tag was one of the suggested ancestors
+        setSuggestedAncestors((prev) =>
+          prev.filter((anc) => anc.toLowerCase() !== tagName.toLowerCase()),
+        );
+      }
     } catch (err) {
       alert(`Failed to add tag: ${err}`);
     }
@@ -218,6 +236,7 @@ export default function Lightbox({
   // Fetch Post Tags
   useEffect(() => {
     setSelectedTagIds(new Set());
+    setSuggestedAncestors([]);
     if (row.post?.id) {
       getPostTags(row.post.id).then(setPostTags).catch(console.error);
     } else {
@@ -777,6 +796,24 @@ export default function Lightbox({
               </button>
             )}
           </div>
+
+          {suggestedAncestors.length > 0 && (
+            <div className={styles.ancestorSuggestions}>
+              <span className={styles.ancestorTitle}>Suggested Ancestors:</span>
+              <div className={styles.ancestorChips}>
+                {suggestedAncestors.map((anc) => (
+                  <button
+                    type="button"
+                    key={anc}
+                    className={styles.ancestorChip}
+                    onClick={() => handleAddTag(anc)}
+                  >
+                    + {anc}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {(row.post?.url || (tweet?.tweetId && user)) && (

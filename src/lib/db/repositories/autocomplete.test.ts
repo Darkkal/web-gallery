@@ -109,6 +109,26 @@ describe("Autocomplete Repository", () => {
       expect(suggestion).toBeDefined();
       expect(suggestion!.label).toBe("car → automobile");
     });
+
+    it("should return the ancestors chain for suggestions", async () => {
+      const parent = await seedTag(testDb, "animal");
+      const child = await seedTag(testDb, "feline");
+      const grandchild = await seedTag(testDb, "cat");
+
+      await testDb
+        .update(tags)
+        .set({ parentTagId: parent.id })
+        .where(eq(tags.id, child.id));
+      await testDb
+        .update(tags)
+        .set({ parentTagId: child.id })
+        .where(eq(tags.id, grandchild.id));
+
+      const suggestions = await autocompleteTag("cat");
+      const suggestion = suggestions.find((s) => s.value === "cat");
+      expect(suggestion).toBeDefined();
+      expect(suggestion!.ancestors).toEqual(["feline", "animal"]);
+    });
   });
 
   describe("autocompleteUser", () => {
