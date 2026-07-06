@@ -1,4 +1,13 @@
-import { and, eq, isNull, like, notInArray, type SQL, sql } from "drizzle-orm";
+import {
+  aliasedTable,
+  and,
+  eq,
+  isNull,
+  like,
+  notInArray,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   pixivUsers,
@@ -64,12 +73,17 @@ export async function autocompleteTag(
     }
   }
 
-  let query = db
+  const aliasTags = aliasedTable(tags, "alias_tags");
+
+  let query: any = db
     .select({
       name: tags.name,
+      aliasOfTagId: tags.aliasOfTagId,
+      aliasName: aliasTags.name,
       count: sql<number>`count(${postTags.postId})`.mapWith(Number),
     })
     .from(tags)
+    .leftJoin(aliasTags, eq(tags.aliasOfTagId, aliasTags.id))
     .$dynamic();
 
   if (postsFilterSubquery) {
@@ -83,15 +97,20 @@ export async function autocompleteTag(
     query = query.leftJoin(postTags, eq(tags.id, postTags.tagId));
   }
 
-  const results = await query
+  const results = (await query
     .where(and(...whereConditions))
-    .groupBy(tags.name)
+    .groupBy(tags.name, tags.aliasOfTagId, aliasTags.name)
     .orderBy(sql`count(${postTags.postId}) DESC`)
-    .limit(limit);
+    .limit(limit)) as {
+    name: string;
+    aliasOfTagId: number | null;
+    aliasName: string | null;
+    count: number;
+  }[];
 
   return results.map((r) => ({
     value: r.name,
-    label: r.name,
+    label: r.aliasName ? `${r.name} → ${r.aliasName}` : r.name,
     count: r.count,
     type: "value" as const,
   }));
