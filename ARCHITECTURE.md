@@ -98,6 +98,7 @@ web-gallery/
 │   │   │   ├── playlists/          #   Playlist read/write (REST)
 │   │   │   ├── sources/            #   Source list + scrape status
 │   │   │   ├── statistics/         #   Statistics data route
+│   │   │   ├── tags/               #   Tag pagination route
 │   │   │   └── timeline/           #   Timeline post list (paginated)
 │   │   ├── gallery/                # Masonry gallery page
 │   │   ├── timeline/               # Chronological post feed page
@@ -105,7 +106,8 @@ web-gallery/
 │   │   ├── settings/               # Settings configuration page
 │   │   ├── library/                # Library scan control page
 │   │   ├── scrape/                 # Scrape trigger page
-│   │   ├── tags/                   # Tag browser page
+│   │   ├── tags/                   # Tag statistics page
+│   │   │   └── manage/             #   Tag management dashboard
 │   │   ├── playlists/              # Playlist / collection management
 │   │   ├── statistics/             # Statistics & dashboard page
 │   │   ├── downloads/              # Local file serving handler

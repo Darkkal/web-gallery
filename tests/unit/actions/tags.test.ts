@@ -25,7 +25,6 @@ vi.mock("@/lib/db", () => {
 const testDb = testDbHelper.db;
 activeDb = testDb;
 
-import { eq } from "drizzle-orm";
 import {
   addTagToPost,
   bulkAddTagToPosts,
@@ -36,6 +35,7 @@ import {
   deleteTagCategory,
   deleteTags,
   getCategories,
+  getOrCreateTagByName,
   getPostTags,
   getTopTags,
   mergeTags,
@@ -46,7 +46,7 @@ import {
   updateTagCategory,
 } from "@/app/actions/tags";
 import { recomputeStatistics } from "@/lib/db/repositories/statistics";
-import { postTags, tagCategories } from "@/lib/db/schema";
+import { postTags } from "@/lib/db/schema";
 
 describe("Tags Server Actions", () => {
   beforeAll(async () => {
@@ -369,7 +369,7 @@ describe("Tags Server Actions", () => {
 
   describe("cleanupOrphanedTags Action", () => {
     it("should clean up orphaned tags and update statistics", async () => {
-      const tag = await seedTag(testDb, "orphan-action");
+      const _tag = await seedTag(testDb, "orphan-action");
       await recomputeStatistics();
 
       const count = await cleanupOrphanedTags();
@@ -385,6 +385,17 @@ describe("Tags Server Actions", () => {
 
       const count = await bulkSetTagCategory([tag1.id, tag2.id], cat.id);
       expect(count).toBe(2);
+    });
+  });
+
+  describe("getOrCreateTagByName Action", () => {
+    it("should retrieve existing or create new tag and update stats", async () => {
+      await recomputeStatistics();
+      const tag = await getOrCreateTagByName("brand-new");
+      expect(tag.name).toBe("brand-new");
+
+      const existing = await getOrCreateTagByName("brand-new");
+      expect(existing.id).toBe(tag.id);
     });
   });
 });

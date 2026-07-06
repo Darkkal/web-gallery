@@ -11,6 +11,28 @@
   align-items: center;
 }
 
+.titleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.manageLink {
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.manageLink:hover {
+  background: hsl(var(--primary) / 0.85);
+  box-shadow: 0 4px 12px hsl(var(--primary) / 0.2);
+}
+
 .title {
   font-size: 24px;
   font-weight: 600;

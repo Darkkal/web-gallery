@@ -293,3 +293,19 @@ export async function bulkSetTagCategory(
 ) {
   return tagsRepo.bulkSetTagCategory(tagIds, categoryId);
 }
+
+export async function getOrCreateTagByName(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error("Tag name cannot be empty");
+  }
+  if (trimmed.length > 200) {
+    throw new Error("Tag name cannot exceed 200 characters");
+  }
+
+  const { tag, isNew } = await tagsRepo.createOrFindTag(trimmed);
+  if (isNew) {
+    await incrementStatistics({ totalTags: 1 });
+  }
+  return tag;
+}

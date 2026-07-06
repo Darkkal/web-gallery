@@ -25,7 +25,12 @@ export default async function TagsPage({ searchParams }: TagsPageProps) {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Tag Statistics</h1>
+        <div className={styles.titleWrapper}>
+          <h1 className={styles.title}>Tag Statistics</h1>
+          <Link href="/tags/manage" className={styles.manageLink}>
+            Manage Tags
+          </Link>
+        </div>
 
         <div className={styles.controls}>
           <Link
