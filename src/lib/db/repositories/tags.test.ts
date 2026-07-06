@@ -429,6 +429,13 @@ describe("Tags Repository", () => {
       });
       expect(uncatItems.length).toBe(1);
       expect(uncatItems[0].name).toBe("flat-tag");
+
+      // Filter uncategorized using "none"
+      const { items: noneItems } = await getTagsPaginated({
+        category: "none",
+      });
+      expect(noneItems.length).toBe(1);
+      expect(noneItems[0].name).toBe("flat-tag");
     });
 
     it("should sort tags correctly", async () => {

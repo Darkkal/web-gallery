@@ -321,7 +321,7 @@ export async function getTagsPaginated(options?: {
   }
 
   if (category && category !== "all") {
-    if (category === "uncategorized") {
+    if (category === "none" || category === "uncategorized") {
       whereConditions.push(sql`${tagCounts.categoryId} is null`);
     } else {
       const categoryId = parseInt(category, 10);
