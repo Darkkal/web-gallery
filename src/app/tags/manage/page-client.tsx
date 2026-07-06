@@ -84,6 +84,18 @@ export default function TagsManageClient({
   const [aliasSuggestionsOpen, setAliasSuggestionsOpen] = useState(false);
   const aliasSuggestContainerRef = useRef<HTMLDivElement>(null);
 
+  // Category modal states
+  const [showBulkCategory, setShowBulkCategory] = useState(false);
+  const [categoryTagItem, setCategoryTagItem] = useState<TagManageItem | null>(
+    null,
+  );
+  const [categoryTargetInput, setCategoryTargetInput] = useState("");
+  const [categorySuggestions, setCategorySuggestions] = useState<TagCategory[]>(
+    [],
+  );
+  const [categorySuggestionsOpen, setCategorySuggestionsOpen] = useState(false);
+  const categorySuggestContainerRef = useRef<HTMLDivElement>(null);
+
   // Action feedback
   const [notification, setNotification] = useState<{
     type: "success" | "error";
@@ -254,6 +266,21 @@ export default function TagsManageClient({
     return () => clearTimeout(timer);
   }, [aliasTargetInput, aliasTagItem, showBulkAlias, selectedTagIds, tags]);
 
+  // Fetch/filter category suggestions from local categoriesList state
+  useEffect(() => {
+    if (categoryTargetInput.trim() === "") {
+      setCategorySuggestions([]);
+      setCategorySuggestionsOpen(false);
+      return;
+    }
+    const query = categoryTargetInput.toLowerCase();
+    const suggestions = categoriesList.filter((cat) =>
+      cat.name.toLowerCase().includes(query),
+    );
+    setCategorySuggestions(suggestions);
+    setCategorySuggestionsOpen(suggestions.length > 0);
+  }, [categoryTargetInput, categoriesList]);
+
   // Close suggestions on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -268,6 +295,12 @@ export default function TagsManageClient({
         !aliasSuggestContainerRef.current.contains(event.target as Node)
       ) {
         setAliasSuggestionsOpen(false);
+      }
+      if (
+        categorySuggestContainerRef.current &&
+        !categorySuggestContainerRef.current.contains(event.target as Node)
+      ) {
+        setCategorySuggestionsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -592,23 +625,37 @@ export default function TagsManageClient({
     });
   };
 
-  const handleBulkCategoryChange = async (
-    e: React.ChangeEvent<HTMLSelectElement>,
-  ) => {
-    const val = e.target.value;
-    if (val === "" || selectedTagIds.size === 0) return;
-
-    const catId = val === "null" ? null : parseInt(val, 10);
+  const handleSetCategory = async () => {
+    const trimmed = categoryTargetInput.trim();
+    let catId: number | null = null;
+    if (trimmed !== "") {
+      const match = categoriesList.find(
+        (c) => c.name.toLowerCase() === trimmed.toLowerCase(),
+      );
+      if (!match) {
+        setNotification({
+          type: "error",
+          message:
+            "Category not found. Please choose an existing category or leave blank to uncategorize.",
+        });
+        return;
+      }
+      catId = match.id;
+    }
 
     startTransition(async () => {
       try {
-        const totalSelected = selectedTagIds.size;
-        const ids = Array.from(selectedTagIds).filter((id) => {
+        const ids = categoryTagItem
+          ? [categoryTagItem.id]
+          : Array.from(selectedTagIds);
+        const totalSelected = ids.length;
+
+        const targetIds = ids.filter((id) => {
           const t = tags.find((tag) => tag.id === id);
           return t ? t.aliasOfTagId === null : true;
         });
 
-        if (ids.length === 0) {
+        if (targetIds.length === 0) {
           setNotification({
             type: "error",
             message:
@@ -617,16 +664,19 @@ export default function TagsManageClient({
           return;
         }
 
-        await bulkSetTagCategory(ids, catId);
+        await bulkSetTagCategory(targetIds, catId);
 
-        const skippedCount = totalSelected - ids.length;
+        const skippedCount = totalSelected - targetIds.length;
         setNotification({
           type: "success",
           message:
             skippedCount > 0
               ? `Category updated for canonical tags. Skipped ${skippedCount} alias tags (they inherit category from their canonical tag).`
-              : "Category updated successfully for selected tags.",
+              : "Category updated successfully.",
         });
+        setCategoryTagItem(null);
+        setShowBulkCategory(false);
+        setCategoryTargetInput("");
         setSelectedTagIds(new Set());
         fetchTags(true);
         router.refresh();
@@ -634,7 +684,7 @@ export default function TagsManageClient({
         setNotification({
           type: "error",
           message:
-            err instanceof Error ? err.message : "Error updating categories",
+            err instanceof Error ? err.message : "Error updating category",
         });
       }
     });
@@ -779,23 +829,18 @@ export default function TagsManageClient({
               Alias Selected
             </button>
 
-            <select
-              className={styles.select}
-              style={{ minWidth: "150px", padding: "0.5rem 1rem" }}
-              value=""
-              onChange={handleBulkCategoryChange}
+            <button
+              type="button"
+              className={`${styles.button} ${styles.btnOutline}`}
+              onClick={() => {
+                setShowBulkCategory(true);
+                setCategoryTargetInput("");
+              }}
               disabled={isPending}
             >
-              <option value="" disabled>
-                Assign Category...
-              </option>
-              <option value="null">None (Uncategorize)</option>
-              {categoriesList.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+              <FolderEdit size={16} />
+              Set Category
+            </button>
 
             <button
               type="button"
@@ -923,6 +968,18 @@ export default function TagsManageClient({
                       disabled={isPending}
                     >
                       <Link2 size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      title="Set Category"
+                      onClick={() => {
+                        setCategoryTagItem(tag);
+                        setCategoryTargetInput(tag.category?.name || "");
+                      }}
+                      disabled={isPending || tag.aliasOfTagId !== null}
+                    >
+                      <FolderEdit size={16} />
                     </button>
                     <button
                       type="button"
@@ -1232,6 +1289,151 @@ export default function TagsManageClient({
                 disabled={isPending}
               >
                 Set Alias
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CATEGORY SELECTION MODAL (SINGLE OR BULK) */}
+      {(categoryTagItem || showBulkCategory) && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Set Tag Category</h2>
+              <button
+                type="button"
+                className={styles.closeButton}
+                onClick={() => {
+                  setCategoryTagItem(null);
+                  setShowBulkCategory(false);
+                  setCategoryTargetInput("");
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <p className={styles.helperText}>
+                Assign tag(s) to a category. Type name to autocomplete. Leave
+                blank to uncategorize.
+              </p>
+              <div className={styles.formGroup}>
+                <span className={styles.label}>Target Tag(s)</span>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "0.25rem",
+                    maxHeight: "80px",
+                    overflowY: "auto",
+                    padding: "0.25rem",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "4px",
+                    backgroundColor: "var(--bg-card)",
+                  }}
+                >
+                  {showBulkCategory
+                    ? Array.from(selectedTagIds).map((id) => {
+                        const t = tags.find((tag) => tag.id === id);
+                        return t ? (
+                          <span key={id} className={styles.pill}>
+                            {t.name}
+                          </span>
+                        ) : null;
+                      })
+                    : categoryTagItem && (
+                        <span className={styles.pill}>
+                          {categoryTagItem.name}
+                        </span>
+                      )}
+                </div>
+              </div>
+
+              <div
+                className={styles.formGroup}
+                style={{ position: "relative" }}
+              >
+                <label htmlFor="category-target-input" className={styles.label}>
+                  Category Name
+                </label>
+                <div style={{ position: "relative" }}>
+                  <input
+                    id="category-target-input"
+                    type="text"
+                    placeholder="Type category (e.g., artist, character) or leave empty..."
+                    className={styles.input}
+                    value={categoryTargetInput}
+                    onChange={(e) => setCategoryTargetInput(e.target.value)}
+                    onFocus={() => {
+                      if (categorySuggestions.length > 0)
+                        setCategorySuggestionsOpen(true);
+                    }}
+                    autoComplete="off"
+                    disabled={isPending}
+                  />
+                  {categorySuggestionsOpen &&
+                    categorySuggestions.length > 0 && (
+                      <div
+                        ref={categorySuggestContainerRef}
+                        className={styles.autocompleteDropdown}
+                      >
+                        {categorySuggestions.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className={styles.autocompleteItem}
+                            style={{
+                              width: "100%",
+                              textAlign: "left",
+                              background: "transparent",
+                              border: "none",
+                              color: "inherit",
+                              font: "inherit",
+                            }}
+                            onClick={() => {
+                              setCategoryTargetInput(item.name);
+                              setCategorySuggestionsOpen(false);
+                            }}
+                          >
+                            <span
+                              style={{
+                                backgroundColor: `hsl(${item.colorHue}, ${item.colorSaturation}%, ${item.colorLightness}%)`,
+                                width: "8px",
+                                height: "8px",
+                                borderRadius: "50%",
+                                display: "inline-block",
+                                marginRight: "8px",
+                              }}
+                            />
+                            {item.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                </div>
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={`${styles.button} ${styles.btnSecondary}`}
+                onClick={() => {
+                  setCategoryTagItem(null);
+                  setShowBulkCategory(false);
+                  setCategoryTargetInput("");
+                }}
+                disabled={isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={`${styles.button} ${styles.btnPrimary}`}
+                onClick={handleSetCategory}
+                disabled={isPending}
+              >
+                Set Category
               </button>
             </div>
           </div>
