@@ -24,7 +24,8 @@ vi.mock("@/lib/db", () => {
 const testDb = testDbHelper.db;
 activeDb = testDb;
 
-import { postTags } from "../schema";
+import { eq } from "drizzle-orm";
+import { postTags, tags } from "../schema";
 import { getPostTags, getTimelinePosts } from "./posts";
 
 describe("Posts Repository", () => {
@@ -132,6 +133,39 @@ describe("Posts Repository", () => {
       const resPixiv = await getTimelinePosts({ search: "source:pixiv" });
       expect(resPixiv.posts.length).toBe(1);
       expect(resPixiv.posts[0].internalDbId).toBe(postPixiv.id);
+    });
+
+    it("should expand tag aliases bi-directionally in search query", async () => {
+      const source = await seedSource(testDb);
+      const post1 = await seedPost(testDb, source.id, {
+        title: "Artwork 1",
+        content: "Contains a car",
+        date: "2026-01-01",
+      });
+      const post2 = await seedPost(testDb, source.id, {
+        title: "Artwork 2",
+        content: "Contains an automobile",
+        date: "2026-01-02",
+      });
+
+      const tagAutomobile = await seedTag(testDb, "automobile");
+      const tagCar = await seedTag(testDb, "car");
+
+      await testDb
+        .update(tags)
+        .set({ aliasOfTagId: tagAutomobile.id })
+        .where(eq(tags.id, tagCar.id));
+
+      await testDb.insert(postTags).values([
+        { postId: post1.id, tagId: tagCar.id },
+        { postId: post2.id, tagId: tagAutomobile.id },
+      ]);
+
+      const resCar = await getTimelinePosts({ search: "tag:car" });
+      expect(resCar.posts.length).toBe(2);
+
+      const resAuto = await getTimelinePosts({ search: "tag:automobile" });
+      expect(resAuto.posts.length).toBe(2);
     });
   });
 

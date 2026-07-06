@@ -22,6 +22,7 @@ import {
   posts,
   postTags,
   sources,
+  tags,
   twitterUsers,
 } from "@/lib/db/schema";
 import { parseSearchQuery } from "@/lib/utils/search-parser";
@@ -77,13 +78,18 @@ export async function getTimelinePosts(filters?: {
   const { cleanQuery, sourceFilter } = parseSearchQuery(search);
   const searchLower = cleanQuery.toLowerCase();
 
+  // Expand search aliases at query-time
+  const expandedSearch = searchLower
+    ? await expandSearchAliases(searchLower)
+    : "";
+
   const whereConditions: SQL[] = [isNull(posts.deletedAt)];
 
   if (sourceFilter) {
     whereConditions.push(eq(posts.extractorType, sourceFilter));
   }
 
-  const searchSubquery = searchLower
+  const searchSubquery = expandedSearch
     ? db
         .select({
           search_id: sql<number>`rowid`.as("search_id"),
@@ -92,7 +98,7 @@ export async function getTimelinePosts(filters?: {
           ),
         })
         .from(sql`posts_fts`)
-        .where(sql`posts_fts MATCH ${searchLower}`)
+        .where(sql`posts_fts MATCH ${expandedSearch}`)
         .as("search_subquery")
     : undefined;
 
@@ -398,4 +404,72 @@ export async function getPostTags(postId: number) {
     category: r.tag.category,
     aliasOfTagId: r.tag.aliasOfTagId,
   }));
+}
+
+async function getEquivalentTags(tagName: string): Promise<string[]> {
+  const lowerName = tagName.toLowerCase();
+
+  const tagRecord = await db.query.tags.findFirst({
+    where: eq(sql`lower(${tags.name})`, lowerName),
+  });
+
+  if (!tagRecord) {
+    return [tagName];
+  }
+
+  const canonicalId = tagRecord.aliasOfTagId ?? tagRecord.id;
+
+  const canonicalTag = await db.query.tags.findFirst({
+    where: eq(tags.id, canonicalId),
+  });
+
+  const siblingAliases = await db
+    .select({ name: tags.name })
+    .from(tags)
+    .where(eq(tags.aliasOfTagId, canonicalId));
+
+  const equivalentNames = new Set<string>();
+  if (canonicalTag) {
+    equivalentNames.add(canonicalTag.name);
+  }
+  for (const sibling of siblingAliases) {
+    equivalentNames.add(sibling.name);
+  }
+  equivalentNames.add(tagRecord.name);
+
+  return Array.from(equivalentNames);
+}
+
+export async function expandSearchAliases(query: string): Promise<string> {
+  const tagRegex = /\btag_names:([a-zA-Z0-9_]+)/gi;
+  const matches = [...query.matchAll(tagRegex)];
+  if (matches.length === 0) {
+    return query;
+  }
+
+  const uniqueTags = Array.from(new Set(matches.map((m) => m[1])));
+
+  const replacements: Record<string, string> = {};
+  await Promise.all(
+    uniqueTags.map(async (tagName) => {
+      const equivalents = await getEquivalentTags(tagName);
+      if (equivalents.length > 1) {
+        replacements[tagName] =
+          `(${equivalents.map((t) => `tag_names:${t}`).join(" OR ")})`;
+      } else {
+        replacements[tagName] = `tag_names:${equivalents[0]}`;
+      }
+    }),
+  );
+
+  let expandedQuery = query;
+  for (const tagName of uniqueTags) {
+    const escapedTag = tagName.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+    const regex = new RegExp(`\\btag_names:${escapedTag}\\b`, "gi");
+    if (replacements[tagName]) {
+      expandedQuery = expandedQuery.replace(regex, replacements[tagName]);
+    }
+  }
+
+  return expandedQuery;
 }
