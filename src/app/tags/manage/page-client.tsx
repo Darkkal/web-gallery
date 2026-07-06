@@ -6,6 +6,7 @@ import {
   ChevronUp,
   Edit2,
   FolderEdit,
+  Link2,
   Loader2,
   Merge as MergeIcon,
   Plus,
@@ -19,6 +20,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
+  bulkSetTagAlias,
   bulkSetTagCategory,
   cleanupOrphanedTags,
   createTagCategory,
@@ -28,6 +30,7 @@ import {
   getOrCreateTagByName,
   mergeTags,
   renameTag,
+  setTagAlias,
   updateTagCategory,
 } from "@/app/actions/tags";
 import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
@@ -72,6 +75,14 @@ export default function TagsManageClient({
   );
   const [mergeTagItem, setMergeTagItem] = useState<TagManageItem | null>(null);
   const [showBulkMerge, setShowBulkMerge] = useState(false);
+  const [showBulkAlias, setShowBulkAlias] = useState(false);
+  const [aliasTagItem, setAliasTagItem] = useState<TagManageItem | null>(null);
+  const [aliasTargetInput, setAliasTargetInput] = useState("");
+  const [aliasSuggestions, setAliasSuggestions] = useState<
+    { id: number; name: string }[]
+  >([]);
+  const [aliasSuggestionsOpen, setAliasSuggestionsOpen] = useState(false);
+  const aliasSuggestContainerRef = useRef<HTMLDivElement>(null);
 
   // Action feedback
   const [notification, setNotification] = useState<{
@@ -195,6 +206,54 @@ export default function TagsManageClient({
     return () => clearTimeout(timer);
   }, [mergeTargetInput, mergeTagItem, showBulkMerge, selectedTagIds, tags]);
 
+  // Fetch alias suggestions (autocomplete target tag)
+  useEffect(() => {
+    if (aliasTargetInput.trim().length < 2) {
+      setAliasSuggestions([]);
+      setAliasSuggestionsOpen(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/autocomplete?column=tag&q=${encodeURIComponent(aliasTargetInput.trim())}`,
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const list = data.suggestions
+            .map((s: { value: string }) => ({
+              id: 0,
+              name: s.value,
+            }))
+            .filter((s: { name: string }) => {
+              if (
+                aliasTagItem &&
+                s.name.toLowerCase() === aliasTagItem.name.toLowerCase()
+              )
+                return false;
+              if (showBulkAlias) {
+                const sources = tags.filter((t) => selectedTagIds.has(t.id));
+                if (
+                  sources.some(
+                    (src) => src.name.toLowerCase() === s.name.toLowerCase(),
+                  )
+                )
+                  return false;
+              }
+              return true;
+            });
+          setAliasSuggestions(list);
+          setAliasSuggestionsOpen(list.length > 0);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [aliasTargetInput, aliasTagItem, showBulkAlias, selectedTagIds, tags]);
+
   // Close suggestions on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -203,6 +262,12 @@ export default function TagsManageClient({
         !mergeSuggestContainerRef.current.contains(event.target as Node)
       ) {
         setMergeSuggestionsOpen(false);
+      }
+      if (
+        aliasSuggestContainerRef.current &&
+        !aliasSuggestContainerRef.current.contains(event.target as Node)
+      ) {
+        setAliasSuggestionsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -426,6 +491,52 @@ export default function TagsManageClient({
     });
   };
 
+  const handleSetAlias = async () => {
+    const trimmedTarget = aliasTargetInput.trim();
+    startTransition(async () => {
+      try {
+        const sources = showBulkAlias
+          ? Array.from(selectedTagIds)
+          : aliasTagItem
+            ? [aliasTagItem.id]
+            : [];
+
+        if (sources.length === 0) return;
+
+        let targetTagId: number | null = null;
+        if (trimmedTarget) {
+          const resolvedTarget = await getOrCreateTagByName(trimmedTarget);
+          targetTagId = resolvedTarget.id;
+        }
+
+        if (showBulkAlias) {
+          await bulkSetTagAlias(sources, targetTagId);
+        } else if (aliasTagItem) {
+          await setTagAlias(aliasTagItem.id, targetTagId);
+        }
+
+        setNotification({
+          type: "success",
+          message: trimmedTarget
+            ? `Successfully set alias to "${trimmedTarget}" for selected tag(s).`
+            : "Successfully removed alias (made tag canonical) for selected tag(s).",
+        });
+
+        setAliasTagItem(null);
+        setShowBulkAlias(false);
+        setAliasTargetInput("");
+        setSelectedTagIds(new Set());
+        fetchTags(true);
+        router.refresh();
+      } catch (err) {
+        setNotification({
+          type: "error",
+          message: err instanceof Error ? err.message : "Error setting alias",
+        });
+      }
+    });
+  };
+
   const handleDeleteSingleTag = async (tagId: number, name: string) => {
     if (!confirm(`Are you sure you want to delete the tag "${name}"?`)) return;
 
@@ -639,6 +750,16 @@ export default function TagsManageClient({
               Merge Selected
             </button>
 
+            <button
+              type="button"
+              className={`${styles.button} ${styles.btnOutline}`}
+              onClick={() => setShowBulkAlias(true)}
+              disabled={isPending}
+            >
+              <Link2 size={16} />
+              Alias Selected
+            </button>
+
             <select
               className={styles.select}
               style={{ minWidth: "150px", padding: "0.5rem 1rem" }}
@@ -709,13 +830,24 @@ export default function TagsManageClient({
                     />
                   </td>
                   <td className={`${styles.td} ${styles.tagNameCell}`}>
-                    <Link
-                      href={`/gallery?search=${encodeURIComponent(tag.name)}`}
-                      className={styles.tagNameLink}
-                      style={{ color: "inherit", textDecoration: "none" }}
-                    >
-                      {tag.name}
-                    </Link>
+                    <div className={styles.tagNameContainer}>
+                      <Link
+                        href={`/gallery?search=${encodeURIComponent(tag.name)}`}
+                        className={styles.tagNameLink}
+                        style={{ color: "inherit", textDecoration: "none" }}
+                      >
+                        {tag.name}
+                      </Link>
+                      {tag.aliasName && (
+                        <span
+                          className={styles.aliasIndicator}
+                          title={`Alias of ${tag.aliasName}`}
+                        >
+                          <Link2 size={12} style={{ marginRight: "2px" }} />↳{" "}
+                          {tag.aliasName}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className={styles.td}>
                     {tag.category ? (
@@ -760,6 +892,18 @@ export default function TagsManageClient({
                       disabled={isPending}
                     >
                       <MergeIcon size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      title="Set Alias"
+                      onClick={() => {
+                        setAliasTagItem(tag);
+                        setAliasTargetInput(tag.aliasName || "");
+                      }}
+                      disabled={isPending}
+                    >
+                      <Link2 size={16} />
                     </button>
                     <button
                       type="button"
@@ -952,6 +1096,123 @@ export default function TagsManageClient({
                 disabled={isPending}
               >
                 Merge Tags
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ALIAS MODAL (SINGLE OR BULK) */}
+      {(aliasTagItem || showBulkAlias) && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Set Tag Alias</h2>
+              <button
+                type="button"
+                className={styles.closeButton}
+                onClick={() => {
+                  setAliasTagItem(null);
+                  setShowBulkAlias(false);
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <p className={styles.helperText}>
+                Setting an alias makes tag(s) redirect to a target canonical
+                tag. Leave target empty to clear alias and make tag(s)
+                canonical.
+              </p>
+              <div className={styles.formGroup}>
+                <span className={styles.label}>Source Tag(s)</span>
+                <div
+                  style={{
+                    maxHeight: "100px",
+                    overflowY: "auto",
+                    background: "hsl(var(--secondary) / 0.15)",
+                    padding: "0.5rem",
+                    borderRadius: "6px",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  {showBulkAlias
+                    ? tags
+                        .filter((t) => selectedTagIds.has(t.id))
+                        .map((t) => t.name)
+                        .join(", ")
+                    : aliasTagItem?.name}
+                </div>
+              </div>
+              <div
+                className={styles.formGroup}
+                style={{ position: "relative" }}
+              >
+                <label className={styles.label} htmlFor="aliasTargetInput">
+                  Target Canonical Tag (autocomplete or type new)
+                </label>
+                <div ref={aliasSuggestContainerRef}>
+                  <input
+                    id="aliasTargetInput"
+                    type="text"
+                    className={styles.input}
+                    value={aliasTargetInput}
+                    onChange={(e) => setAliasTargetInput(e.target.value)}
+                    onFocus={() => {
+                      if (aliasSuggestions.length > 0)
+                        setAliasSuggestionsOpen(true);
+                    }}
+                    placeholder="Search target or leave empty..."
+                    autoComplete="off"
+                  />
+                  {aliasSuggestionsOpen && aliasSuggestions.length > 0 && (
+                    <div className={styles.autocompleteDropdown}>
+                      {aliasSuggestions.map((item) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          className={styles.autocompleteItem}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            background: "transparent",
+                            border: "none",
+                            color: "inherit",
+                            font: "inherit",
+                          }}
+                          onClick={() => {
+                            setAliasTargetInput(item.name);
+                            setAliasSuggestionsOpen(false);
+                          }}
+                        >
+                          {item.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={`${styles.button} ${styles.btnSecondary}`}
+                onClick={() => {
+                  setAliasTagItem(null);
+                  setShowBulkAlias(false);
+                }}
+                disabled={isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={`${styles.button} ${styles.btnPrimary}`}
+                onClick={handleSetAlias}
+                disabled={isPending}
+              >
+                Set Alias
               </button>
             </div>
           </div>

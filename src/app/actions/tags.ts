@@ -3,7 +3,10 @@
 import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import * as postsRepo from "@/lib/db/repositories/posts";
-import { incrementStatistics } from "@/lib/db/repositories/statistics";
+import {
+  incrementStatistics,
+  recomputeStatistics,
+} from "@/lib/db/repositories/statistics";
 import * as tagsRepo from "@/lib/db/repositories/tags";
 import { posts, postTags, tagCategories, tags } from "@/lib/db/schema";
 import type { TagCategory } from "@/types/media";
@@ -137,7 +140,7 @@ export async function addTagToPost(postId: number, tagName: string) {
   await tagsRepo.linkTagToPost(tag.id, postId);
 
   if (isNew) {
-    await incrementStatistics({ totalTags: 1 });
+    await incrementStatistics({ totalTags: 1, totalCanonicalTags: 1 });
   }
 
   return tag;
@@ -170,7 +173,7 @@ export async function bulkAddTagToPosts(postIds: number[], tagName: string) {
   const linkedCount = await tagsRepo.bulkLinkTagToPosts(tag.id, postIds);
 
   if (isNew) {
-    await incrementStatistics({ totalTags: 1 });
+    await incrementStatistics({ totalTags: 1, totalCanonicalTags: 1 });
   }
 
   return { tag, linkedCount };
@@ -257,7 +260,7 @@ export async function mergeTags(sourceTagIds: number[], targetTagId: number) {
 
   const result = await tagsRepo.mergeTags(sourceTagIds, targetTagId);
   if (result.deletedCount > 0) {
-    await incrementStatistics({ totalTags: -result.deletedCount });
+    await recomputeStatistics();
   }
   return result;
 }
@@ -265,7 +268,7 @@ export async function mergeTags(sourceTagIds: number[], targetTagId: number) {
 export async function deleteTag(tagId: number) {
   const success = await tagsRepo.deleteTag(tagId);
   if (success) {
-    await incrementStatistics({ totalTags: -1 });
+    await recomputeStatistics();
   }
   return success;
 }
@@ -274,7 +277,7 @@ export async function deleteTags(tagIds: number[]) {
   if (tagIds.length === 0) return 0;
   const count = await tagsRepo.deleteTags(tagIds);
   if (count > 0) {
-    await incrementStatistics({ totalTags: -count });
+    await recomputeStatistics();
   }
   return count;
 }
@@ -282,7 +285,7 @@ export async function deleteTags(tagIds: number[]) {
 export async function cleanupOrphanedTags() {
   const count = await tagsRepo.cleanupOrphanedTags();
   if (count > 0) {
-    await incrementStatistics({ totalTags: -count });
+    await recomputeStatistics();
   }
   return count;
 }
@@ -305,7 +308,18 @@ export async function getOrCreateTagByName(name: string) {
 
   const { tag, isNew } = await tagsRepo.createOrFindTag(trimmed);
   if (isNew) {
-    await incrementStatistics({ totalTags: 1 });
+    await incrementStatistics({ totalTags: 1, totalCanonicalTags: 1 });
   }
   return tag;
+}
+
+export async function setTagAlias(tagId: number, aliasOfTagId: number | null) {
+  return tagsRepo.setTagAlias(tagId, aliasOfTagId);
+}
+
+export async function bulkSetTagAlias(
+  tagIds: number[],
+  aliasOfTagId: number | null,
+) {
+  return tagsRepo.bulkSetTagAlias(tagIds, aliasOfTagId);
 }

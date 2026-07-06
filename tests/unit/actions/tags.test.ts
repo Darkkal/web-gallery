@@ -28,6 +28,7 @@ activeDb = testDb;
 import {
   addTagToPost,
   bulkAddTagToPosts,
+  bulkSetTagAlias,
   bulkSetTagCategory,
   cleanupOrphanedTags,
   createTagCategory,
@@ -42,6 +43,7 @@ import {
   removeTagFromPost,
   removeTagsFromPost,
   renameTag,
+  setTagAlias,
   setTagCategory,
   updateTagCategory,
 } from "@/app/actions/tags";
@@ -396,6 +398,27 @@ describe("Tags Server Actions", () => {
 
       const existing = await getOrCreateTagByName("brand-new");
       expect(existing.id).toBe(tag.id);
+    });
+  });
+
+  describe("Alias Server Actions", () => {
+    it("should set tag alias successfully", async () => {
+      const canonical = await seedTag(testDb, "canonical");
+      const alias = await seedTag(testDb, "alias");
+      await recomputeStatistics();
+
+      const success = await setTagAlias(alias.id, canonical.id);
+      expect(success).toBe(true);
+    });
+
+    it("should bulk set tag alias successfully", async () => {
+      const canonical = await seedTag(testDb, "canonical");
+      const alias1 = await seedTag(testDb, "alias1");
+      const alias2 = await seedTag(testDb, "alias2");
+      await recomputeStatistics();
+
+      const count = await bulkSetTagAlias([alias1.id, alias2.id], canonical.id);
+      expect(count).toBe(2);
     });
   });
 });
