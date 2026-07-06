@@ -20,6 +20,13 @@ export interface TagWithCategory extends InferSelectModel<typeof tags> {
   category: TagCategory | null;
 }
 
+export interface TagManageItem {
+  id: number;
+  name: string;
+  category: TagCategory | null;
+  postCount: number;
+}
+
 export interface GalleryRow {
   item: MediaItem;
   post?: InferSelectModel<typeof posts> | null;

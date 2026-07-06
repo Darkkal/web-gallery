@@ -235,3 +235,61 @@ export async function setTagCategory(
 ): Promise<boolean> {
   return tagsRepo.setTagCategory(tagId, categoryId);
 }
+
+export async function renameTag(tagId: number, newName: string) {
+  const trimmed = newName.trim();
+  if (!trimmed) {
+    throw new Error("Tag name cannot be empty");
+  }
+  if (trimmed.length > 200) {
+    throw new Error("Tag name cannot exceed 200 characters");
+  }
+  return tagsRepo.renameTag(tagId, trimmed);
+}
+
+export async function mergeTags(sourceTagIds: number[], targetTagId: number) {
+  if (sourceTagIds.length === 0) {
+    throw new Error("No source tags provided for merge");
+  }
+  if (sourceTagIds.includes(targetTagId)) {
+    throw new Error("Source tags cannot include the target tag");
+  }
+
+  const result = await tagsRepo.mergeTags(sourceTagIds, targetTagId);
+  if (result.deletedCount > 0) {
+    await incrementStatistics({ totalTags: -result.deletedCount });
+  }
+  return result;
+}
+
+export async function deleteTag(tagId: number) {
+  const success = await tagsRepo.deleteTag(tagId);
+  if (success) {
+    await incrementStatistics({ totalTags: -1 });
+  }
+  return success;
+}
+
+export async function deleteTags(tagIds: number[]) {
+  if (tagIds.length === 0) return 0;
+  const count = await tagsRepo.deleteTags(tagIds);
+  if (count > 0) {
+    await incrementStatistics({ totalTags: -count });
+  }
+  return count;
+}
+
+export async function cleanupOrphanedTags() {
+  const count = await tagsRepo.cleanupOrphanedTags();
+  if (count > 0) {
+    await incrementStatistics({ totalTags: -count });
+  }
+  return count;
+}
+
+export async function bulkSetTagCategory(
+  tagIds: number[],
+  categoryId: number | null,
+) {
+  return tagsRepo.bulkSetTagCategory(tagIds, categoryId);
+}

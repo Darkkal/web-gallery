@@ -29,13 +29,19 @@ import { eq } from "drizzle-orm";
 import {
   addTagToPost,
   bulkAddTagToPosts,
+  bulkSetTagCategory,
+  cleanupOrphanedTags,
   createTagCategory,
+  deleteTag,
   deleteTagCategory,
+  deleteTags,
   getCategories,
   getPostTags,
   getTopTags,
+  mergeTags,
   removeTagFromPost,
   removeTagsFromPost,
+  renameTag,
   setTagCategory,
   updateTagCategory,
 } from "@/app/actions/tags";
@@ -296,6 +302,89 @@ describe("Tags Server Actions", () => {
 
       const filteredAll = await getTopTags("count", "all");
       expect(filteredAll.length).toBe(2);
+    });
+  });
+
+  describe("renameTag Action", () => {
+    it("should rename tag and validate new name", async () => {
+      const tag = await seedTag(testDb, "cool-tag");
+      const renamed = await renameTag(tag.id, "super-cool");
+      expect(renamed.name).toBe("super-cool");
+
+      await expect(renameTag(tag.id, "")).rejects.toThrow(
+        "Tag name cannot be empty",
+      );
+      await expect(renameTag(tag.id, "a".repeat(201))).rejects.toThrow(
+        "Tag name cannot exceed 200 characters",
+      );
+    });
+  });
+
+  describe("mergeTags Action", () => {
+    it("should merge tags, reassign post links, and update statistics", async () => {
+      const tSource = await seedTag(testDb, "source-action");
+      const tTarget = await seedTag(testDb, "target-action");
+
+      const source = await seedSource(testDb);
+      const post = await seedPost(testDb, source.id);
+      await testDb
+        .insert(postTags)
+        .values({ postId: post.id, tagId: tSource.id });
+
+      await recomputeStatistics();
+
+      const result = await mergeTags([tSource.id], tTarget.id);
+      expect(result.deletedCount).toBe(1);
+      expect(result.reassignedCount).toBe(1);
+    });
+
+    it("should validate merge inputs", async () => {
+      await expect(mergeTags([], 1)).rejects.toThrow(
+        "No source tags provided for merge",
+      );
+      await expect(mergeTags([1], 1)).rejects.toThrow(
+        "Source tags cannot include the target tag",
+      );
+    });
+  });
+
+  describe("deleteTag and deleteTags Actions", () => {
+    it("should delete tag and update statistics", async () => {
+      const tag = await seedTag(testDb, "trash-tag");
+      await recomputeStatistics();
+
+      const success = await deleteTag(tag.id);
+      expect(success).toBe(true);
+    });
+
+    it("should delete multiple tags and update statistics", async () => {
+      const t1 = await seedTag(testDb, "trash1");
+      const t2 = await seedTag(testDb, "trash2");
+      await recomputeStatistics();
+
+      const count = await deleteTags([t1.id, t2.id]);
+      expect(count).toBe(2);
+    });
+  });
+
+  describe("cleanupOrphanedTags Action", () => {
+    it("should clean up orphaned tags and update statistics", async () => {
+      const tag = await seedTag(testDb, "orphan-action");
+      await recomputeStatistics();
+
+      const count = await cleanupOrphanedTags();
+      expect(count).toBe(1);
+    });
+  });
+
+  describe("bulkSetTagCategory Action", () => {
+    it("should bulk update categories on tags", async () => {
+      const cat = await seedTagCategory(testDb, "action-cat");
+      const tag1 = await seedTag(testDb, "bt1");
+      const tag2 = await seedTag(testDb, "bt2");
+
+      const count = await bulkSetTagCategory([tag1.id, tag2.id], cat.id);
+      expect(count).toBe(2);
     });
   });
 });
