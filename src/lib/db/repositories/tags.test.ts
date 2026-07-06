@@ -28,6 +28,7 @@ import { eq } from "drizzle-orm";
 import { postTags, tagCategories, tags } from "../schema";
 import {
   bulkLinkTagToPosts,
+  bulkSetTagAlias,
   bulkSetTagCategory,
   cleanupOrphanedTags,
   createCategory,
@@ -41,6 +42,7 @@ import {
   linkTagToPost,
   mergeTags,
   renameTag,
+  setTagAlias,
   setTagCategory,
   unlinkTagFromPost,
   unlinkTagsFromPost,
@@ -619,6 +621,69 @@ describe("Tags Repository", () => {
 
       const dbOrphan = await getTagById(orphanTag.id);
       expect(dbOrphan).toBeNull();
+    });
+  });
+
+  describe("setTagAlias", () => {
+    it("should alias a tag to another successfully", async () => {
+      const canonical = await seedTag(testDbHelper.db, "automobile");
+      const alias = await seedTag(testDbHelper.db, "car");
+
+      const success = await setTagAlias(alias.id, canonical.id);
+      expect(success).toBe(true);
+
+      const dbAlias = await testDbHelper.db
+        .select()
+        .from(tags)
+        .where(eq(tags.id, alias.id))
+        .limit(1);
+      expect(dbAlias[0].aliasOfTagId).toBe(canonical.id);
+    });
+
+    it("should throw if aliasing to itself", async () => {
+      const tag = await seedTag(testDbHelper.db, "self-alias");
+      await expect(setTagAlias(tag.id, tag.id)).rejects.toThrow(
+        "A tag cannot be an alias of itself",
+      );
+    });
+
+    it("should throw if target tag is itself an alias", async () => {
+      const canonical = await seedTag(testDbHelper.db, "canonical");
+      const alias1 = await seedTag(testDbHelper.db, "alias1");
+      const alias2 = await seedTag(testDbHelper.db, "alias2");
+
+      await setTagAlias(alias1.id, canonical.id);
+      await expect(setTagAlias(alias2.id, alias1.id)).rejects.toThrow(
+        "Cannot alias to a tag that is itself an alias",
+      );
+    });
+
+    it("should throw if tag already has other tags aliased to it", async () => {
+      const tag1 = await seedTag(testDbHelper.db, "tag1");
+      const tag2 = await seedTag(testDbHelper.db, "tag2");
+      const tag3 = await seedTag(testDbHelper.db, "tag3");
+
+      await setTagAlias(tag2.id, tag1.id);
+      await expect(setTagAlias(tag1.id, tag3.id)).rejects.toThrow(
+        "Cannot alias this tag because other tags are already aliased to it",
+      );
+    });
+  });
+
+  describe("bulkSetTagAlias", () => {
+    it("should bulk alias tags to another successfully", async () => {
+      const canonical = await seedTag(testDbHelper.db, "automobile");
+      const alias1 = await seedTag(testDbHelper.db, "car");
+      const alias2 = await seedTag(testDbHelper.db, "vehicle");
+
+      const count = await bulkSetTagAlias([alias1.id, alias2.id], canonical.id);
+      expect(count).toBe(2);
+
+      const dbAliases = await testDbHelper.db
+        .select()
+        .from(tags)
+        .where(eq(tags.aliasOfTagId, canonical.id));
+      expect(dbAliases.length).toBe(2);
     });
   });
 });

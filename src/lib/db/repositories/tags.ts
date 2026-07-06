@@ -1,4 +1,5 @@
 import {
+  aliasedTable,
   and,
   asc,
   desc,
@@ -19,6 +20,7 @@ import type {
   TagManageItem,
   TagWithCategory,
 } from "@/types/media";
+import { incrementStatistics } from "./statistics";
 
 /**
  * Inserts a tag if it doesn't exist, and returns the tag record with its category (id, name, categoryId, category).
@@ -305,6 +307,7 @@ export async function getTagsPaginated(options?: {
       id: tags.id,
       name: tags.name,
       categoryId: tags.categoryId,
+      aliasOfTagId: tags.aliasOfTagId,
       postCount: sql<number>`count(${postTags.postId})`.as("postCount"),
     })
     .from(tags)
@@ -405,11 +408,15 @@ export async function getTagsPaginated(options?: {
     whereConditions.push(cursorCond);
   }
 
+  const aliasTags = aliasedTable(tags, "alias_tags");
+
   const results = await db
     .select({
       id: tagCounts.id,
       name: tagCounts.name,
       postCount: tagCounts.postCount,
+      aliasOfTagId: tagCounts.aliasOfTagId,
+      aliasName: aliasTags.name,
       category: {
         id: tagCategories.id,
         name: tagCategories.name,
@@ -421,6 +428,7 @@ export async function getTagsPaginated(options?: {
     })
     .from(tagCounts)
     .leftJoin(tagCategories, eq(tagCounts.categoryId, tagCategories.id))
+    .leftJoin(aliasTags, eq(tagCounts.aliasOfTagId, aliasTags.id))
     .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
     .orderBy(...orderBys)
     .limit(limit);
@@ -430,6 +438,8 @@ export async function getTagsPaginated(options?: {
     name: row.name,
     postCount: row.postCount,
     category: row.category?.id ? row.category : null,
+    aliasOfTagId: row.aliasOfTagId,
+    aliasName: row.aliasName,
   })) as TagManageItem[];
 
   let nextCursor: string | null = null;
@@ -580,4 +590,133 @@ export async function cleanupOrphanedTags(): Promise<number> {
     }
   }
   return deletedCount;
+}
+
+/**
+ * Sets a tag's alias to another tag.
+ */
+export async function setTagAlias(
+  tagId: number,
+  aliasOfTagId: number | null,
+): Promise<boolean> {
+  if (aliasOfTagId === tagId) {
+    throw new Error("A tag cannot be an alias of itself");
+  }
+
+  if (aliasOfTagId !== null) {
+    const targetTag = await db.query.tags.findFirst({
+      where: eq(tags.id, aliasOfTagId),
+    });
+    if (!targetTag) {
+      throw new Error(`Target tag not found: ${aliasOfTagId}`);
+    }
+    if (targetTag.aliasOfTagId !== null) {
+      throw new Error("Cannot alias to a tag that is itself an alias");
+    }
+
+    const existingAliases = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(tags)
+      .where(eq(tags.aliasOfTagId, tagId));
+    if ((existingAliases[0]?.count ?? 0) > 0) {
+      throw new Error(
+        "Cannot alias this tag because other tags are already aliased to it. Clean up its aliases first.",
+      );
+    }
+  }
+
+  const currentTag = await db.query.tags.findFirst({
+    where: eq(tags.id, tagId),
+  });
+  if (!currentTag) {
+    throw new Error(`Tag not found: ${tagId}`);
+  }
+
+  const result = await db
+    .update(tags)
+    .set({ aliasOfTagId })
+    .where(eq(tags.id, tagId))
+    .returning();
+
+  if (result.length > 0) {
+    const wasCanonical = currentTag.aliasOfTagId === null;
+    const isCanonical = aliasOfTagId === null;
+    if (wasCanonical && !isCanonical) {
+      await incrementStatistics({ totalCanonicalTags: -1 });
+    } else if (!wasCanonical && isCanonical) {
+      await incrementStatistics({ totalCanonicalTags: 1 });
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Bulk sets the alias for multiple tags.
+ */
+export async function bulkSetTagAlias(
+  tagIds: number[],
+  aliasOfTagId: number | null,
+): Promise<number> {
+  if (tagIds.length === 0) return 0;
+
+  if (aliasOfTagId !== null) {
+    if (tagIds.includes(aliasOfTagId)) {
+      throw new Error(
+        "A tag cannot be aliased to itself or one of the tags being bulk-updated",
+      );
+    }
+    const targetTag = await db.query.tags.findFirst({
+      where: eq(tags.id, aliasOfTagId),
+    });
+    if (!targetTag) {
+      throw new Error(`Target tag not found: ${aliasOfTagId}`);
+    }
+    if (targetTag.aliasOfTagId !== null) {
+      throw new Error("Cannot alias to a tag that is itself an alias");
+    }
+
+    for (const tagId of tagIds) {
+      const existingAliases = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(tags)
+        .where(eq(tags.aliasOfTagId, tagId));
+      if ((existingAliases[0]?.count ?? 0) > 0) {
+        throw new Error(
+          "One or more selected tags cannot be aliased because other tags are already aliased to them.",
+        );
+      }
+    }
+  }
+
+  const currentTags = await db
+    .select({ id: tags.id, aliasOfTagId: tags.aliasOfTagId })
+    .from(tags)
+    .where(inArray(tags.id, tagIds));
+
+  const result = await db
+    .update(tags)
+    .set({ aliasOfTagId })
+    .where(inArray(tags.id, tagIds))
+    .returning();
+
+  if (result.length > 0) {
+    let canonicalDiff = 0;
+    const isCanonicalNow = aliasOfTagId === null;
+
+    for (const tag of currentTags) {
+      const wasCanonical = tag.aliasOfTagId === null;
+      if (wasCanonical && !isCanonicalNow) {
+        canonicalDiff--;
+      } else if (!wasCanonical && isCanonicalNow) {
+        canonicalDiff++;
+      }
+    }
+
+    if (canonicalDiff !== 0) {
+      await incrementStatistics({ totalCanonicalTags: canonicalDiff });
+    }
+  }
+
+  return result.length;
 }
