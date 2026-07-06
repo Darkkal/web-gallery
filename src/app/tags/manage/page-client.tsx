@@ -22,6 +22,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
   bulkSetTagAlias,
   bulkSetTagCategory,
+  bulkSetTagParent,
   cleanupOrphanedTags,
   createTagCategory,
   deleteTag,
@@ -31,6 +32,7 @@ import {
   mergeTags,
   renameTag,
   setTagAlias,
+  setTagParent,
   updateTagCategory,
 } from "@/app/actions/tags";
 import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
@@ -83,6 +85,17 @@ export default function TagsManageClient({
   >([]);
   const [aliasSuggestionsOpen, setAliasSuggestionsOpen] = useState(false);
   const aliasSuggestContainerRef = useRef<HTMLDivElement>(null);
+
+  const [showBulkParent, setShowBulkParent] = useState(false);
+  const [parentTagItem, setParentTagItem] = useState<TagManageItem | null>(
+    null,
+  );
+  const [parentTargetInput, setParentTargetInput] = useState("");
+  const [parentSuggestions, setParentSuggestions] = useState<
+    { id: number; name: string }[]
+  >([]);
+  const [parentSuggestionsOpen, setParentSuggestionsOpen] = useState(false);
+  const parentSuggestContainerRef = useRef<HTMLDivElement>(null);
 
   // Category modal states
   const [showBulkCategory, setShowBulkCategory] = useState(false);
@@ -266,6 +279,54 @@ export default function TagsManageClient({
     return () => clearTimeout(timer);
   }, [aliasTargetInput, aliasTagItem, showBulkAlias, selectedTagIds, tags]);
 
+  // Fetch parent suggestions (autocomplete target tag)
+  useEffect(() => {
+    if (parentTargetInput.trim().length < 2) {
+      setParentSuggestions([]);
+      setParentSuggestionsOpen(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/autocomplete?column=tag&q=${encodeURIComponent(parentTargetInput.trim())}`,
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const list = data.suggestions
+            .map((s: { value: string }) => ({
+              id: 0,
+              name: s.value,
+            }))
+            .filter((s: { name: string }) => {
+              if (
+                parentTagItem &&
+                s.name.toLowerCase() === parentTagItem.name.toLowerCase()
+              )
+                return false;
+              if (showBulkParent) {
+                const sources = tags.filter((t) => selectedTagIds.has(t.id));
+                if (
+                  sources.some(
+                    (src) => src.name.toLowerCase() === s.name.toLowerCase(),
+                  )
+                )
+                  return false;
+              }
+              return true;
+            });
+          setParentSuggestions(list);
+          setParentSuggestionsOpen(list.length > 0);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [parentTargetInput, parentTagItem, showBulkParent, selectedTagIds, tags]);
+
   // Fetch/filter category suggestions from local categoriesList state
   useEffect(() => {
     if (categoryTargetInput.trim() === "") {
@@ -295,6 +356,12 @@ export default function TagsManageClient({
         !aliasSuggestContainerRef.current.contains(event.target as Node)
       ) {
         setAliasSuggestionsOpen(false);
+      }
+      if (
+        parentSuggestContainerRef.current &&
+        !parentSuggestContainerRef.current.contains(event.target as Node)
+      ) {
+        setParentSuggestionsOpen(false);
       }
       if (
         categorySuggestContainerRef.current &&
@@ -570,6 +637,53 @@ export default function TagsManageClient({
     });
   };
 
+  const handleSetParent = async () => {
+    const trimmedTarget = parentTargetInput.trim();
+    startTransition(async () => {
+      try {
+        const sources = showBulkParent
+          ? Array.from(selectedTagIds)
+          : parentTagItem
+            ? [parentTagItem.id]
+            : [];
+
+        if (sources.length === 0) return;
+
+        let targetTagId: number | null = null;
+        if (trimmedTarget) {
+          const resolvedTarget = await getOrCreateTagByName(trimmedTarget);
+          targetTagId = resolvedTarget.id;
+        }
+
+        if (showBulkParent) {
+          await bulkSetTagParent(sources, targetTagId);
+        } else if (parentTagItem) {
+          await setTagParent(parentTagItem.id, targetTagId);
+        }
+
+        setNotification({
+          type: "success",
+          message: trimmedTarget
+            ? `Successfully set parent to "${trimmedTarget}" for selected tag(s).`
+            : "Successfully removed parent for selected tag(s).",
+        });
+
+        setParentTagItem(null);
+        setShowBulkParent(false);
+        setParentTargetInput("");
+        setSelectedTagIds(new Set());
+        fetchTags(true);
+        router.refresh();
+      } catch (err) {
+        setNotification({
+          type: "error",
+          message:
+            err instanceof Error ? err.message : "Error setting parent tag",
+        });
+      }
+    });
+  };
+
   const handleDeleteSingleTag = async (tagId: number, name: string) => {
     if (!confirm(`Are you sure you want to delete the tag "${name}"?`)) return;
 
@@ -833,6 +947,19 @@ export default function TagsManageClient({
               type="button"
               className={`${styles.button} ${styles.btnOutline}`}
               onClick={() => {
+                setShowBulkParent(true);
+                setParentTargetInput("");
+              }}
+              disabled={isPending}
+            >
+              <ChevronUp size={16} />
+              Set Parent
+            </button>
+
+            <button
+              type="button"
+              className={`${styles.button} ${styles.btnOutline}`}
+              onClick={() => {
                 setShowBulkCategory(true);
                 setCategoryTargetInput("");
               }}
@@ -911,6 +1038,16 @@ export default function TagsManageClient({
                           {tag.aliasName}
                         </span>
                       )}
+                      {tag.parentName && (
+                        <span
+                          className={styles.aliasIndicator}
+                          style={{ marginLeft: "6px" }}
+                          title={`Child of ${tag.parentName}`}
+                        >
+                          <ChevronUp size={12} style={{ marginRight: "2px" }} />
+                          {tag.parentName}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className={styles.td}>
@@ -968,6 +1105,18 @@ export default function TagsManageClient({
                       disabled={isPending}
                     >
                       <Link2 size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      title="Set Parent"
+                      onClick={() => {
+                        setParentTagItem(tag);
+                        setParentTargetInput(tag.parentName || "");
+                      }}
+                      disabled={isPending || tag.aliasOfTagId !== null}
+                    >
+                      <ChevronUp size={16} />
                     </button>
                     <button
                       type="button"
@@ -1289,6 +1438,122 @@ export default function TagsManageClient({
                 disabled={isPending}
               >
                 Set Alias
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PARENT MODAL (SINGLE OR BULK) */}
+      {(parentTagItem || showBulkParent) && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Set Parent Tag</h2>
+              <button
+                type="button"
+                className={styles.closeButton}
+                onClick={() => {
+                  setParentTagItem(null);
+                  setShowBulkParent(false);
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <p className={styles.helperText}>
+                Set a parent tag to establish a hierarchical relationship. Leave
+                empty to clear the parent.
+              </p>
+              <div className={styles.formGroup}>
+                <span className={styles.label}>Child Tag(s)</span>
+                <div
+                  style={{
+                    maxHeight: "100px",
+                    overflowY: "auto",
+                    background: "hsl(var(--secondary) / 0.15)",
+                    padding: "0.5rem",
+                    borderRadius: "6px",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  {showBulkParent
+                    ? tags
+                        .filter((t) => selectedTagIds.has(t.id))
+                        .map((t) => t.name)
+                        .join(", ")
+                    : parentTagItem?.name}
+                </div>
+              </div>
+              <div
+                className={styles.formGroup}
+                style={{ position: "relative" }}
+              >
+                <label className={styles.label} htmlFor="parentTargetInput">
+                  Parent Tag (autocomplete or type new)
+                </label>
+                <div ref={parentSuggestContainerRef}>
+                  <input
+                    id="parentTargetInput"
+                    type="text"
+                    className={styles.input}
+                    value={parentTargetInput}
+                    onChange={(e) => setParentTargetInput(e.target.value)}
+                    onFocus={() => {
+                      if (parentSuggestions.length > 0)
+                        setParentSuggestionsOpen(true);
+                    }}
+                    placeholder="Search parent or leave empty..."
+                    autoComplete="off"
+                  />
+                  {parentSuggestionsOpen && parentSuggestions.length > 0 && (
+                    <div className={styles.autocompleteDropdown}>
+                      {parentSuggestions.map((item) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          className={styles.autocompleteItem}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            background: "transparent",
+                            border: "none",
+                            color: "inherit",
+                            font: "inherit",
+                          }}
+                          onClick={() => {
+                            setParentTargetInput(item.name);
+                            setParentSuggestionsOpen(false);
+                          }}
+                        >
+                          {item.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={`${styles.button} ${styles.btnSecondary}`}
+                onClick={() => {
+                  setParentTagItem(null);
+                  setShowBulkParent(false);
+                }}
+                disabled={isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={`${styles.button} ${styles.btnPrimary}`}
+                onClick={handleSetParent}
+                disabled={isPending}
+              >
+                Set Parent
               </button>
             </div>
           </div>
