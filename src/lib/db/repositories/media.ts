@@ -28,7 +28,7 @@ import {
   twitterUsers,
 } from "@/lib/db/schema";
 import { parseSearchQuery } from "@/lib/utils/search-parser";
-import { expandSearchAliases } from "./posts";
+import { expandSearchTags } from "./posts";
 
 export async function getMediaItems(filters?: {
   search?: string;
@@ -45,9 +45,7 @@ export async function getMediaItems(filters?: {
   const searchLower = cleanQuery.toLowerCase();
 
   // Expand search aliases at query-time
-  const expandedSearch = searchLower
-    ? await expandSearchAliases(searchLower)
-    : "";
+  const expandedSearch = searchLower ? await expandSearchTags(searchLower) : "";
 
   const whereConditions: SQL[] = [ne(mediaItems.mediaType, "text")];
 

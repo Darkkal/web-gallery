@@ -21,6 +21,16 @@ vi.mock("@/lib/db", () => {
   };
 });
 
+let mockImplicitHierarchyFiltering = true;
+vi.mock("@/lib/settings", () => {
+  return {
+    getAppSettings: () =>
+      Promise.resolve({
+        implicitHierarchyFiltering: mockImplicitHierarchyFiltering,
+      }),
+  };
+});
+
 const testDb = testDbHelper.db;
 activeDb = testDb;
 
@@ -198,6 +208,60 @@ describe("Posts Repository", () => {
       expect(target).not.toBeUndefined();
       expect(target?.categoryId).toBe(cat.id);
       expect(target?.category?.name).toBe("artist");
+    });
+  });
+
+  describe("expandSearchTags with hierarchy", () => {
+    it("should expand tag hierarchy recursively in search query when enabled", async () => {
+      const source = await seedSource(testDb);
+      const postAnimal = await seedPost(testDb, source.id, {
+        content: "I saw an animal",
+        date: "2026-01-01",
+      });
+      const postCat = await seedPost(testDb, source.id, {
+        content: "I saw a cat",
+        date: "2026-01-02",
+      });
+      const postShiba = await seedPost(testDb, source.id, {
+        content: "I saw a shiba",
+        date: "2026-01-03",
+      });
+
+      const tagAnimal = await seedTag(testDb, "animal");
+      const tagCat = await seedTag(testDb, "cat");
+      const tagDog = await seedTag(testDb, "dog");
+      const tagShiba = await seedTag(testDb, "shiba");
+
+      // Setup hierarchy: animal -> cat, animal -> dog -> shiba
+      await testDb
+        .update(tags)
+        .set({ parentTagId: tagAnimal.id })
+        .where(eq(tags.id, tagCat.id));
+      await testDb
+        .update(tags)
+        .set({ parentTagId: tagAnimal.id })
+        .where(eq(tags.id, tagDog.id));
+      await testDb
+        .update(tags)
+        .set({ parentTagId: tagDog.id })
+        .where(eq(tags.id, tagShiba.id));
+
+      await testDb.insert(postTags).values([
+        { postId: postAnimal.id, tagId: tagAnimal.id },
+        { postId: postCat.id, tagId: tagCat.id },
+        { postId: postShiba.id, tagId: tagShiba.id },
+      ]);
+
+      // When enabled: searching animal returns all descendants
+      mockImplicitHierarchyFiltering = true;
+      const resEnabled = await getTimelinePosts({ search: "tag:animal" });
+      expect(resEnabled.posts.length).toBe(3);
+
+      // When disabled: searching animal returns only the exact matches
+      mockImplicitHierarchyFiltering = false;
+      const resDisabled = await getTimelinePosts({ search: "tag:animal" });
+      expect(resDisabled.posts.length).toBe(1);
+      expect(resDisabled.posts[0].internalDbId).toBe(postAnimal.id);
     });
   });
 });

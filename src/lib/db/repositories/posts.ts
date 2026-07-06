@@ -25,6 +25,7 @@ import {
   tags,
   twitterUsers,
 } from "@/lib/db/schema";
+import { getAppSettings } from "@/lib/settings";
 import { parseSearchQuery } from "@/lib/utils/search-parser";
 
 export type TimelinePost = {
@@ -78,10 +79,8 @@ export async function getTimelinePosts(filters?: {
   const { cleanQuery, sourceFilter } = parseSearchQuery(search);
   const searchLower = cleanQuery.toLowerCase();
 
-  // Expand search aliases at query-time
-  const expandedSearch = searchLower
-    ? await expandSearchAliases(searchLower)
-    : "";
+  // Expand search tags at query-time
+  const expandedSearch = searchLower ? await expandSearchTags(searchLower) : "";
 
   const whereConditions: SQL[] = [isNull(posts.deletedAt)];
 
@@ -420,28 +419,55 @@ async function getEquivalentTags(tagName: string): Promise<string[]> {
 
   const canonicalId = tagRecord.aliasOfTagId ?? tagRecord.id;
 
-  const canonicalTag = await db.query.tags.findFirst({
-    where: eq(tags.id, canonicalId),
-  });
+  const appSettings = await getAppSettings();
+  const expandHierarchy = appSettings.implicitHierarchyFiltering;
 
-  const siblingAliases = await db
+  let canonicalIds = [canonicalId];
+
+  if (expandHierarchy) {
+    // Perform recursive CTE to find all descendant canonical tags
+    const descendants = await db
+      .select({
+        id: sql<number>`id`,
+      })
+      .from(sql`(
+      WITH RECURSIVE descendants AS (
+        SELECT id, parent_tag_id FROM tags WHERE id = ${canonicalId} AND alias_of_tag_id IS NULL
+        UNION ALL
+        SELECT t.id, t.parent_tag_id FROM tags t
+        INNER JOIN descendants d ON t.parent_tag_id = d.id
+        WHERE t.alias_of_tag_id IS NULL
+      )
+      SELECT id FROM descendants
+    )`);
+    canonicalIds = descendants.map((row) => Number(row.id));
+  }
+
+  if (canonicalIds.length === 0) {
+    return [tagName];
+  }
+
+  // Get all names of canonical tags and their aliases
+  const matchedTags = await db
     .select({ name: tags.name })
     .from(tags)
-    .where(eq(tags.aliasOfTagId, canonicalId));
+    .where(
+      or(
+        inArray(tags.id, canonicalIds),
+        inArray(tags.aliasOfTagId, canonicalIds),
+      ),
+    );
 
-  const equivalentNames = new Set<string>();
-  if (canonicalTag) {
-    equivalentNames.add(canonicalTag.name);
+  const names = new Set<string>();
+  for (const t of matchedTags) {
+    names.add(t.name);
   }
-  for (const sibling of siblingAliases) {
-    equivalentNames.add(sibling.name);
-  }
-  equivalentNames.add(tagRecord.name);
+  names.add(tagRecord.name);
 
-  return Array.from(equivalentNames);
+  return Array.from(names);
 }
 
-export async function expandSearchAliases(query: string): Promise<string> {
+export async function expandSearchTags(query: string): Promise<string> {
   const tagRegex = /\btag_names:([a-zA-Z0-9_]+)/gi;
   const matches = [...query.matchAll(tagRegex)];
   if (matches.length === 0) {
