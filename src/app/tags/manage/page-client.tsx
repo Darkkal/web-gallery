@@ -30,6 +30,7 @@ import {
   renameTag,
   updateTagCategory,
 } from "@/app/actions/tags";
+import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 import type { TagCategory, TagManageItem } from "@/types/media";
 import styles from "./page.module.css";
 
@@ -779,26 +780,12 @@ export default function TagsManageClient({
           </div>
         )}
 
-        {/* Load More Pagination */}
-        {hasMore && (
-          <div className={styles.loaderSection}>
-            <button
-              type="button"
-              className={`${styles.button} ${styles.btnSecondary}`}
-              onClick={() => fetchTags(false)}
-              disabled={loading || isPending}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className={styles.spinner} size={16} />
-                  Loading...
-                </>
-              ) : (
-                "Load More Tags"
-              )}
-            </button>
-          </div>
-        )}
+        {/* Infinite Scroll Pagination */}
+        <InfiniteScrollSentinel
+          loadMore={() => fetchTags(false)}
+          hasMore={hasMore}
+          isLoading={loading}
+        />
       </section>
 
       {/* RENAME MODAL */}
