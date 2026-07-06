@@ -243,10 +243,22 @@ export async function setTagCategory(
   tagId: number,
   categoryId: number | null,
 ): Promise<boolean> {
+  const currentTag = await db.query.tags.findFirst({
+    where: eq(tags.id, tagId),
+  });
+  if (!currentTag) {
+    throw new Error(`Tag not found: ${tagId}`);
+  }
+  if (currentTag.aliasOfTagId !== null) {
+    throw new Error(
+      "Cannot directly set category on an alias tag. Set it on the canonical tag instead.",
+    );
+  }
+
   const result = await db
     .update(tags)
     .set({ categoryId })
-    .where(eq(tags.id, tagId))
+    .where(or(eq(tags.id, tagId), eq(tags.aliasOfTagId, tagId)))
     .returning();
 
   return result.length > 0;
@@ -261,10 +273,22 @@ export async function bulkSetTagCategory(
 ): Promise<number> {
   if (tagIds.length === 0) return 0;
 
+  const currentTags = await db
+    .select({ id: tags.id, aliasOfTagId: tags.aliasOfTagId })
+    .from(tags)
+    .where(inArray(tags.id, tagIds));
+
+  const hasAlias = currentTags.some((t) => t.aliasOfTagId !== null);
+  if (hasAlias) {
+    throw new Error(
+      "Cannot directly set category on alias tags. Set it on canonical tags instead.",
+    );
+  }
+
   const result = await db
     .update(tags)
     .set({ categoryId })
-    .where(inArray(tags.id, tagIds))
+    .where(or(inArray(tags.id, tagIds), inArray(tags.aliasOfTagId, tagIds)))
     .returning();
 
   return result.length;
@@ -603,6 +627,7 @@ export async function setTagAlias(
     throw new Error("A tag cannot be an alias of itself");
   }
 
+  let targetCategoryId: number | null = null;
   if (aliasOfTagId !== null) {
     const targetTag = await db.query.tags.findFirst({
       where: eq(tags.id, aliasOfTagId),
@@ -613,6 +638,7 @@ export async function setTagAlias(
     if (targetTag.aliasOfTagId !== null) {
       throw new Error("Cannot alias to a tag that is itself an alias");
     }
+    targetCategoryId = targetTag.categoryId;
 
     const existingAliases = await db
       .select({ count: sql<number>`count(*)` })
@@ -632,9 +658,14 @@ export async function setTagAlias(
     throw new Error(`Tag not found: ${tagId}`);
   }
 
+  const updateData: any = { aliasOfTagId };
+  if (aliasOfTagId !== null) {
+    updateData.categoryId = targetCategoryId;
+  }
+
   const result = await db
     .update(tags)
-    .set({ aliasOfTagId })
+    .set(updateData)
     .where(eq(tags.id, tagId))
     .returning();
 
@@ -660,6 +691,7 @@ export async function bulkSetTagAlias(
 ): Promise<number> {
   if (tagIds.length === 0) return 0;
 
+  let targetCategoryId: number | null = null;
   if (aliasOfTagId !== null) {
     if (tagIds.includes(aliasOfTagId)) {
       throw new Error(
@@ -675,6 +707,7 @@ export async function bulkSetTagAlias(
     if (targetTag.aliasOfTagId !== null) {
       throw new Error("Cannot alias to a tag that is itself an alias");
     }
+    targetCategoryId = targetTag.categoryId;
 
     for (const tagId of tagIds) {
       const existingAliases = await db
@@ -694,9 +727,14 @@ export async function bulkSetTagAlias(
     .from(tags)
     .where(inArray(tags.id, tagIds));
 
+  const updateData: any = { aliasOfTagId };
+  if (aliasOfTagId !== null) {
+    updateData.categoryId = targetCategoryId;
+  }
+
   const result = await db
     .update(tags)
-    .set({ aliasOfTagId })
+    .set(updateData)
     .where(inArray(tags.id, tagIds))
     .returning();
 
