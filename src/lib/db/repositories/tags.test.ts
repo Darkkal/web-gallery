@@ -29,11 +29,18 @@ import { postTags, tagCategories, tags } from "../schema";
 import {
   bulkLinkTagToPosts,
   bulkSetTagCategory,
+  cleanupOrphanedTags,
   createCategory,
   createOrFindTag,
   deleteCategory,
+  deleteTag,
+  deleteTags,
   getAllCategories,
+  getTagById,
+  getTagsPaginated,
   linkTagToPost,
+  mergeTags,
+  renameTag,
   setTagCategory,
   unlinkTagFromPost,
   unlinkTagsFromPost,
@@ -339,6 +346,272 @@ describe("Tags Repository", () => {
         .from(tags)
         .where(eq(tags.categoryId, cat.id));
       expect(dbTags.length).toBe(2);
+    });
+  });
+
+  describe("getTagById", () => {
+    it("should retrieve a tag by ID with category", async () => {
+      const cat = await seedTagCategory(testDbHelper.db, "character");
+      const tag = await seedTag(testDbHelper.db, "test-tag", cat.id);
+
+      const result = await getTagById(tag.id);
+      expect(result).not.toBeNull();
+      expect(result!.id).toBe(tag.id);
+      expect(result!.name).toBe("test-tag");
+      expect(result!.category).not.toBeNull();
+      expect(result!.category!.name).toBe("character");
+    });
+
+    it("should return null if tag does not exist", async () => {
+      const result = await getTagById(9999);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("getTagsPaginated", () => {
+    it("should fetch paginated tags with post counts and categories", async () => {
+      const cat = await seedTagCategory(testDbHelper.db, "artist");
+      const tag1 = await seedTag(testDbHelper.db, "tag-1", cat.id);
+      const tag2 = await seedTag(testDbHelper.db, "tag-2");
+
+      const source = await seedSource(testDbHelper.db);
+      const post = await seedPost(testDbHelper.db, source.id);
+      await linkTagToPost(tag1.id, post.id);
+
+      const { items, nextCursor } = await getTagsPaginated({ limit: 10 });
+      expect(items.length).toBe(2);
+
+      const t1Item = items.find((i) => i.id === tag1.id);
+      expect(t1Item).toBeDefined();
+      expect(t1Item!.postCount).toBe(1);
+      expect(t1Item!.category).not.toBeNull();
+      expect(t1Item!.category!.name).toBe("artist");
+
+      const t2Item = items.find((i) => i.id === tag2.id);
+      expect(t2Item).toBeDefined();
+      expect(t2Item!.postCount).toBe(0);
+      expect(t2Item!.category).toBeNull();
+    });
+
+    it("should filter tags by search query", async () => {
+      await seedTag(testDbHelper.db, "apple");
+      await seedTag(testDbHelper.db, "banana");
+
+      const { items } = await getTagsPaginated({ search: "ap" });
+      expect(items.length).toBe(1);
+      expect(items[0].name).toBe("apple");
+    });
+
+    it("should filter tags by category", async () => {
+      const cat1 = await seedTagCategory(testDbHelper.db, "character");
+      const cat2 = await seedTagCategory(testDbHelper.db, "artist");
+      await seedTag(testDbHelper.db, "char-tag", cat1.id);
+      await seedTag(testDbHelper.db, "art-tag", cat2.id);
+      await seedTag(testDbHelper.db, "flat-tag");
+
+      // Filter by category name
+      const { items: charItems } = await getTagsPaginated({
+        category: "character",
+      });
+      expect(charItems.length).toBe(1);
+      expect(charItems[0].name).toBe("char-tag");
+
+      // Filter by category ID
+      const { items: artItems } = await getTagsPaginated({
+        category: String(cat2.id),
+      });
+      expect(artItems.length).toBe(1);
+      expect(artItems[0].name).toBe("art-tag");
+
+      // Filter uncategorized
+      const { items: uncatItems } = await getTagsPaginated({
+        category: "uncategorized",
+      });
+      expect(uncatItems.length).toBe(1);
+      expect(uncatItems[0].name).toBe("flat-tag");
+    });
+
+    it("should sort tags correctly", async () => {
+      const tagA = await seedTag(testDbHelper.db, "apple");
+      const tagB = await seedTag(testDbHelper.db, "banana");
+
+      const source = await seedSource(testDbHelper.db);
+      const post = await seedPost(testDbHelper.db, source.id);
+      // Link apple to 1 post (postCount = 1)
+      await linkTagToPost(tagA.id, post.id);
+
+      // Sort by post count desc (default)
+      const { items: countDesc } = await getTagsPaginated({ sortBy: "count" });
+      expect(countDesc[0].id).toBe(tagA.id);
+
+      // Sort by post count asc
+      const { items: countAsc } = await getTagsPaginated({
+        sortBy: "count-asc",
+      });
+      expect(countAsc[0].id).toBe(tagB.id);
+
+      // Sort by name asc
+      const { items: nameAsc } = await getTagsPaginated({ sortBy: "name" });
+      expect(nameAsc[0].id).toBe(tagA.id);
+
+      // Sort by name desc
+      const { items: nameDesc } = await getTagsPaginated({
+        sortBy: "name-desc",
+      });
+      expect(nameDesc[0].id).toBe(tagB.id);
+    });
+
+    it("should paginate correctly with cursors", async () => {
+      const t1 = await seedTag(testDbHelper.db, "a");
+      const t2 = await seedTag(testDbHelper.db, "b");
+      const t3 = await seedTag(testDbHelper.db, "c");
+
+      // Limit 1, sort name asc
+      const page1 = await getTagsPaginated({ limit: 1, sortBy: "name" });
+      expect(page1.items.length).toBe(1);
+      expect(page1.items[0].id).toBe(t1.id);
+      expect(page1.nextCursor).not.toBeNull();
+
+      // Page 2 using cursor
+      const page2 = await getTagsPaginated({
+        limit: 1,
+        sortBy: "name",
+        cursor: page1.nextCursor,
+      });
+      expect(page2.items.length).toBe(1);
+      expect(page2.items[0].id).toBe(t2.id);
+
+      // Limit 1, sort count desc (all 0 posts)
+      const page1C = await getTagsPaginated({ limit: 1, sortBy: "count" });
+      expect(page1C.items.length).toBe(1);
+      expect(page1C.nextCursor).not.toBeNull();
+
+      const page2C = await getTagsPaginated({
+        limit: 1,
+        sortBy: "count",
+        cursor: page1C.nextCursor,
+      });
+      expect(page2C.items.length).toBe(1);
+    });
+  });
+
+  describe("renameTag", () => {
+    it("should rename tag successfully", async () => {
+      const tag = await seedTag(testDbHelper.db, "old-name");
+      const renamed = await renameTag(tag.id, "new-name");
+      expect(renamed.name).toBe("new-name");
+
+      const dbTag = await getTagById(tag.id);
+      expect(dbTag!.name).toBe("new-name");
+    });
+
+    it("should throw if name is empty", async () => {
+      const tag = await seedTag(testDbHelper.db, "some-name");
+      await expect(renameTag(tag.id, "   ")).rejects.toThrow(
+        "Tag name cannot be empty",
+      );
+    });
+
+    it("should throw if name already exists", async () => {
+      const tag1 = await seedTag(testDbHelper.db, "name1");
+      const tag2 = await seedTag(testDbHelper.db, "name2");
+      await expect(renameTag(tag1.id, "name2")).rejects.toThrow();
+    });
+  });
+
+  describe("mergeTags", () => {
+    it("should merge source tags into target and transfer associations", async () => {
+      const tSource1 = await seedTag(testDbHelper.db, "source1");
+      const tSource2 = await seedTag(testDbHelper.db, "source2");
+      const tTarget = await seedTag(testDbHelper.db, "target");
+
+      const source = await seedSource(testDbHelper.db);
+      const post1 = await seedPost(testDbHelper.db, source.id);
+      const post2 = await seedPost(testDbHelper.db, source.id);
+
+      // post1 has source1, post2 has source2
+      await linkTagToPost(tSource1.id, post1.id);
+      await linkTagToPost(tSource2.id, post2.id);
+
+      // post1 also already has target (to verify de-duplication)
+      await linkTagToPost(tTarget.id, post1.id);
+
+      const result = await mergeTags([tSource1.id, tSource2.id], tTarget.id);
+      expect(result.deletedCount).toBe(2);
+      expect(result.reassignedCount).toBe(1); // Only post2 should be a new assignment since post1 already had target
+
+      // Verify source tags are deleted
+      const s1 = await getTagById(tSource1.id);
+      const s2 = await getTagById(tSource2.id);
+      expect(s1).toBeNull();
+      expect(s2).toBeNull();
+
+      // Verify post tags
+      const post1Links = await testDbHelper.db
+        .select()
+        .from(postTags)
+        .where(eq(postTags.postId, post1.id));
+      expect(post1Links.length).toBe(1);
+      expect(post1Links[0].tagId).toBe(tTarget.id);
+
+      const post2Links = await testDbHelper.db
+        .select()
+        .from(postTags)
+        .where(eq(postTags.postId, post2.id));
+      expect(post2Links.length).toBe(1);
+      expect(post2Links[0].tagId).toBe(tTarget.id);
+    });
+  });
+
+  describe("deleteTag and deleteTags", () => {
+    it("should delete single tag and cascade delete post links", async () => {
+      const tag = await seedTag(testDbHelper.db, "to-delete");
+      const source = await seedSource(testDbHelper.db);
+      const post = await seedPost(testDbHelper.db, source.id);
+      await linkTagToPost(tag.id, post.id);
+
+      const success = await deleteTag(tag.id);
+      expect(success).toBe(true);
+
+      const dbTag = await getTagById(tag.id);
+      expect(dbTag).toBeNull();
+
+      const links = await testDbHelper.db
+        .select()
+        .from(postTags)
+        .where(eq(postTags.tagId, tag.id));
+      expect(links.length).toBe(0);
+    });
+
+    it("should delete multiple tags", async () => {
+      const t1 = await seedTag(testDbHelper.db, "d1");
+      const t2 = await seedTag(testDbHelper.db, "d2");
+
+      const count = await deleteTags([t1.id, t2.id]);
+      expect(count).toBe(2);
+
+      const dbT1 = await getTagById(t1.id);
+      expect(dbT1).toBeNull();
+    });
+  });
+
+  describe("cleanupOrphanedTags", () => {
+    it("should clean up tags with 0 posts", async () => {
+      const usedTag = await seedTag(testDbHelper.db, "used");
+      const orphanTag = await seedTag(testDbHelper.db, "orphan");
+
+      const source = await seedSource(testDbHelper.db);
+      const post = await seedPost(testDbHelper.db, source.id);
+      await linkTagToPost(usedTag.id, post.id);
+
+      const count = await cleanupOrphanedTags();
+      expect(count).toBe(1);
+
+      const dbUsed = await getTagById(usedTag.id);
+      expect(dbUsed).not.toBeNull();
+
+      const dbOrphan = await getTagById(orphanTag.id);
+      expect(dbOrphan).toBeNull();
     });
   });
 });
