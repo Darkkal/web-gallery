@@ -89,6 +89,12 @@
   align-items: center;
 }
 
+.statCardHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .statCardLabel {
   font-size: 0.875rem;
   font-weight: 500;

@@ -54,7 +54,7 @@ export default function StatCard({
     <div className={styles.statCard}>
       <div className={styles.statCardHeader}>
         <span className={styles.statCardLabel}>{label}</span>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <div className={styles.statCardHeaderRight}>
           {action}
           <Icon className={styles.statCardIcon} />
         </div>
