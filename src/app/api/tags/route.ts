@@ -5,7 +5,12 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") || "";
   const category = searchParams.get("category") || "all";
-  const sortBy = (searchParams.get("sortBy") as any) || "count";
+  const sortBy =
+    (searchParams.get("sortBy") as
+      | "name"
+      | "name-desc"
+      | "count"
+      | "count-asc") || "count";
   const limit = parseInt(searchParams.get("limit") || "50", 10);
   const cursor = searchParams.get("cursor") || undefined;
 
