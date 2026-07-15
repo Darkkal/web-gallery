@@ -22,8 +22,10 @@ import {
   posts,
   postTags,
   sources,
+  tags,
   twitterUsers,
 } from "@/lib/db/schema";
+import { getAppSettings } from "@/lib/settings";
 import { parseSearchQuery } from "@/lib/utils/search-parser";
 
 export type TimelinePost = {
@@ -77,13 +79,16 @@ export async function getTimelinePosts(filters?: {
   const { cleanQuery, sourceFilter } = parseSearchQuery(search);
   const searchLower = cleanQuery.toLowerCase();
 
+  // Expand search tags at query-time
+  const expandedSearch = searchLower ? await expandSearchTags(searchLower) : "";
+
   const whereConditions: SQL[] = [isNull(posts.deletedAt)];
 
   if (sourceFilter) {
     whereConditions.push(eq(posts.extractorType, sourceFilter));
   }
 
-  const searchSubquery = searchLower
+  const searchSubquery = expandedSearch
     ? db
         .select({
           search_id: sql<number>`rowid`.as("search_id"),
@@ -92,7 +97,7 @@ export async function getTimelinePosts(filters?: {
           ),
         })
         .from(sql`posts_fts`)
-        .where(sql`posts_fts MATCH ${searchLower}`)
+        .where(sql`posts_fts MATCH ${expandedSearch}`)
         .as("search_subquery")
     : undefined;
 
@@ -383,7 +388,115 @@ export async function getTimelinePosts(filters?: {
 export async function getPostTags(postId: number) {
   const rows = await db.query.postTags.findMany({
     where: eq(postTags.postId, postId),
-    with: { tag: true },
+    with: {
+      tag: {
+        with: {
+          category: true,
+        },
+      },
+    },
   });
-  return rows.map((r) => ({ name: r.tag.name, id: r.tag.id }));
+  return rows.map((r) => ({
+    name: r.tag.name,
+    id: r.tag.id,
+    categoryId: r.tag.categoryId,
+    category: r.tag.category,
+    aliasOfTagId: r.tag.aliasOfTagId,
+    parentTagId: r.tag.parentTagId,
+  }));
+}
+
+async function getEquivalentTags(tagName: string): Promise<string[]> {
+  const lowerName = tagName.toLowerCase();
+
+  const tagRecord = await db.query.tags.findFirst({
+    where: eq(sql`lower(${tags.name})`, lowerName),
+  });
+
+  if (!tagRecord) {
+    return [tagName];
+  }
+
+  const canonicalId = tagRecord.aliasOfTagId ?? tagRecord.id;
+
+  const appSettings = await getAppSettings();
+  const expandHierarchy = appSettings.implicitHierarchyFiltering;
+
+  let canonicalIds = [canonicalId];
+
+  if (expandHierarchy) {
+    // Perform recursive CTE to find all descendant canonical tags
+    const descendants = await db
+      .select({
+        id: sql<number>`id`,
+      })
+      .from(sql`(
+      WITH RECURSIVE descendants AS (
+        SELECT id, parent_tag_id FROM tags WHERE id = ${canonicalId} AND alias_of_tag_id IS NULL
+        UNION ALL
+        SELECT t.id, t.parent_tag_id FROM tags t
+        INNER JOIN descendants d ON t.parent_tag_id = d.id
+        WHERE t.alias_of_tag_id IS NULL
+      )
+      SELECT id FROM descendants
+    )`);
+    canonicalIds = descendants.map((row) => Number(row.id));
+  }
+
+  if (canonicalIds.length === 0) {
+    return [tagName];
+  }
+
+  // Get all names of canonical tags and their aliases
+  const matchedTags = await db
+    .select({ name: tags.name })
+    .from(tags)
+    .where(
+      or(
+        inArray(tags.id, canonicalIds),
+        inArray(tags.aliasOfTagId, canonicalIds),
+      ),
+    );
+
+  const names = new Set<string>();
+  for (const t of matchedTags) {
+    names.add(t.name);
+  }
+  names.add(tagRecord.name);
+
+  return Array.from(names);
+}
+
+export async function expandSearchTags(query: string): Promise<string> {
+  const tagRegex = /\btag_names:([a-zA-Z0-9_]+)/gi;
+  const matches = [...query.matchAll(tagRegex)];
+  if (matches.length === 0) {
+    return query;
+  }
+
+  const uniqueTags = Array.from(new Set(matches.map((m) => m[1])));
+
+  const replacements: Record<string, string> = {};
+  await Promise.all(
+    uniqueTags.map(async (tagName) => {
+      const equivalents = await getEquivalentTags(tagName);
+      if (equivalents.length > 1) {
+        replacements[tagName] =
+          `(${equivalents.map((t) => `tag_names:${t}`).join(" OR ")})`;
+      } else {
+        replacements[tagName] = `tag_names:${equivalents[0]}`;
+      }
+    }),
+  );
+
+  let expandedQuery = query;
+  for (const tagName of uniqueTags) {
+    const escapedTag = tagName.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+    const regex = new RegExp(`\\btag_names:${escapedTag}\\b`, "gi");
+    if (replacements[tagName]) {
+      expandedQuery = expandedQuery.replace(regex, replacements[tagName]);
+    }
+  }
+
+  return expandedQuery;
 }

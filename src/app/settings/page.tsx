@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default async function SettingsPage() {
   const settings = await fetchSettingsAction();
 
-  // Ensure settings is fully serializable
+  // Ensure data is fully serializable
   const initialSettings = JSON.parse(JSON.stringify(settings));
 
   return <SettingsPageClient initialSettings={initialSettings} />;

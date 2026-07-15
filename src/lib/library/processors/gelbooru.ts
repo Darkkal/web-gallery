@@ -27,7 +27,8 @@ export class GelbooruProcessor implements IMetadataProcessor<GelbooruMeta> {
     task: ProcessTask,
     context: ProcessorContext,
   ): Promise<number | null> {
-    const { tx, existingPosts, existingTags, internalSourceId } = context;
+    const { tx, existingPosts, existingTags, internalSourceId, categoryMap } =
+      context;
 
     let postId: number | null = null;
 
@@ -169,13 +170,34 @@ export class GelbooruProcessor implements IMetadataProcessor<GelbooruMeta> {
             typeof rawTag === "string" ? rawTag : String(rawTag);
           if (!baseTagName) continue;
 
-          const tagName = baseTagName.trim();
+          let categoryId: number | null = null;
+          let tagName = baseTagName.trim();
+
+          const colonIndex = tagName.indexOf(":");
+          if (colonIndex !== -1 && colonIndex > 0) {
+            const prefix = tagName.substring(0, colonIndex).toLowerCase();
+            const suffix = tagName.substring(colonIndex + 1);
+            if (suffix) {
+              tagName = suffix.trim();
+              let categoryName: string | null = null;
+              if (prefix === "character") categoryName = "character";
+              else if (prefix === "copyright") categoryName = "copyright";
+              else if (prefix === "artist") categoryName = "artist";
+              else if (prefix === "metadata" || prefix === "meta")
+                categoryName = "meta";
+
+              if (categoryName) {
+                categoryId = categoryMap?.get(categoryName) ?? null;
+              }
+            }
+          }
+
           let tagId = existingTags.get(tagName);
 
           if (!tagId) {
             const newTag = await tx
               .insert(tags)
-              .values({ name: tagName })
+              .values({ name: tagName, categoryId })
               .onConflictDoNothing()
               .returning({ id: tags.id });
             if (newTag.length > 0) tagId = newTag[0].id;

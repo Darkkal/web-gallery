@@ -4,6 +4,7 @@ import {
   seedPost,
   seedSource,
   seedTag,
+  seedTagCategory,
 } from "../../../../tests/unit/helpers/seed";
 
 const testDbHelper = setupTestDb();
@@ -20,10 +21,21 @@ vi.mock("@/lib/db", () => {
   };
 });
 
+let mockImplicitHierarchyFiltering = true;
+vi.mock("@/lib/settings", () => {
+  return {
+    getAppSettings: () =>
+      Promise.resolve({
+        implicitHierarchyFiltering: mockImplicitHierarchyFiltering,
+      }),
+  };
+});
+
 const testDb = testDbHelper.db;
 activeDb = testDb;
 
-import { postTags } from "../schema";
+import { eq } from "drizzle-orm";
+import { postTags, tags } from "../schema";
 import { getPostTags, getTimelinePosts } from "./posts";
 
 describe("Posts Repository", () => {
@@ -132,6 +144,39 @@ describe("Posts Repository", () => {
       expect(resPixiv.posts.length).toBe(1);
       expect(resPixiv.posts[0].internalDbId).toBe(postPixiv.id);
     });
+
+    it("should expand tag aliases bi-directionally in search query", async () => {
+      const source = await seedSource(testDb);
+      const post1 = await seedPost(testDb, source.id, {
+        title: "Artwork 1",
+        content: "Contains a car",
+        date: "2026-01-01",
+      });
+      const post2 = await seedPost(testDb, source.id, {
+        title: "Artwork 2",
+        content: "Contains an automobile",
+        date: "2026-01-02",
+      });
+
+      const tagAutomobile = await seedTag(testDb, "automobile");
+      const tagCar = await seedTag(testDb, "car");
+
+      await testDb
+        .update(tags)
+        .set({ aliasOfTagId: tagAutomobile.id })
+        .where(eq(tags.id, tagCar.id));
+
+      await testDb.insert(postTags).values([
+        { postId: post1.id, tagId: tagCar.id },
+        { postId: post2.id, tagId: tagAutomobile.id },
+      ]);
+
+      const resCar = await getTimelinePosts({ search: "tag:car" });
+      expect(resCar.posts.length).toBe(2);
+
+      const resAuto = await getTimelinePosts({ search: "tag:automobile" });
+      expect(resAuto.posts.length).toBe(2);
+    });
   });
 
   describe("getPostTags", () => {
@@ -146,10 +191,77 @@ describe("Posts Repository", () => {
         { postId: post.id, tagId: tag2.id },
       ]);
 
+      const cat = await seedTagCategory(testDb, "artist");
       const list = await getPostTags(post.id);
       expect(list.length).toBe(2);
       expect(list.map((t) => t.name)).toContain("cool");
       expect(list.map((t) => t.name)).toContain("awesome");
+
+      // Test with category set
+      const tagWithCat = await seedTag(testDb, "categorized_tag", cat.id);
+      await testDb
+        .insert(postTags)
+        .values({ postId: post.id, tagId: tagWithCat.id });
+      const updatedList = await getPostTags(post.id);
+      expect(updatedList.length).toBe(3);
+      const target = updatedList.find((t) => t.name === "categorized_tag");
+      expect(target).not.toBeUndefined();
+      expect(target?.categoryId).toBe(cat.id);
+      expect(target?.category?.name).toBe("artist");
+    });
+  });
+
+  describe("expandSearchTags with hierarchy", () => {
+    it("should expand tag hierarchy recursively in search query when enabled", async () => {
+      const source = await seedSource(testDb);
+      const postAnimal = await seedPost(testDb, source.id, {
+        content: "I saw an animal",
+        date: "2026-01-01",
+      });
+      const postCat = await seedPost(testDb, source.id, {
+        content: "I saw a cat",
+        date: "2026-01-02",
+      });
+      const postShiba = await seedPost(testDb, source.id, {
+        content: "I saw a shiba",
+        date: "2026-01-03",
+      });
+
+      const tagAnimal = await seedTag(testDb, "animal");
+      const tagCat = await seedTag(testDb, "cat");
+      const tagDog = await seedTag(testDb, "dog");
+      const tagShiba = await seedTag(testDb, "shiba");
+
+      // Setup hierarchy: animal -> cat, animal -> dog -> shiba
+      await testDb
+        .update(tags)
+        .set({ parentTagId: tagAnimal.id })
+        .where(eq(tags.id, tagCat.id));
+      await testDb
+        .update(tags)
+        .set({ parentTagId: tagAnimal.id })
+        .where(eq(tags.id, tagDog.id));
+      await testDb
+        .update(tags)
+        .set({ parentTagId: tagDog.id })
+        .where(eq(tags.id, tagShiba.id));
+
+      await testDb.insert(postTags).values([
+        { postId: postAnimal.id, tagId: tagAnimal.id },
+        { postId: postCat.id, tagId: tagCat.id },
+        { postId: postShiba.id, tagId: tagShiba.id },
+      ]);
+
+      // When enabled: searching animal returns all descendants
+      mockImplicitHierarchyFiltering = true;
+      const resEnabled = await getTimelinePosts({ search: "tag:animal" });
+      expect(resEnabled.posts.length).toBe(3);
+
+      // When disabled: searching animal returns only the exact matches
+      mockImplicitHierarchyFiltering = false;
+      const resDisabled = await getTimelinePosts({ search: "tag:animal" });
+      expect(resDisabled.posts.length).toBe(1);
+      expect(resDisabled.posts[0].internalDbId).toBe(postAnimal.id);
     });
   });
 });

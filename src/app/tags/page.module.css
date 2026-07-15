@@ -11,6 +11,28 @@
   align-items: center;
 }
 
+.titleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.manageLink {
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.manageLink:hover {
+  background: hsl(var(--primary) / 0.85);
+  box-shadow: 0 4px 12px hsl(var(--primary) / 0.2);
+}
+
 .title {
   font-size: 24px;
   font-weight: 600;
@@ -86,4 +108,251 @@
   text-align: center;
   padding: 40px;
   color: hsl(var(--muted-foreground));
+}
+
+.categoryTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid hsl(var(--border));
+  padding-bottom: 16px;
+}
+
+.tab {
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  text-transform: capitalize;
+}
+
+.tab:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
+}
+
+.tab[data-active="true"] {
+  background: hsl(
+    var(--tab-hue, var(--primary)) var(--tab-sat, 0%) var(--tab-lgt, 50%) /
+    0.15
+  );
+  color: hsl(
+    var(--tab-hue, var(--primary)) var(--tab-sat, 100%) var(--tab-lgt, 50%)
+  );
+  border-color: hsl(
+    var(--tab-hue, var(--primary)) var(--tab-sat, 100%) var(--tab-lgt, 50%) /
+    0.3
+  );
+}
+
+.categoryBadge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt) / 0.15);
+  color: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt));
+  border: 1px solid hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt) / 0.3);
+}
+
+.rightHeaderControls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.viewToggle {
+  display: flex;
+  background: hsl(var(--secondary));
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
+}
+
+.toggleBtn {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggleBtn:hover {
+  color: hsl(var(--foreground));
+}
+
+.toggleBtn[data-active="true"] {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Tree View Styles */
+.treeContainer {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.treeList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.treeNodeWrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.treeNodeRow {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+  min-height: 40px;
+}
+
+.treeNodeRow:hover {
+  background: hsl(var(--accent) / 0.4);
+}
+
+.treeExpanderCol {
+  width: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.treeExpanderButton {
+  background: transparent;
+  border: none;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.treeExpanderButton:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
+.treeLeafBullet {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: hsl(var(--muted-foreground) / 0.4);
+}
+
+.treeContentCol {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-left: 8px;
+}
+
+.treeNodeLink {
+  font-size: 15px;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.treeNodeLink:hover {
+  color: hsl(var(--primary));
+}
+
+.treeMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.treePostCount {
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+}
+
+.treeChildren {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.select {
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border));
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.select:hover {
+  background: hsl(var(--accent));
+}
+
+.checkboxLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
+  user-select: none;
+  transition: all 0.2s;
+}
+
+.checkboxLabel:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
+.checkboxLabel input[type="checkbox"] {
+  accent-color: hsl(var(--primary));
+  cursor: pointer;
 }

@@ -11,10 +11,10 @@ import {
   gallerydlExtractorTypes,
   mediaItems,
   pixivUsers,
-  // New Tables
   posts,
   scanHistory,
   scraperDownloadLogs,
+  tagCategories,
   tags,
   twitterUsers,
 } from "@/lib/db/schema";
@@ -290,6 +290,15 @@ export async function syncLibrary(options?: SyncOptions) {
       },
     );
 
+    const categoryMap = new Map<string, number>();
+    (
+      await db
+        .select({ id: tagCategories.id, name: tagCategories.name })
+        .from(tagCategories)
+    ).forEach((c) => {
+      categoryMap.set(c.name, c.id);
+    });
+
     // Cache existing posts to avoid constant duplicate inserts
     // Map key format: "extractor:jsonId" -> postId
     const existingPosts = new Map<string, number>();
@@ -526,6 +535,7 @@ export async function syncLibrary(options?: SyncOptions) {
               existingPixivUsers,
               existingTags,
               existingPosts,
+              categoryMap,
               userAvatars,
               sourceMap,
               tx,
@@ -768,6 +778,7 @@ async function processItem(
   existingPixivUsers: UserCache,
   existingTags: TagCache,
   existingPosts: Map<string, number>,
+  categoryMap: Map<string, number>,
   userAvatars: Map<string, string>,
   sourceMap: Map<string, number>,
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
@@ -825,6 +836,7 @@ async function processItem(
           existingPixivUsers,
           existingTags,
           existingPosts,
+          categoryMap,
           userAvatars,
           internalSourceId,
         };

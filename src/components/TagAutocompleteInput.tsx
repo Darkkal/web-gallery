@@ -9,7 +9,7 @@ import type {
 import styles from "./TagAutocompleteInput.module.css";
 
 interface TagAutocompleteInputProps {
-  onTagSelected: (tagName: string) => void;
+  onTagSelected: (tagName: string, ancestors?: string[]) => void;
   placeholder?: string;
   disabled?: boolean;
   excludeTags?: string[];
@@ -99,9 +99,9 @@ export default function TagAutocompleteInput({
     };
   }, []);
 
-  const handleSelect = (tagName: string) => {
+  const handleSelect = (tagName: string, ancestors?: string[]) => {
     if (tagName.trim()) {
-      onTagSelected(tagName.trim());
+      onTagSelected(tagName.trim(), ancestors);
       setQuery("");
       setSuggestions([]);
       setIsOpen(false);
@@ -141,7 +141,10 @@ export default function TagAutocompleteInput({
     if (e.key === "Enter") {
       e.preventDefault();
       if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-        handleSelect(suggestions[selectedIndex].value);
+        handleSelect(
+          suggestions[selectedIndex].value,
+          suggestions[selectedIndex].ancestors,
+        );
       } else if (query.trim()) {
         handleSelect(query);
       }
@@ -178,11 +181,13 @@ export default function TagAutocompleteInput({
                 key={suggestion.value}
                 className={styles.dropdownItem}
                 data-active={isActive}
-                onClick={() => handleSelect(suggestion.value)}
+                onClick={() =>
+                  handleSelect(suggestion.value, suggestion.ancestors)
+                }
                 onKeyDown={(ev) => {
                   if (ev.key === "Enter" || ev.key === " ") {
                     ev.preventDefault();
-                    handleSelect(suggestion.value);
+                    handleSelect(suggestion.value, suggestion.ancestors);
                   }
                 }}
                 role="option"

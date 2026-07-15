@@ -26,7 +26,8 @@ const testDb = testDbHelper.db;
 activeDb = testDb;
 
 // Import modules under test
-import { postTags } from "../schema";
+import { eq } from "drizzle-orm";
+import { postTags, tags } from "../schema";
 import {
   autocompleteContent,
   autocompleteHandle,
@@ -92,6 +93,41 @@ describe("Autocomplete Repository", () => {
       const suggestions = await autocompleteTag("c", 8, "kittens");
       expect(suggestions.length).toBe(1);
       expect(suggestions[0].value).toBe("cats"); // cats is linked to the matched post
+    });
+
+    it("should return formatted alias suggestions with redirect label", async () => {
+      const canonical = await seedTag(testDb, "automobile");
+      const alias = await seedTag(testDb, "car");
+
+      await testDb
+        .update(tags)
+        .set({ aliasOfTagId: canonical.id })
+        .where(eq(tags.id, alias.id));
+
+      const suggestions = await autocompleteTag("ca");
+      const suggestion = suggestions.find((s) => s.value === "car");
+      expect(suggestion).toBeDefined();
+      expect(suggestion!.label).toBe("car → automobile");
+    });
+
+    it("should return the ancestors chain for suggestions", async () => {
+      const parent = await seedTag(testDb, "animal");
+      const child = await seedTag(testDb, "feline");
+      const grandchild = await seedTag(testDb, "cat");
+
+      await testDb
+        .update(tags)
+        .set({ parentTagId: parent.id })
+        .where(eq(tags.id, child.id));
+      await testDb
+        .update(tags)
+        .set({ parentTagId: child.id })
+        .where(eq(tags.id, grandchild.id));
+
+      const suggestions = await autocompleteTag("cat");
+      const suggestion = suggestions.find((s) => s.value === "cat");
+      expect(suggestion).toBeDefined();
+      expect(suggestion!.ancestors).toEqual(["feline", "animal"]);
     });
   });
 

@@ -8,6 +8,7 @@ import { getPlaylistsForMediaItem } from "@/app/actions/playlists";
 import {
   addTagToPost,
   getPostTags,
+  getSuggestedRelatedTags,
   removeTagsFromPost,
 } from "@/app/actions/tags";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
@@ -22,7 +23,7 @@ import type {
 } from "@/lib/metadata";
 import { handleKeyActivate } from "@/lib/utils/a11y";
 import { encodeFilePath } from "@/lib/utils/format";
-import type { GalleryRow } from "@/types/media";
+import type { GalleryRow, TagWithCategory } from "@/types/media";
 
 interface LightboxProps {
   row: GalleryRow;
@@ -61,11 +62,15 @@ export default function Lightbox({
 }: LightboxProps) {
   const { item } = row;
   const [showInfo, setShowInfo] = useState(true);
-  const [postTags, setPostTags] = useState<{ id: number; name: string }[]>([]);
+  const [postTags, setPostTags] = useState<TagWithCategory[]>([]);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isRecentlyMounted, setIsRecentlyMounted] = useState(true);
   const [isRemovalMode, setIsRemovalMode] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<Set<number>>(new Set());
+  const [suggestedAncestors, setSuggestedAncestors] = useState<string[]>([]);
+  const [suggestedRelated, setSuggestedRelated] = useState<TagWithCategory[]>(
+    [],
+  );
   const router = useRouter();
 
   const toggleTagSelection = (tagId: number) => {
@@ -103,7 +108,7 @@ export default function Lightbox({
     }
   }
 
-  async function handleAddTag(tagName: string) {
+  async function handleAddTag(tagName: string, ancestors?: string[]) {
     if (!row.post?.id) return;
     try {
       const newTag = await addTagToPost(row.post.id, tagName);
@@ -112,6 +117,23 @@ export default function Lightbox({
         return [...prev, newTag];
       });
       setIsAddingTag(false);
+
+      if (ancestors && ancestors.length > 0) {
+        // filter out ancestors already on the post
+        const activeTagsLower = [
+          ...postTags.map((t) => t.name.toLowerCase()),
+          newTag.name.toLowerCase(),
+        ];
+        const remaining = ancestors.filter(
+          (anc) => !activeTagsLower.includes(anc.toLowerCase()),
+        );
+        setSuggestedAncestors(remaining);
+      } else {
+        // if no ancestors are suggested, check if the added tag was one of the suggested ancestors
+        setSuggestedAncestors((prev) =>
+          prev.filter((anc) => anc.toLowerCase() !== tagName.toLowerCase()),
+        );
+      }
     } catch (err) {
       alert(`Failed to add tag: ${err}`);
     }
@@ -218,12 +240,25 @@ export default function Lightbox({
   // Fetch Post Tags
   useEffect(() => {
     setSelectedTagIds(new Set());
+    setSuggestedAncestors([]);
     if (row.post?.id) {
       getPostTags(row.post.id).then(setPostTags).catch(console.error);
     } else {
       setPostTags([]);
     }
   }, [row.post?.id]);
+
+  // Fetch suggested related tags based on current tags
+  useEffect(() => {
+    if (postTags.length === 0) {
+      setSuggestedRelated([]);
+      return;
+    }
+    const tagIds = postTags.map((t) => t.id);
+    getSuggestedRelatedTags(tagIds)
+      .then(setSuggestedRelated)
+      .catch(console.error);
+  }, [postTags]);
 
   // Handle video playback errors
   useEffect(() => {
@@ -701,10 +736,19 @@ export default function Lightbox({
                   <button
                     type="button"
                     key={tag.id}
-                    className={styles.tagChipSelectable}
+                    className={`${styles.tagChipSelectable} ${tag.category ? styles.hasCategory : ""}`}
                     data-selected={selectedTagIds.has(tag.id)}
                     onClick={() => toggleTagSelection(tag.id)}
                     aria-pressed={selectedTagIds.has(tag.id)}
+                    style={
+                      tag.category
+                        ? ({
+                            "--tag-hue": tag.category.colorHue,
+                            "--tag-sat": `${tag.category.colorSaturation}%`,
+                            "--tag-lgt": `${tag.category.colorLightness}%`,
+                          } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <span className={styles.tagName}>#{tag.name}</span>
                   </button>
@@ -712,8 +756,17 @@ export default function Lightbox({
                   <button
                     type="button"
                     key={tag.id}
-                    className={styles.tagChipClickable}
+                    className={`${styles.tagChipClickable} ${tag.category ? styles.hasCategory : ""}`}
                     onClick={() => handleTagClick(tag.name)}
+                    style={
+                      tag.category
+                        ? ({
+                            "--tag-hue": tag.category.colorHue,
+                            "--tag-sat": `${tag.category.colorSaturation}%`,
+                            "--tag-lgt": `${tag.category.colorLightness}%`,
+                          } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <span className={styles.tagName}>#{tag.name}</span>
                   </button>
@@ -759,6 +812,51 @@ export default function Lightbox({
               </button>
             )}
           </div>
+
+          {suggestedAncestors.length > 0 && (
+            <div className={styles.ancestorSuggestions}>
+              <span className={styles.ancestorTitle}>Suggested Ancestors:</span>
+              <div className={styles.ancestorChips}>
+                {suggestedAncestors.map((anc) => (
+                  <button
+                    type="button"
+                    key={anc}
+                    className={styles.ancestorChip}
+                    onClick={() => handleAddTag(anc)}
+                  >
+                    + {anc}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {suggestedRelated.length > 0 && (
+            <div className={styles.ancestorSuggestions}>
+              <span className={styles.ancestorTitle}>Related Suggestions:</span>
+              <div className={styles.ancestorChips}>
+                {suggestedRelated.map((tag) => (
+                  <button
+                    type="button"
+                    key={tag.id}
+                    className={`${styles.ancestorChip} ${tag.category ? styles.hasCategory : ""}`}
+                    onClick={() => handleAddTag(tag.name)}
+                    style={
+                      tag.category
+                        ? ({
+                            "--tag-hue": tag.category.colorHue,
+                            "--tag-sat": `${tag.category.colorSaturation}%`,
+                            "--tag-lgt": `${tag.category.colorLightness}%`,
+                          } as React.CSSProperties)
+                        : undefined
+                    }
+                  >
+                    + {tag.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {(row.post?.url || (tweet?.tweetId && user)) && (

@@ -1,4 +1,13 @@
-import { and, eq, isNull, like, notInArray, type SQL, sql } from "drizzle-orm";
+import {
+  aliasedTable,
+  and,
+  eq,
+  isNull,
+  like,
+  notInArray,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   pixivUsers,
@@ -64,12 +73,19 @@ export async function autocompleteTag(
     }
   }
 
-  let query = db
+  const aliasTags = aliasedTable(tags, "alias_tags");
+
+  let query: any = db
     .select({
+      id: tags.id,
       name: tags.name,
+      parentTagId: tags.parentTagId,
+      aliasOfTagId: tags.aliasOfTagId,
+      aliasName: aliasTags.name,
       count: sql<number>`count(${postTags.postId})`.mapWith(Number),
     })
     .from(tags)
+    .leftJoin(aliasTags, eq(tags.aliasOfTagId, aliasTags.id))
     .$dynamic();
 
   if (postsFilterSubquery) {
@@ -83,18 +99,77 @@ export async function autocompleteTag(
     query = query.leftJoin(postTags, eq(tags.id, postTags.tagId));
   }
 
-  const results = await query
+  const results = (await query
     .where(and(...whereConditions))
-    .groupBy(tags.name)
+    .groupBy(
+      tags.id,
+      tags.name,
+      tags.parentTagId,
+      tags.aliasOfTagId,
+      aliasTags.name,
+    )
     .orderBy(sql`count(${postTags.postId}) DESC`)
-    .limit(limit);
+    .limit(limit)) as {
+    id: number;
+    name: string;
+    parentTagId: number | null;
+    aliasOfTagId: number | null;
+    aliasName: string | null;
+    count: number;
+  }[];
 
-  return results.map((r) => ({
-    value: r.name,
-    label: r.name,
-    count: r.count,
-    type: "value" as const,
-  }));
+  const getAncestorNames = async (
+    canonicalTagId: number,
+  ): Promise<string[]> => {
+    const ancestorNames: string[] = [];
+    let currentId: number | null = canonicalTagId;
+
+    for (let depth = 0; depth < 10; depth++) {
+      if (currentId === null) break;
+      const targetId: number = currentId;
+
+      const tag = (await db.query.tags.findFirst({
+        where: eq(tags.id, targetId),
+        columns: {
+          parentTagId: true,
+        },
+        with: {
+          parentTag: {
+            columns: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      })) as any;
+
+      if (tag && tag.parentTag) {
+        ancestorNames.push(tag.parentTag.name);
+        currentId = tag.parentTag.id;
+      } else {
+        break;
+      }
+    }
+
+    return ancestorNames;
+  };
+
+  const suggestions = await Promise.all(
+    results.map(async (r) => {
+      const startTagId = r.aliasOfTagId !== null ? r.aliasOfTagId : r.id;
+      const ancestors = await getAncestorNames(startTagId);
+
+      return {
+        value: r.name,
+        label: r.aliasName ? `${r.name} → ${r.aliasName}` : r.name,
+        count: r.count,
+        type: "value" as const,
+        ancestors: ancestors.length > 0 ? ancestors : undefined,
+      };
+    }),
+  );
+
+  return suggestions;
 }
 
 export async function autocompleteUser(

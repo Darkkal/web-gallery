@@ -604,6 +604,18 @@
   color: hsl(var(--primary));
 }
 
+.tagChipClickable.hasCategory {
+  background: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt) / 0.12);
+  color: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt));
+  border-color: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt) / 0.3);
+}
+
+.tagChipClickable.hasCategory:hover {
+  background: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt) / 0.2);
+  border-color: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt) / 0.5);
+  color: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt));
+}
+
 .tagChipSelectable {
   display: inline-flex;
   align-items: center;
@@ -623,6 +635,18 @@
   border-color: hsl(var(--border));
 }
 
+.tagChipSelectable.hasCategory {
+  background: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt) / 0.12);
+  color: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt));
+  border-color: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt) / 0.3);
+}
+
+.tagChipSelectable.hasCategory:hover {
+  background: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt) / 0.2);
+  border-color: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt) / 0.5);
+  color: hsl(var(--tag-hue) var(--tag-sat) var(--tag-lgt));
+}
+
 .tagChipSelectable[data-selected="true"] {
   background: hsl(var(--color-danger) / 0.15);
   border-color: hsl(var(--color-danger) / 0.6);
@@ -630,6 +654,17 @@
 }
 
 .tagChipSelectable[data-selected="true"]:hover {
+  background: hsl(var(--color-danger) / 0.25);
+  border-color: hsl(var(--color-danger));
+}
+
+.tagChipSelectable.hasCategory[data-selected="true"] {
+  background: hsl(var(--color-danger) / 0.15);
+  border-color: hsl(var(--color-danger) / 0.6);
+  color: hsl(var(--color-danger));
+}
+
+.tagChipSelectable.hasCategory[data-selected="true"]:hover {
   background: hsl(var(--color-danger) / 0.25);
   border-color: hsl(var(--color-danger));
 }
@@ -762,4 +797,46 @@
 .tagCancelBtn:hover {
   background: hsl(var(--accent));
   color: hsl(var(--foreground));
+}
+
+.ancestorSuggestions {
+  margin-top: 16px;
+  background: hsl(var(--secondary) / 0.15);
+  border: 1px dashed hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.ancestorTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.ancestorChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ancestorChip {
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ancestorChip:hover {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
 }

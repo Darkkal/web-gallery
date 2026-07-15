@@ -1,0 +1,1 @@
+ALTER TABLE `tags` ADD `parent_tag_id` integer REFERENCES tags(id);

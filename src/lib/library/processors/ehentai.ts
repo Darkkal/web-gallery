@@ -39,7 +39,8 @@ export class EHentaiProcessor implements IMetadataProcessor<EHentaiMeta> {
     task: ProcessTask,
     context: ProcessorContext,
   ): Promise<number | null> {
-    const { tx, existingPosts, existingTags, internalSourceId } = context;
+    const { tx, existingPosts, existingTags, internalSourceId, categoryMap } =
+      context;
 
     let postId: number | null = null;
 
@@ -143,13 +144,40 @@ export class EHentaiProcessor implements IMetadataProcessor<EHentaiMeta> {
     if (postId && meta.tags && Array.isArray(meta.tags)) {
       for (const rawTag of meta.tags) {
         if (!rawTag) continue;
-        const tagName = rawTag.trim();
+        let categoryId: number | null = null;
+        let tagName = rawTag.trim();
+
+        const colonIndex = tagName.indexOf(":");
+        if (colonIndex !== -1 && colonIndex > 0) {
+          const prefix = tagName.substring(0, colonIndex).toLowerCase();
+          const suffix = tagName.substring(colonIndex + 1);
+          if (suffix) {
+            tagName = suffix.trim();
+            let categoryName: string | null = null;
+            if (prefix === "artist") categoryName = "artist";
+            else if (prefix === "character" || prefix === "cosplayer")
+              categoryName = "character";
+            else if (
+              prefix === "group" ||
+              prefix === "circle" ||
+              prefix === "parody"
+            )
+              categoryName = "copyright";
+            else if (prefix === "language" || prefix === "reclass")
+              categoryName = "meta";
+
+            if (categoryName) {
+              categoryId = categoryMap?.get(categoryName) ?? null;
+            }
+          }
+        }
+
         let tagId = existingTags.get(tagName);
 
         if (!tagId) {
           const newTag = await tx
             .insert(tags)
-            .values({ name: tagName })
+            .values({ name: tagName, categoryId })
             .onConflictDoNothing()
             .returning({ id: tags.id });
           if (newTag.length > 0) tagId = newTag[0].id;

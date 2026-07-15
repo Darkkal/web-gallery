@@ -9,6 +9,7 @@ interface StatCardProps {
   value: number;
   icon: React.ComponentType<{ className?: string }>;
   format?: (val: number) => string;
+  action?: React.ReactNode;
 }
 
 export default function StatCard({
@@ -16,6 +17,7 @@ export default function StatCard({
   value,
   icon: Icon,
   format,
+  action,
 }: StatCardProps) {
   const [displayValue, setDisplayValue] = useState(0);
 
@@ -52,7 +54,10 @@ export default function StatCard({
     <div className={styles.statCard}>
       <div className={styles.statCardHeader}>
         <span className={styles.statCardLabel}>{label}</span>
-        <Icon className={styles.statCardIcon} />
+        <div className={styles.statCardHeaderRight}>
+          {action}
+          <Icon className={styles.statCardIcon} />
+        </div>
       </div>
       <div className={styles.statCardValue}>{formatted}</div>
     </div>

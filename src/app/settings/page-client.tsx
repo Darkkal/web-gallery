@@ -3,6 +3,7 @@
 import {
   AlertCircle,
   CheckCircle,
+  Edit3,
   Globe,
   Play,
   RotateCcw,
@@ -11,6 +12,8 @@ import {
   ShieldAlert,
   Sliders,
   SlidersHorizontal,
+  Tag as TagIcon,
+  Trash,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -657,6 +660,45 @@ export default function SettingsPageClient({
                   Maximum number of cards shown in each ranking section on the
                   Statistics page (1-100).
                 </p>
+              </div>
+
+              <h2 className={styles.sectionTitle}>
+                <TagIcon size={18} />
+                <span>Tag Hierarchy Settings</span>
+              </h2>
+
+              <div
+                className={styles.toggleContainer}
+                style={{ marginBottom: "2rem" }}
+              >
+                <div className={styles.toggleInfo}>
+                  <span className={styles.toggleTitle}>
+                    Implicit Hierarchy Filtering
+                  </span>
+                  <span className={styles.toggleDescription}>
+                    Automatically include descendant tags when filtering by a
+                    parent tag (e.g. searching "animal" returns "dog" and
+                    "cat").
+                  </span>
+                </div>
+                <label
+                  className={styles.switch}
+                  htmlFor="implicitHierarchyFiltering"
+                >
+                  <input
+                    id="implicitHierarchyFiltering"
+                    aria-label="Implicit Hierarchy Filtering"
+                    type="checkbox"
+                    checked={settings.app.implicitHierarchyFiltering}
+                    onChange={(e) =>
+                      handleAppChange(
+                        "implicitHierarchyFiltering",
+                        e.target.checked,
+                      )
+                    }
+                  />
+                  <span className={styles.slider} />
+                </label>
               </div>
 
               <h2 className={styles.sectionTitle}>

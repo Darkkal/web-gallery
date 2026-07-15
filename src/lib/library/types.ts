@@ -17,6 +17,7 @@ export interface ProcessorContext {
   existingPixivUsers: UserCache;
   existingTags: TagCache;
   existingPosts: Map<string, number>;
+  categoryMap: Map<string, number>;
   userAvatars: Map<string, string>;
   internalSourceId: number | null;
 }

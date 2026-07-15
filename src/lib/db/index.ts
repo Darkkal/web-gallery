@@ -158,9 +158,47 @@ async function applyMigrations(): Promise<void> {
  *
  * Called once at boot via `src/instrumentation.ts`.
  */
+async function seedBuiltinCategories(): Promise<void> {
+  const builtinCategories = [
+    {
+      name: "character",
+      colorHue: 140,
+      colorSaturation: 60,
+      colorLightness: 50,
+      isBuiltin: true,
+    },
+    {
+      name: "artist",
+      colorHue: 0,
+      colorSaturation: 70,
+      colorLightness: 55,
+      isBuiltin: true,
+    },
+    {
+      name: "copyright",
+      colorHue: 270,
+      colorSaturation: 60,
+      colorLightness: 55,
+      isBuiltin: true,
+    },
+    {
+      name: "meta",
+      colorHue: 50,
+      colorSaturation: 70,
+      colorLightness: 55,
+      isBuiltin: true,
+    },
+  ];
+
+  for (const cat of builtinCategories) {
+    await db.insert(schema.tagCategories).values(cat).onConflictDoNothing();
+  }
+}
+
 export async function initDb(): Promise<void> {
   try {
     await applyMigrations();
+    await seedBuiltinCategories();
     console.log("[DB] Database initialized successfully.");
   } catch (error) {
     console.error("[DB] Failed to initialize database:", error);

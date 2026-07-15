@@ -1,6 +1,12 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { setupTestDb } from "../helpers/db";
-import { seedPost, seedSource, seedTag } from "../helpers/seed";
+import {
+  seedBuiltinCategories,
+  seedPost,
+  seedSource,
+  seedTag,
+  seedTagCategory,
+} from "../helpers/seed";
 
 const testDbHelper = setupTestDb();
 
@@ -20,12 +26,32 @@ const testDb = testDbHelper.db;
 activeDb = testDb;
 
 import {
+  addRelatedTag,
   addTagToPost,
   bulkAddTagToPosts,
+  bulkSetTagAlias,
+  bulkSetTagCategory,
+  bulkSetTagParent,
+  cleanupOrphanedTags,
+  createTagCategory,
+  deleteTag,
+  deleteTagCategory,
+  deleteTags,
+  getCategories,
+  getOrCreateTagByName,
   getPostTags,
+  getRelatedTags,
+  getSuggestedRelatedTags,
   getTopTags,
+  mergeTags,
+  removeRelatedTag,
   removeTagFromPost,
   removeTagsFromPost,
+  renameTag,
+  setTagAlias,
+  setTagCategory,
+  setTagParent,
+  updateTagCategory,
 } from "@/app/actions/tags";
 import { recomputeStatistics } from "@/lib/db/repositories/statistics";
 import { postTags } from "@/lib/db/schema";
@@ -192,6 +218,262 @@ describe("Tags Server Actions", () => {
 
       const list2 = await getPostTags(post2.id);
       expect(list2.map((t) => t.name)).toContain("shared-tag");
+    });
+  });
+
+  describe("Category Actions", () => {
+    it("should get categories", async () => {
+      await seedBuiltinCategories(testDb);
+      const cats = await getCategories();
+      expect(cats.length).toBe(4);
+      expect(cats.map((c) => c.name)).toContain("character");
+    });
+
+    it("should create custom tag category with validation", async () => {
+      await expect(
+        createTagCategory({
+          name: "",
+          colorHue: 0,
+          colorSaturation: 0,
+          colorLightness: 0,
+        }),
+      ).rejects.toThrow("Category name cannot be empty");
+
+      await expect(
+        createTagCategory({
+          name: "a".repeat(51),
+          colorHue: 0,
+          colorSaturation: 0,
+          colorLightness: 0,
+        }),
+      ).rejects.toThrow("Category name cannot exceed 50 characters");
+
+      const cat = await createTagCategory({
+        name: "custom",
+        colorHue: 120,
+        colorSaturation: 50,
+        colorLightness: 50,
+      });
+      expect(cat.name).toBe("custom");
+      expect(cat.isBuiltin).toBe(false);
+    });
+
+    it("should update tag category with validation", async () => {
+      const cat = await seedTagCategory(testDb, "edit-me");
+
+      await expect(updateTagCategory(cat.id, { name: "" })).rejects.toThrow(
+        "Category name cannot be empty",
+      );
+
+      const updated = await updateTagCategory(cat.id, {
+        name: "edited",
+        colorHue: 240,
+      });
+      expect(updated.name).toBe("edited");
+      expect(updated.colorHue).toBe(240);
+    });
+
+    it("should delete custom tag category", async () => {
+      const cat = await seedTagCategory(testDb, "delete-me");
+      const success = await deleteTagCategory(cat.id);
+      expect(success).toBe(true);
+    });
+
+    it("should set tag category", async () => {
+      const cat = await seedTagCategory(testDb, "target-cat");
+      const tag = await seedTag(testDb, "some-tag");
+      const success = await setTagCategory(tag.id, cat.id);
+      expect(success).toBe(true);
+    });
+  });
+
+  describe("getTopTags with category filtering", () => {
+    it("should filter top tags by category name", async () => {
+      const catCharacter = await seedTagCategory(testDb, "character");
+      const catArtist = await seedTagCategory(testDb, "artist");
+
+      const tagChar = await seedTag(testDb, "miku", catCharacter.id);
+      const tagArt = await seedTag(testDb, "wlop", catArtist.id);
+
+      const source = await seedSource(testDb);
+      const post = await seedPost(testDb, source.id);
+
+      await testDb.insert(postTags).values([
+        { postId: post.id, tagId: tagChar.id },
+        { postId: post.id, tagId: tagArt.id },
+      ]);
+
+      const filteredChar = await getTopTags("count", "character");
+      expect(filteredChar.length).toBe(1);
+      expect(filteredChar[0].name).toBe("miku");
+      expect(filteredChar[0].category?.name).toBe("character");
+
+      const filteredAll = await getTopTags("count", "all");
+      expect(filteredAll.length).toBe(2);
+    });
+  });
+
+  describe("renameTag Action", () => {
+    it("should rename tag and validate new name", async () => {
+      const tag = await seedTag(testDb, "cool-tag");
+      const renamed = await renameTag(tag.id, "super-cool");
+      expect(renamed.name).toBe("super-cool");
+
+      await expect(renameTag(tag.id, "")).rejects.toThrow(
+        "Tag name cannot be empty",
+      );
+      await expect(renameTag(tag.id, "a".repeat(201))).rejects.toThrow(
+        "Tag name cannot exceed 200 characters",
+      );
+    });
+  });
+
+  describe("mergeTags Action", () => {
+    it("should merge tags, reassign post links, and update statistics", async () => {
+      const tSource = await seedTag(testDb, "source-action");
+      const tTarget = await seedTag(testDb, "target-action");
+
+      const source = await seedSource(testDb);
+      const post = await seedPost(testDb, source.id);
+      await testDb
+        .insert(postTags)
+        .values({ postId: post.id, tagId: tSource.id });
+
+      await recomputeStatistics();
+
+      const result = await mergeTags([tSource.id], tTarget.id);
+      expect(result.deletedCount).toBe(1);
+      expect(result.reassignedCount).toBe(1);
+    });
+
+    it("should validate merge inputs", async () => {
+      await expect(mergeTags([], 1)).rejects.toThrow(
+        "No source tags provided for merge",
+      );
+      await expect(mergeTags([1], 1)).rejects.toThrow(
+        "Source tags cannot include the target tag",
+      );
+    });
+  });
+
+  describe("deleteTag and deleteTags Actions", () => {
+    it("should delete tag and update statistics", async () => {
+      const tag = await seedTag(testDb, "trash-tag");
+      await recomputeStatistics();
+
+      const success = await deleteTag(tag.id);
+      expect(success).toBe(true);
+    });
+
+    it("should delete multiple tags and update statistics", async () => {
+      const t1 = await seedTag(testDb, "trash1");
+      const t2 = await seedTag(testDb, "trash2");
+      await recomputeStatistics();
+
+      const count = await deleteTags([t1.id, t2.id]);
+      expect(count).toBe(2);
+    });
+  });
+
+  describe("cleanupOrphanedTags Action", () => {
+    it("should clean up orphaned tags and update statistics", async () => {
+      const _tag = await seedTag(testDb, "orphan-action");
+      await recomputeStatistics();
+
+      const count = await cleanupOrphanedTags();
+      expect(count).toBe(1);
+    });
+  });
+
+  describe("bulkSetTagCategory Action", () => {
+    it("should bulk update categories on tags", async () => {
+      const cat = await seedTagCategory(testDb, "action-cat");
+      const tag1 = await seedTag(testDb, "bt1");
+      const tag2 = await seedTag(testDb, "bt2");
+
+      const count = await bulkSetTagCategory([tag1.id, tag2.id], cat.id);
+      expect(count).toBe(2);
+    });
+  });
+
+  describe("getOrCreateTagByName Action", () => {
+    it("should retrieve existing or create new tag and update stats", async () => {
+      await recomputeStatistics();
+      const tag = await getOrCreateTagByName("brand-new");
+      expect(tag.name).toBe("brand-new");
+
+      const existing = await getOrCreateTagByName("brand-new");
+      expect(existing.id).toBe(tag.id);
+    });
+  });
+
+  describe("Alias Server Actions", () => {
+    it("should set tag alias successfully", async () => {
+      const canonical = await seedTag(testDb, "canonical");
+      const alias = await seedTag(testDb, "alias");
+      await recomputeStatistics();
+
+      const success = await setTagAlias(alias.id, canonical.id);
+      expect(success).toBe(true);
+    });
+
+    it("should bulk set tag alias successfully", async () => {
+      const canonical = await seedTag(testDb, "canonical");
+      const alias1 = await seedTag(testDb, "alias1");
+      const alias2 = await seedTag(testDb, "alias2");
+      await recomputeStatistics();
+
+      const count = await bulkSetTagAlias([alias1.id, alias2.id], canonical.id);
+      expect(count).toBe(2);
+    });
+  });
+
+  describe("Hierarchy Server Actions", () => {
+    it("should set tag parent successfully", async () => {
+      const parent = await seedTag(testDb, "parent");
+      const child = await seedTag(testDb, "child");
+
+      const success = await setTagParent(child.id, parent.id);
+      expect(success).toBe(true);
+    });
+
+    it("should bulk set tag parent successfully", async () => {
+      const parent = await seedTag(testDb, "parent");
+      const child1 = await seedTag(testDb, "child1");
+      const child2 = await seedTag(testDb, "child2");
+
+      const count = await bulkSetTagParent([child1.id, child2.id], parent.id);
+      expect(count).toBe(2);
+    });
+  });
+
+  describe("Related Tags Server Actions", () => {
+    it("should add and remove related tags successfully", async () => {
+      const tagA = await seedTag(testDb, "apple");
+      const tagB = await seedTag(testDb, "banana");
+
+      const success = await addRelatedTag(tagA.id, tagB.id);
+      expect(success).toBe(true);
+
+      const related = await getRelatedTags(tagA.id);
+      expect(related.length).toBe(1);
+      expect(related[0].id).toBe(tagB.id);
+
+      const removed = await removeRelatedTag(tagA.id, tagB.id);
+      expect(removed).toBe(true);
+
+      const emptyRelated = await getRelatedTags(tagA.id);
+      expect(emptyRelated.length).toBe(0);
+    });
+
+    it("should get suggested related tags", async () => {
+      const tagA = await seedTag(testDb, "A");
+      const tagB = await seedTag(testDb, "B");
+      await addRelatedTag(tagA.id, tagB.id);
+
+      const suggestions = await getSuggestedRelatedTags([tagA.id]);
+      expect(suggestions.length).toBe(1);
+      expect(suggestions[0].id).toBe(tagB.id);
     });
   });
 });

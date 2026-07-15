@@ -43,6 +43,7 @@ export default function StatisticsPageClient({
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [autoScaleY, setAutoScaleY] = useState<boolean>(true);
+  const [showCanonicalOnly, setShowCanonicalOnly] = useState<boolean>(false);
 
   // Poll current statistics once on load to get the freshest data
   useEffect(() => {
@@ -108,7 +109,35 @@ export default function StatisticsPageClient({
           value={stats.totalMediaItems}
           icon={Image}
         />
-        <StatCard label="Total Tags" value={stats.totalTags} icon={Tag} />
+        <StatCard
+          label={showCanonicalOnly ? "Canonical Tags" : "Total Tags"}
+          value={showCanonicalOnly ? stats.totalCanonicalTags : stats.totalTags}
+          icon={Tag}
+          action={
+            <button
+              type="button"
+              title={
+                showCanonicalOnly
+                  ? "Show total tags"
+                  : "Show canonical tags only"
+              }
+              onClick={() => setShowCanonicalOnly(!showCanonicalOnly)}
+              style={{
+                background: "hsl(var(--secondary) / 0.5)",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: "4px",
+                padding: "2px 6px",
+                fontSize: "0.75rem",
+                cursor: "pointer",
+                color: "hsl(var(--foreground))",
+                fontWeight: 600,
+                transition: "all 0.2s",
+              }}
+            >
+              {showCanonicalOnly ? "Canonical" : "All"}
+            </button>
+          }
+        />
         <StatCard label="Active Users" value={stats.totalUsers} icon={Users} />
         <StatCard
           label="Extractors"

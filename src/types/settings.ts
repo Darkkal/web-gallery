@@ -13,6 +13,7 @@ export interface AppSettings {
   infiniteScrollBuffer: number;
   computeStorageStatistics: boolean;
   statisticsRankingLimit: number;
+  implicitHierarchyFiltering: boolean;
 }
 
 export interface ScraperSettings {
@@ -54,6 +55,7 @@ export const DEFAULT_SETTINGS: SystemSettings = {
     infiniteScrollBuffer: 300,
     computeStorageStatistics: true,
     statisticsRankingLimit: 10,
+    implicitHierarchyFiltering: true,
   },
   scraper: {
     rateLimit: "5M",

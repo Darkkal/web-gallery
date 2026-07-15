@@ -1,5 +1,6 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   primaryKey,
@@ -349,9 +350,29 @@ export const playlistItems = sqliteTable(
   }),
 );
 
+export const tagCategories = sqliteTable("tag_categories", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  colorHue: integer("color_hue").notNull(),
+  colorSaturation: integer("color_saturation").notNull(),
+  colorLightness: integer("color_lightness").notNull(),
+  isBuiltin: integer("is_builtin", { mode: "boolean" })
+    .notNull()
+    .default(false),
+});
+
 export const tags = sqliteTable("tags", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull().unique(),
+  categoryId: integer("category_id").references(() => tagCategories.id, {
+    onDelete: "set null",
+  }),
+  aliasOfTagId: integer("alias_of_tag_id").references((): any => tags.id, {
+    onDelete: "set null",
+  }),
+  parentTagId: integer("parent_tag_id").references((): any => tags.id, {
+    onDelete: "set null",
+  }),
 });
 
 export const postTags = sqliteTable(
@@ -367,6 +388,22 @@ export const postTags = sqliteTable(
   (t) => ({
     pk: primaryKey({ columns: [t.tagId, t.postId] }),
     postIdIdx: index("idx_post_tags_post_id").on(t.postId),
+  }),
+);
+
+export const tagRelations = sqliteTable(
+  "tag_relations",
+  {
+    tagId: integer("tag_id")
+      .references(() => tags.id, { onDelete: "cascade" })
+      .notNull(),
+    relatedTagId: integer("related_tag_id")
+      .references(() => tags.id, { onDelete: "cascade" })
+      .notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.tagId, t.relatedTagId] }),
+    check: check("tag_relation_check", sql`${t.tagId} < ${t.relatedTagId}`),
   }),
 );
 
@@ -512,8 +549,47 @@ export const playlistItemsRelations = relations(playlistItems, ({ one }) => ({
   }),
 }));
 
-export const tagsRelations = relations(tags, ({ many }) => ({
+export const tagCategoriesRelations = relations(tagCategories, ({ many }) => ({
+  tags: many(tags),
+}));
+
+export const tagsRelations = relations(tags, ({ one, many }) => ({
   postTags: many(postTags),
+  category: one(tagCategories, {
+    fields: [tags.categoryId],
+    references: [tagCategories.id],
+  }),
+  aliasOf: one(tags, {
+    fields: [tags.aliasOfTagId],
+    references: [tags.id],
+    relationName: "tag_aliases",
+  }),
+  aliases: many(tags, {
+    relationName: "tag_aliases",
+  }),
+  parentTag: one(tags, {
+    fields: [tags.parentTagId],
+    references: [tags.id],
+    relationName: "tag_parents",
+  }),
+  childTags: many(tags, {
+    relationName: "tag_parents",
+  }),
+  relatedTags: many(tagRelations, { relationName: "tag_relations_left" }),
+  relatedToTags: many(tagRelations, { relationName: "tag_relations_right" }),
+}));
+
+export const tagRelationsRelations = relations(tagRelations, ({ one }) => ({
+  tag: one(tags, {
+    fields: [tagRelations.tagId],
+    references: [tags.id],
+    relationName: "tag_relations_left",
+  }),
+  relatedTag: one(tags, {
+    fields: [tagRelations.relatedTagId],
+    references: [tags.id],
+    relationName: "tag_relations_right",
+  }),
 }));
 
 export const postTagsRelations = relations(postTags, ({ one }) => ({
@@ -532,6 +608,7 @@ export const libraryStatistics = sqliteTable("library_statistics", {
   totalPosts: integer("total_posts").notNull().default(0),
   totalMediaItems: integer("total_media_items").notNull().default(0),
   totalTags: integer("total_tags").notNull().default(0),
+  totalCanonicalTags: integer("total_canonical_tags").notNull().default(0),
   totalUsers: integer("total_users").notNull().default(0),
   totalExtractors: integer("total_extractors").notNull().default(0),
   storageBytes: integer("storage_bytes").notNull().default(0),
@@ -547,6 +624,7 @@ export const statisticsHistory = sqliteTable(
     totalPosts: integer("total_posts").notNull().default(0),
     totalMediaItems: integer("total_media_items").notNull().default(0),
     totalTags: integer("total_tags").notNull().default(0),
+    totalCanonicalTags: integer("total_canonical_tags").notNull().default(0),
     totalUsers: integer("total_users").notNull().default(0),
     totalExtractors: integer("total_extractors").notNull().default(0),
     storageBytes: integer("storage_bytes").notNull().default(0),

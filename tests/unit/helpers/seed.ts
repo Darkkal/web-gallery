@@ -6,6 +6,7 @@ import {
   playlists,
   posts,
   sources,
+  tagCategories,
   tags,
   twitterUsers,
 } from "@/lib/db/schema";
@@ -79,10 +80,81 @@ export async function seedMediaItem(
   return results[0];
 }
 
-export async function seedTag(db: TestDb, name: string) {
+export async function seedTagCategory(
+  db: TestDb,
+  name: string,
+  overrides?: Partial<typeof tagCategories.$inferInsert>,
+) {
+  const values = {
+    name,
+    colorHue: 0,
+    colorSaturation: 0,
+    colorLightness: 60,
+    isBuiltin: false,
+    ...overrides,
+  };
+
+  const results = await db
+    .insert(tagCategories)
+    .values(values)
+    .onConflictDoNothing()
+    .returning();
+
+  if (results.length > 0) return results[0];
+
+  const existing = await db
+    .select()
+    .from(tagCategories)
+    .where(eq(tagCategories.name, name))
+    .limit(1);
+  return existing[0];
+}
+
+export async function seedBuiltinCategories(db: TestDb) {
+  const builtinCategories = [
+    {
+      name: "character",
+      colorHue: 140,
+      colorSaturation: 60,
+      colorLightness: 50,
+      isBuiltin: true,
+    },
+    {
+      name: "artist",
+      colorHue: 0,
+      colorSaturation: 70,
+      colorLightness: 55,
+      isBuiltin: true,
+    },
+    {
+      name: "copyright",
+      colorHue: 270,
+      colorSaturation: 60,
+      colorLightness: 55,
+      isBuiltin: true,
+    },
+    {
+      name: "meta",
+      colorHue: 50,
+      colorSaturation: 70,
+      colorLightness: 55,
+      isBuiltin: true,
+    },
+  ];
+
+  for (const cat of builtinCategories) {
+    await db.insert(tagCategories).values(cat).onConflictDoNothing();
+  }
+}
+
+export async function seedTag(
+  db: TestDb,
+  name: string,
+  categoryId?: number | null,
+) {
   const results = await db
     .insert(tags)
-    .values({ name })
+    .values({ name, categoryId })
     .onConflictDoNothing()
     .returning();
 

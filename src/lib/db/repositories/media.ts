@@ -28,6 +28,7 @@ import {
   twitterUsers,
 } from "@/lib/db/schema";
 import { parseSearchQuery } from "@/lib/utils/search-parser";
+import { expandSearchTags } from "./posts";
 
 export async function getMediaItems(filters?: {
   search?: string;
@@ -43,6 +44,9 @@ export async function getMediaItems(filters?: {
   const { cleanQuery, sourceFilter } = parseSearchQuery(search);
   const searchLower = cleanQuery.toLowerCase();
 
+  // Expand search aliases at query-time
+  const expandedSearch = searchLower ? await expandSearchTags(searchLower) : "";
+
   const whereConditions: SQL[] = [ne(mediaItems.mediaType, "text")];
 
   if (sourceFilter) {
@@ -57,7 +61,7 @@ export async function getMediaItems(filters?: {
     whereConditions.push(inArray(mediaItems.id, playlistItemSubquery));
   }
 
-  const searchSubquery = searchLower
+  const searchSubquery = expandedSearch
     ? db
         .select({
           search_id: sql<number>`rowid`.as("search_id"),
@@ -66,7 +70,7 @@ export async function getMediaItems(filters?: {
           ),
         })
         .from(sql`posts_fts`)
-        .where(sql`posts_fts MATCH ${searchLower}`)
+        .where(sql`posts_fts MATCH ${expandedSearch}`)
         .as("search_subquery")
     : undefined;
 

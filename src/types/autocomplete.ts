@@ -5,6 +5,7 @@ export interface AutocompleteSuggestion {
   count?: number; // Post count for value suggestions
   icon?: string; // Emoji icon for column suggestions
   type: "column" | "value";
+  ancestors?: string[];
 }
 
 export interface AutocompleteResponse {
