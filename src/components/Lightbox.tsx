@@ -8,6 +8,7 @@ import { getPlaylistsForMediaItem } from "@/app/actions/playlists";
 import {
   addTagToPost,
   getPostTags,
+  getSuggestedRelatedTags,
   removeTagsFromPost,
 } from "@/app/actions/tags";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
@@ -67,6 +68,9 @@ export default function Lightbox({
   const [isRemovalMode, setIsRemovalMode] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<Set<number>>(new Set());
   const [suggestedAncestors, setSuggestedAncestors] = useState<string[]>([]);
+  const [suggestedRelated, setSuggestedRelated] = useState<TagWithCategory[]>(
+    [],
+  );
   const router = useRouter();
 
   const toggleTagSelection = (tagId: number) => {
@@ -243,6 +247,18 @@ export default function Lightbox({
       setPostTags([]);
     }
   }, [row.post?.id]);
+
+  // Fetch suggested related tags based on current tags
+  useEffect(() => {
+    if (postTags.length === 0) {
+      setSuggestedRelated([]);
+      return;
+    }
+    const tagIds = postTags.map((t) => t.id);
+    getSuggestedRelatedTags(tagIds)
+      .then(setSuggestedRelated)
+      .catch(console.error);
+  }, [postTags]);
 
   // Handle video playback errors
   useEffect(() => {
@@ -809,6 +825,33 @@ export default function Lightbox({
                     onClick={() => handleAddTag(anc)}
                   >
                     + {anc}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {suggestedRelated.length > 0 && (
+            <div className={styles.ancestorSuggestions}>
+              <span className={styles.ancestorTitle}>Related Suggestions:</span>
+              <div className={styles.ancestorChips}>
+                {suggestedRelated.map((tag) => (
+                  <button
+                    type="button"
+                    key={tag.id}
+                    className={`${styles.ancestorChip} ${tag.category ? styles.hasCategory : ""}`}
+                    onClick={() => handleAddTag(tag.name)}
+                    style={
+                      tag.category
+                        ? ({
+                            "--tag-hue": tag.category.colorHue,
+                            "--tag-sat": `${tag.category.colorSaturation}%`,
+                            "--tag-lgt": `${tag.category.colorLightness}%`,
+                          } as React.CSSProperties)
+                        : undefined
+                    }
+                  >
+                    + {tag.name}
                   </button>
                 ))}
               </div>
