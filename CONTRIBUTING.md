@@ -51,6 +51,8 @@ const { items, nextCursor } = await getMediaItems({ limit: 50, cursor });
 
 Client pages consume this with a "Load More" button that calls the Route Handler with the cursor.
 
+- **Exception**: Tree-structured endpoints that sort by computed aggregates (e.g., `/api/tags/children` sorted by child count) may use offset-based pagination when cursor stability cannot be guaranteed.
+
 ### 1.4 Scraping & Processing (Strategy & Factory Patterns)
 
 - **Scraping**: `ScraperManager` singleton controls scraping tasks. Strategies implement `BaseScraperStrategy` → `GalleryDlStrategy`, `YtDlpStrategy`.
@@ -59,6 +61,10 @@ Client pages consume this with a "Load More" button that calls the Route Handler
 - **Rule**: Post-scrape scans must be incremental (file-level targeted via `queueIncrementalScan`) and go through the scan queue. The manual "Scan Library" button triggers a full scan via `queueScan({ scanType: "full" })`. Never call `syncLibrary()` directly — always use the queue functions to ensure serialization.
 - **Rule**: If a new extractor introduces new searchable metadata columns that are added to the FTS5 virtual table, you MUST update the `ftsColumnAliases` dictionary in `src/lib/utils/search-parser.ts` to map any friendly search prefixes to the new FTS5 column. This dictionary doubles as the allowlist for valid column filters.
 - **Rule**: Tag categories are resolved using query-time relationships. Metadata processors (like Gelbooru or E-Hentai) must strip category prefixes (e.g. `character:`, `artist:`, `copyright:`) from the tag name and map them to their corresponding `categoryId` from the preloaded `categoryMap` cache. Do not store prefixed tags in the database.
+- **Rule**: Tag aliases must be flat. Do not chain aliases (e.g., Tag A → Tag B → Tag C). Instead, point all alias tags directly to the canonical tag (Tag A → Tag C, Tag B → Tag C).
+- **Rule**: Tag hierarchies must prevent circular dependencies (e.g., a tag cannot be its own ancestor). A tag cannot have a parent tag if it is currently set as an alias of another tag, and circularity checks must be executed before applying parent relationships.
+- **Rule**: Tag relations must be symmetric and are stored in the database with the constraint `tag_id < related_tag_id` to prevent duplicate pairs (e.g., storing both A-B and B-A). The application layer must enforce this constraint when inserting or querying relations.
+- **Rule**: If the `implicitHierarchyFiltering` setting is active, search queries must dynamically expand query tags to include their child tags recursively using a recursive CTE (`expandSearchTags` in the repository layer).
 
 
 ### 1.5 Styling System — CSS Modules + Design Tokens
