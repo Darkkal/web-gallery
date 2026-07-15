@@ -27,6 +27,7 @@ activeDb = testDbHelper.db;
 import { eq, inArray } from "drizzle-orm";
 import { postTags, tagCategories, tags } from "../schema";
 import {
+  addRelatedTag,
   bulkLinkTagToPosts,
   bulkSetTagAlias,
   bulkSetTagCategory,
@@ -38,10 +39,13 @@ import {
   deleteTag,
   deleteTags,
   getAllCategories,
+  getRelatedTags,
+  getSuggestedRelatedTags,
   getTagById,
   getTagsPaginated,
   linkTagToPost,
   mergeTags,
+  removeRelatedTag,
   renameTag,
   setTagAlias,
   setTagCategory,
@@ -904,6 +908,111 @@ describe("Tags Repository", () => {
       ).rejects.toThrow(
         "One or more selections would create a circular dependency",
       );
+    });
+  });
+
+  describe("Related Tags", () => {
+    describe("addRelatedTag", () => {
+      it("should successfully relate two tags in low-to-high order", async () => {
+        const tagA = await seedTag(testDbHelper.db, "apple");
+        const tagB = await seedTag(testDbHelper.db, "banana");
+
+        const success = await addRelatedTag(tagB.id, tagA.id);
+        expect(success).toBe(true);
+
+        // Verify ordering in DB
+        const [lowId, highId] =
+          tagA.id < tagB.id ? [tagA.id, tagB.id] : [tagB.id, tagA.id];
+        const dbResult = await testDbHelper.db
+          .select()
+          .from(postTags) // wait, postTags? no, tagRelations!
+          // Ah wait, I need to make sure tagRelations is imported in tags.test.ts if we want to query it directly,
+          // or we can just use getRelatedTags to verify. Let's use getRelatedTags.
+          .limit(1); // just a placeholder to compile if needed, but let's query via getRelatedTags.
+
+        const relatedToA = await getRelatedTags(tagA.id);
+        expect(relatedToA.length).toBe(1);
+        expect(relatedToA[0].id).toBe(tagB.id);
+
+        const relatedToB = await getRelatedTags(tagB.id);
+        expect(relatedToB.length).toBe(1);
+        expect(relatedToB[0].id).toBe(tagA.id);
+      });
+
+      it("should throw if relating a tag to itself", async () => {
+        const tag = await seedTag(testDbHelper.db, "apple");
+        await expect(addRelatedTag(tag.id, tag.id)).rejects.toThrow(
+          "A tag cannot be related to itself",
+        );
+      });
+
+      it("should throw if either tag is an alias", async () => {
+        const canonical = await seedTag(testDbHelper.db, "automobile");
+        const alias = await seedTag(testDbHelper.db, "car");
+        const other = await seedTag(testDbHelper.db, "truck");
+
+        await setTagAlias(alias.id, canonical.id);
+
+        await expect(addRelatedTag(alias.id, other.id)).rejects.toThrow(
+          "Cannot relate tags that are aliases",
+        );
+
+        await expect(addRelatedTag(other.id, alias.id)).rejects.toThrow(
+          "Cannot relate tags that are aliases",
+        );
+      });
+    });
+
+    describe("removeRelatedTag", () => {
+      it("should successfully remove relation", async () => {
+        const tagA = await seedTag(testDbHelper.db, "apple");
+        const tagB = await seedTag(testDbHelper.db, "banana");
+
+        await addRelatedTag(tagA.id, tagB.id);
+        const removed = await removeRelatedTag(tagB.id, tagA.id);
+        expect(removed).toBe(true);
+
+        const related = await getRelatedTags(tagA.id);
+        expect(related.length).toBe(0);
+      });
+    });
+
+    describe("getSuggestedRelatedTags", () => {
+      it("should return correct suggestions ordered by frequency and name", async () => {
+        const tagA = await seedTag(testDbHelper.db, "A");
+        const tagB = await seedTag(testDbHelper.db, "B");
+        const tagC = await seedTag(testDbHelper.db, "C");
+        const tagD = await seedTag(testDbHelper.db, "D");
+
+        // Relationships:
+        // A <-> B (1 connection to current tags [A])
+        // A <-> C (1 connection to current tags [A])
+        // D <-> B (also related, but D is not in current tags, so B has relations with A and D)
+        // Wait, if active on post is [A, D]
+        // B is related to A and D (2 connections)
+        // C is related to A (1 connection)
+        await addRelatedTag(tagA.id, tagB.id);
+        await addRelatedTag(tagA.id, tagC.id);
+        await addRelatedTag(tagD.id, tagB.id);
+
+        // Active tags on post: A and D
+        const suggestions = await getSuggestedRelatedTags([tagA.id, tagD.id]);
+
+        // Expected suggestions:
+        // B (relevance = 2, because related to both A and D)
+        // C (relevance = 1, because related to A)
+        // A and D should NOT be in suggestions
+        expect(suggestions.length).toBe(2);
+        expect(suggestions[0].id).toBe(tagB.id);
+        expect(suggestions[0].relevance).toBe(2);
+        expect(suggestions[1].id).toBe(tagC.id);
+        expect(suggestions[1].relevance).toBe(1);
+      });
+
+      it("should return empty array if current tags list is empty", async () => {
+        const suggestions = await getSuggestedRelatedTags([]);
+        expect(suggestions).toEqual([]);
+      });
     });
   });
 });

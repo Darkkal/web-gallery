@@ -14,7 +14,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { postTags, tagCategories, tags } from "@/lib/db/schema";
+import { postTags, tagCategories, tagRelations, tags } from "@/lib/db/schema";
 import type {
   TagCategory,
   TagManageItem,
@@ -900,4 +900,136 @@ export async function bulkSetTagParent(
     .returning();
 
   return result.length;
+}
+
+/**
+ * Creates a relation between two tags.
+ * Enforces tagId < relatedTagId check constraint and blocks alias tags.
+ */
+export async function addRelatedTag(
+  tagId1: number,
+  tagId2: number,
+): Promise<boolean> {
+  if (tagId1 === tagId2) {
+    throw new Error("A tag cannot be related to itself");
+  }
+
+  const [tag1, tag2] = await Promise.all([
+    db.query.tags.findFirst({ where: eq(tags.id, tagId1) }),
+    db.query.tags.findFirst({ where: eq(tags.id, tagId2) }),
+  ]);
+
+  if (!tag1 || !tag2) {
+    throw new Error("One or both tags not found");
+  }
+
+  if (tag1.aliasOfTagId !== null || tag2.aliasOfTagId !== null) {
+    throw new Error(
+      "Cannot relate tags that are aliases. Set relations on canonical tags instead.",
+    );
+  }
+
+  const [lowId, highId] = tagId1 < tagId2 ? [tagId1, tagId2] : [tagId2, tagId1];
+
+  const result = await db
+    .insert(tagRelations)
+    .values({ tagId: lowId, relatedTagId: highId })
+    .onConflictDoNothing()
+    .returning();
+
+  return result.length > 0;
+}
+
+/**
+ * Removes a relation between two tags.
+ */
+export async function removeRelatedTag(
+  tagId1: number,
+  tagId2: number,
+): Promise<boolean> {
+  const [lowId, highId] = tagId1 < tagId2 ? [tagId1, tagId2] : [tagId2, tagId1];
+
+  const result = await db
+    .delete(tagRelations)
+    .where(
+      and(eq(tagRelations.tagId, lowId), eq(tagRelations.relatedTagId, highId)),
+    )
+    .returning();
+
+  return result.length > 0;
+}
+
+/**
+ * Retrieves all tags related to a given tag.
+ */
+export async function getRelatedTags(
+  tagId: number,
+): Promise<TagWithCategory[]> {
+  const relations = await db
+    .select({
+      tagId: tagRelations.tagId,
+      relatedTagId: tagRelations.relatedTagId,
+    })
+    .from(tagRelations)
+    .where(
+      or(eq(tagRelations.tagId, tagId), eq(tagRelations.relatedTagId, tagId)),
+    );
+
+  const relatedIds = relations.map((r) =>
+    r.tagId === tagId ? r.relatedTagId : r.tagId,
+  );
+
+  if (relatedIds.length === 0) return [];
+
+  return await db.query.tags.findMany({
+    where: inArray(tags.id, relatedIds),
+    with: { category: true },
+  });
+}
+
+/**
+ * Given a list of active tag IDs on a post, suggests other related tags.
+ * Excludes tags that are already active on the post.
+ * Returns suggested tags sorted by frequency of relation to active tags, then alphabetically.
+ */
+export async function getSuggestedRelatedTags(
+  currentTagIds: number[],
+): Promise<(TagWithCategory & { relevance: number })[]> {
+  if (currentTagIds.length === 0) return [];
+
+  const relations = await db
+    .select({
+      tagId: tagRelations.tagId,
+      relatedTagId: tagRelations.relatedTagId,
+    })
+    .from(tagRelations)
+    .where(
+      or(
+        inArray(tagRelations.tagId, currentTagIds),
+        inArray(tagRelations.relatedTagId, currentTagIds),
+      ),
+    );
+
+  const suggestedMap = new Map<number, number>();
+  for (const r of relations) {
+    const otherId = currentTagIds.includes(r.tagId) ? r.relatedTagId : r.tagId;
+    if (!currentTagIds.includes(otherId)) {
+      suggestedMap.set(otherId, (suggestedMap.get(otherId) ?? 0) + 1);
+    }
+  }
+
+  if (suggestedMap.size === 0) return [];
+
+  const suggestedIds = Array.from(suggestedMap.keys());
+  const suggestedTags = await db.query.tags.findMany({
+    where: inArray(tags.id, suggestedIds),
+    with: { category: true },
+  });
+
+  return suggestedTags
+    .map((tag) => ({
+      ...tag,
+      relevance: suggestedMap.get(tag.id) ?? 0,
+    }))
+    .sort((a, b) => b.relevance - a.relevance || a.name.localeCompare(b.name));
 }
