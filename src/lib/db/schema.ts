@@ -1,5 +1,6 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   primaryKey,
@@ -390,6 +391,22 @@ export const postTags = sqliteTable(
   }),
 );
 
+export const tagRelations = sqliteTable(
+  "tag_relations",
+  {
+    tagId: integer("tag_id")
+      .references(() => tags.id, { onDelete: "cascade" })
+      .notNull(),
+    relatedTagId: integer("related_tag_id")
+      .references(() => tags.id, { onDelete: "cascade" })
+      .notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.tagId, t.relatedTagId] }),
+    check: check("tag_relation_check", sql`${t.tagId} < ${t.relatedTagId}`),
+  }),
+);
+
 // ──────────────────────────────────────────────
 // Relations
 // ──────────────────────────────────────────────
@@ -557,6 +574,21 @@ export const tagsRelations = relations(tags, ({ one, many }) => ({
   }),
   childTags: many(tags, {
     relationName: "tag_parents",
+  }),
+  relatedTags: many(tagRelations, { relationName: "tag_relations_left" }),
+  relatedToTags: many(tagRelations, { relationName: "tag_relations_right" }),
+}));
+
+export const tagRelationsRelations = relations(tagRelations, ({ one }) => ({
+  tag: one(tags, {
+    fields: [tagRelations.tagId],
+    references: [tags.id],
+    relationName: "tag_relations_left",
+  }),
+  relatedTag: one(tags, {
+    fields: [tagRelations.relatedTagId],
+    references: [tags.id],
+    relationName: "tag_relations_right",
   }),
 }));
 
