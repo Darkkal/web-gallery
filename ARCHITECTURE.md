@@ -99,6 +99,7 @@ web-gallery/
 │   │   │   ├── sources/            #   Source list + scrape status
 │   │   │   ├── statistics/         #   Statistics data route
 │   │   │   ├── tags/               #   Tag pagination route
+│   │   │   │   └── children/       #     Retrieve child tags (offset pagination)
 │   │   │   └── timeline/           #   Timeline post list (paginated)
 │   │   ├── gallery/                # Masonry gallery page
 │   │   ├── timeline/               # Chronological post feed page
@@ -223,6 +224,8 @@ Additionally, `instrumentation.ts` registers global `uncaughtException` and `unh
 
 **Search Autocomplete**: Implements a Discord-style two-phase search suggestions dropdown (suggesting filter columns and matching database values) driven by `useSearchAutocomplete`, a dedicated repository (`src/lib/db/repositories/autocomplete.ts`), and the `/api/autocomplete` Route Handler. Typing/selection queries are debounced, and live-search pagination refetches are suppressed while the autocomplete popover is active to minimize overhead.
 
+**Search Expansion & Tag Hierarchies**: When executing searches, if `implicitHierarchyFiltering` is enabled, the system uses recursive Common Table Expressions (CTEs) via `expandSearchTags` (defined in `src/lib/db/repositories/posts.ts` and `media.ts`) to expand the query tags. This recursively retrieves all child tags of the searched tag, allowing queries to match posts annotated with more specific descendant tags.
+
 ### 3.3 Scraping Subsystem
 
 **Location**: [`src/lib/scrapers/`](./src/lib/scrapers/)
@@ -339,6 +342,7 @@ The settings system manages core application preferences and CLI scraper profile
 - **Dynamic Scraper Config Injection**: On settings updates and scraper executions, the system dynamically merges scraper settings (proxies, request throttling/sleep intervals, retries, cookie sources) into `$DATA_DIR/scrapers/gallery-dl/gallery-dl.conf` by reading and parsing the template config or modifying the existing file.
 - **Log Retention Purging**: Integrated directly with Next.js boot (`instrumentation.ts`), the settings layer automatically cleans up physical scraper logs and clear references in the `scrape_history` DB table that exceed the configured `scrapeLogRetentionDays` limit.
 - **Production Guarding**: Standardizes UI color schemes (`colorTheme`), pagination counts, scroll feed modes (`infinite` waterfall vs. explicit `button` loaders), and production environments' execution permissions (`enableProductionDestructiveOps`) to safeguard sqlite truncation or directory clears in deployment.
+- **Implicit Hierarchy Filtering**: Standardizes the behavior of queries when fetching media/posts. If `implicitHierarchyFiltering` is enabled, search queries automatically expand to include matching tags and their descendants recursively using a recursive CTE.
 
 ### 3.8 Task Scheduling Subsystem
 
@@ -362,7 +366,7 @@ The Task Scheduling Subsystem enables recurring scraper executions for automatio
 
 The Statistics Subsystem provides pre-computed counters and historical growth metrics to drive the dashboard:
 
-- **Pre-Computed Snapshot**: The `library_statistics` table acts as a single-row caching layer for aggregate counts of posts, media items, tags, users, extractors, and overall storage bytes. This avoids running heavy `COUNT(*)` queries on page loads.
+- **Pre-Computed Snapshot**: The `library_statistics` table acts as a single-row caching layer for aggregate counts of posts, media items, tags, users, extractors, and overall storage bytes. It also tracks `totalCanonicalTags`, which counts only non-aliased tags. This avoids running heavy `COUNT(*)` queries on page loads.
 - **Scanner & Repository Triggers**: 
   - After any full library scan, the scanner calls `recomputeStatistics()` to rebuild precise aggregates, then calls `recordHistorySnapshot()` to append or update daily growth history.
   - Increment-based adjustments: Targeted operations, such as deleting media items via `deleteMediaItems()`, trigger `incrementStatistics(delta)` to deduct counters and storage sizes atomically in real-time.
@@ -451,15 +455,19 @@ gallerydl_extractor_types   (id: 'twitter' | 'pixiv' | 'gelbooruv02' | ...)
                                               │
                                               └──> playlists (name, description, thumbnail)
 
+                 ┌── aliasOfTagId (self-ref FK)
+                 ├── parentTagId (self-ref FK)
 tag_categories ──< tags ──< post_tags >──< posts
+                    │
+                    └──< tag_relations (symmetric pair join)
 
 twitter_users  (profile, stats — standalone, linked via posts.userId)
 pixiv_users    (profile — standalone, linked via posts.userId)
 
 scan_history   (standalone: run log for library syncs)
 scraper_download_logs  (sourceId → filePath mapping for source attribution)
-library_statistics (standalone: pre-computed snapshot counters)
-statistics_history (standalone: daily snapshots for historical cumulative growth)
+library_statistics (standalone: pre-computed snapshot counters, tracking totalCanonicalTags)
+statistics_history (standalone: daily snapshots for historical cumulative growth, tracking totalCanonicalTags)
 ```
 
 **Key relationships**:
@@ -468,6 +476,9 @@ statistics_history (standalone: daily snapshots for historical cumulative growth
 - `playlist_items` is the many-to-many join between `media_items` and `playlists` (maintaining order position)
 - `post_tags` is the many-to-many join between `posts` and `tags`
 - `tags.categoryId → tag_categories.id` (`SET NULL` on delete — assigns a customizable HSL-colored category to a tag)
+- `tags.aliasOfTagId → tags.id` (self-referencing flat alias relationship; maps a tag to its canonical equivalent)
+- `tags.parentTagId → tags.id` (self-referencing hierarchical parent relationship)
+- `tag_relations` is the symmetric many-to-many join table between related tags, constrained by `tag_id < related_tag_id` to prevent duplicate pairs
 - Platform detail tables (`post_details_*`) are one-to-one with `posts`
 
 ---
