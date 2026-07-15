@@ -639,3 +639,39 @@
   align-items: center;
   gap: 0.25rem;
 }
+
+.relatedTagsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 0.25rem;
+}
+
+.relatedTagBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: hsl(var(--secondary) / 0.3);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+
+.removeRelatedBtn {
+  background: transparent;
+  border: none;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  transition: color 0.15s;
+}
+
+.removeRelatedBtn:hover {
+  color: hsl(var(--color-danger));
+}

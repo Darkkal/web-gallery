@@ -9,6 +9,7 @@ import {
   Link2,
   Loader2,
   Merge as MergeIcon,
+  Network,
   Plus,
   RefreshCw,
   Search,
@@ -20,6 +21,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
+  addRelatedTag,
   bulkSetTagAlias,
   bulkSetTagCategory,
   bulkSetTagParent,
@@ -29,7 +31,9 @@ import {
   deleteTagCategory,
   deleteTags,
   getOrCreateTagByName,
+  getRelatedTags,
   mergeTags,
+  removeRelatedTag,
   renameTag,
   setTagAlias,
   setTagParent,
@@ -108,6 +112,19 @@ export default function TagsManageClient({
   );
   const [categorySuggestionsOpen, setCategorySuggestionsOpen] = useState(false);
   const categorySuggestContainerRef = useRef<HTMLDivElement>(null);
+
+  // Related tag states
+  const [relatedTagItem, setRelatedTagItem] = useState<TagManageItem | null>(
+    null,
+  );
+  const [relatedTagsList, setRelatedTagsList] = useState<any[]>([]);
+  const [loadingRelated, setLoadingRelated] = useState(false);
+  const [relatedTargetInput, setRelatedTargetInput] = useState("");
+  const [relatedSuggestions, setRelatedSuggestions] = useState<
+    { id: number; name: string }[]
+  >([]);
+  const [relatedSuggestionsOpen, setRelatedSuggestionsOpen] = useState(false);
+  const relatedSuggestContainerRef = useRef<HTMLDivElement>(null);
 
   // Action feedback
   const [notification, setNotification] = useState<{
@@ -342,6 +359,71 @@ export default function TagsManageClient({
     setCategorySuggestionsOpen(suggestions.length > 0);
   }, [categoryTargetInput, categoriesList]);
 
+  // Fetch related tags when modal opens
+  useEffect(() => {
+    if (!relatedTagItem) return;
+    setLoadingRelated(true);
+    getRelatedTags(relatedTagItem.id)
+      .then((data) => {
+        setRelatedTagsList(data);
+      })
+      .catch((err) => {
+        setNotification({
+          type: "error",
+          message:
+            err instanceof Error ? err.message : "Error loading related tags",
+        });
+      })
+      .finally(() => {
+        setLoadingRelated(false);
+      });
+  }, [relatedTagItem]);
+
+  // Fetch autocomplete suggestions for relating tags
+  useEffect(() => {
+    if (relatedTargetInput.trim().length < 2) {
+      setRelatedSuggestions([]);
+      setRelatedSuggestionsOpen(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/autocomplete?column=tag&q=${encodeURIComponent(relatedTargetInput.trim())}`,
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const list = data.suggestions
+            .map((s: { value: string }) => ({
+              id: 0,
+              name: s.value,
+            }))
+            .filter((s: { name: string }) => {
+              if (
+                relatedTagItem &&
+                s.name.toLowerCase() === relatedTagItem.name.toLowerCase()
+              )
+                return false;
+              if (
+                relatedTagsList.some(
+                  (r) => r.name.toLowerCase() === s.name.toLowerCase(),
+                )
+              )
+                return false;
+              return true;
+            });
+          setRelatedSuggestions(list);
+          setRelatedSuggestionsOpen(list.length > 0);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [relatedTargetInput, relatedTagItem, relatedTagsList]);
+
   // Close suggestions on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -368,6 +450,12 @@ export default function TagsManageClient({
         !categorySuggestContainerRef.current.contains(event.target as Node)
       ) {
         setCategorySuggestionsOpen(false);
+      }
+      if (
+        relatedSuggestContainerRef.current &&
+        !relatedSuggestContainerRef.current.contains(event.target as Node)
+      ) {
+        setRelatedSuggestionsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -831,6 +919,55 @@ export default function TagsManageClient({
     });
   };
 
+  const handleAddRelated = async (targetName: string) => {
+    if (!relatedTagItem) return;
+    const trimmed = targetName.trim();
+    if (!trimmed) return;
+
+    startTransition(async () => {
+      try {
+        const targetTag = await getOrCreateTagByName(trimmed);
+        await addRelatedTag(relatedTagItem.id, targetTag.id);
+
+        const updatedList = await getRelatedTags(relatedTagItem.id);
+        setRelatedTagsList(updatedList);
+        setRelatedTargetInput("");
+        setNotification({
+          type: "success",
+          message: `Successfully linked "${relatedTagItem.name}" and "${targetTag.name}".`,
+        });
+      } catch (err) {
+        setNotification({
+          type: "error",
+          message: err instanceof Error ? err.message : "Error relating tags",
+        });
+      }
+    });
+  };
+
+  const handleDeleteRelated = async (
+    relatedId: number,
+    relatedName: string,
+  ) => {
+    if (!relatedTagItem) return;
+    startTransition(async () => {
+      try {
+        await removeRelatedTag(relatedTagItem.id, relatedId);
+        setRelatedTagsList((prev) => prev.filter((r) => r.id !== relatedId));
+        setNotification({
+          type: "success",
+          message: `Removed relation between "${relatedTagItem.name}" and "${relatedName}".`,
+        });
+      } catch (err) {
+        setNotification({
+          type: "error",
+          message:
+            err instanceof Error ? err.message : "Error removing relation",
+        });
+      }
+    });
+  };
+
   return (
     <div className={styles.container}>
       {/* Toast Notification */}
@@ -1117,6 +1254,18 @@ export default function TagsManageClient({
                       disabled={isPending || tag.aliasOfTagId !== null}
                     >
                       <ChevronUp size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      title="Manage Related"
+                      onClick={() => {
+                        setRelatedTagItem(tag);
+                        setRelatedTargetInput("");
+                      }}
+                      disabled={isPending || tag.aliasOfTagId !== null}
+                    >
+                      <Network size={16} />
                     </button>
                     <button
                       type="button"
@@ -1913,6 +2062,138 @@ export default function TagsManageClient({
                 onClick={() => setShowCategoryManager(false)}
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RELATED TAGS MODAL */}
+      {relatedTagItem && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>
+                Related Tags: {relatedTagItem.name}
+              </h2>
+              <button
+                type="button"
+                className={styles.closeButton}
+                onClick={() => setRelatedTagItem(null)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <p className={styles.helperText}>
+                Manage bidirectional, loose associations for this tag.
+              </p>
+
+              <div className={styles.formGroup}>
+                <span className={styles.label}>Currently Related</span>
+                {loadingRelated ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      color: "var(--muted-foreground)",
+                    }}
+                  >
+                    <Loader2
+                      className={styles.animateSpin}
+                      size={16}
+                      style={{ animation: "spin 1s linear infinite" }}
+                    />
+                    <span>Loading relations...</span>
+                  </div>
+                ) : relatedTagsList.length === 0 ? (
+                  <span className={styles.noCategory}>
+                    No related tags set.
+                  </span>
+                ) : (
+                  <div className={styles.relatedTagsList}>
+                    {relatedTagsList.map((tag) => (
+                      <span key={tag.id} className={styles.relatedTagBadge}>
+                        {tag.name}
+                        <button
+                          type="button"
+                          className={styles.removeRelatedBtn}
+                          onClick={() => handleDeleteRelated(tag.id, tag.name)}
+                          disabled={isPending}
+                          title="Remove relation"
+                        >
+                          <X size={14} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div
+                className={styles.formGroup}
+                style={{ position: "relative" }}
+              >
+                <label className={styles.label} htmlFor="relatedTargetInput">
+                  Add Related Tag (autocomplete)
+                </label>
+                <div ref={relatedSuggestContainerRef}>
+                  <input
+                    id="relatedTargetInput"
+                    type="text"
+                    className={styles.input}
+                    value={relatedTargetInput}
+                    onChange={(e) => setRelatedTargetInput(e.target.value)}
+                    onFocus={() => {
+                      if (relatedSuggestions.length > 0)
+                        setRelatedSuggestionsOpen(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && relatedTargetInput.trim()) {
+                        e.preventDefault();
+                        handleAddRelated(relatedTargetInput);
+                      }
+                    }}
+                    placeholder="Search tag to relate..."
+                    autoComplete="off"
+                    disabled={isPending}
+                  />
+                  {relatedSuggestionsOpen && relatedSuggestions.length > 0 && (
+                    <div className={styles.autocompleteDropdown}>
+                      {relatedSuggestions.map((item) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          className={styles.autocompleteItem}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            background: "transparent",
+                            border: "none",
+                            color: "inherit",
+                            font: "inherit",
+                          }}
+                          onClick={() => {
+                            handleAddRelated(item.name);
+                            setRelatedSuggestionsOpen(false);
+                          }}
+                        >
+                          {item.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={`${styles.button} ${styles.btnPrimary}`}
+                onClick={() => setRelatedTagItem(null)}
+              >
+                Done
               </button>
             </div>
           </div>
