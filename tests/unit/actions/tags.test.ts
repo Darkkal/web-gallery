@@ -26,6 +26,7 @@ const testDb = testDbHelper.db;
 activeDb = testDb;
 
 import {
+  addRelatedTag,
   addTagToPost,
   bulkAddTagToPosts,
   bulkSetTagAlias,
@@ -39,8 +40,11 @@ import {
   getCategories,
   getOrCreateTagByName,
   getPostTags,
+  getRelatedTags,
+  getSuggestedRelatedTags,
   getTopTags,
   mergeTags,
+  removeRelatedTag,
   removeTagFromPost,
   removeTagsFromPost,
   renameTag,
@@ -440,6 +444,36 @@ describe("Tags Server Actions", () => {
 
       const count = await bulkSetTagParent([child1.id, child2.id], parent.id);
       expect(count).toBe(2);
+    });
+  });
+
+  describe("Related Tags Server Actions", () => {
+    it("should add and remove related tags successfully", async () => {
+      const tagA = await seedTag(testDb, "apple");
+      const tagB = await seedTag(testDb, "banana");
+
+      const success = await addRelatedTag(tagA.id, tagB.id);
+      expect(success).toBe(true);
+
+      const related = await getRelatedTags(tagA.id);
+      expect(related.length).toBe(1);
+      expect(related[0].id).toBe(tagB.id);
+
+      const removed = await removeRelatedTag(tagA.id, tagB.id);
+      expect(removed).toBe(true);
+
+      const emptyRelated = await getRelatedTags(tagA.id);
+      expect(emptyRelated.length).toBe(0);
+    });
+
+    it("should get suggested related tags", async () => {
+      const tagA = await seedTag(testDb, "A");
+      const tagB = await seedTag(testDb, "B");
+      await addRelatedTag(tagA.id, tagB.id);
+
+      const suggestions = await getSuggestedRelatedTags([tagA.id]);
+      expect(suggestions.length).toBe(1);
+      expect(suggestions[0].id).toBe(tagB.id);
     });
   });
 });

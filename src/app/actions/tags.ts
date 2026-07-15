@@ -334,3 +334,19 @@ export async function bulkSetTagParent(
 ) {
   return tagsRepo.bulkSetTagParent(tagIds, parentTagId);
 }
+
+export async function addRelatedTag(tagId1: number, tagId2: number) {
+  return tagsRepo.addRelatedTag(tagId1, tagId2);
+}
+
+export async function removeRelatedTag(tagId1: number, tagId2: number) {
+  return tagsRepo.removeRelatedTag(tagId1, tagId2);
+}
+
+export async function getRelatedTags(tagId: number) {
+  return tagsRepo.getRelatedTags(tagId);
+}
+
+export async function getSuggestedRelatedTags(currentTagIds: number[]) {
+  return tagsRepo.getSuggestedRelatedTags(currentTagIds);
+}
