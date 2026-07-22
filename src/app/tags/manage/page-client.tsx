@@ -165,20 +165,25 @@ export default function TagsManageClient({
     }
   }, [notification]);
 
+  const tagsRef = useRef(tags);
+  tagsRef.current = tags;
+
   // Fetch Tags function
   const fetchTags = useCallback(
-    async (reset = false) => {
+    async (reset = false, keepCount = false) => {
       setLoading(true);
       try {
-        const currentCursor = reset ? "" : cursorRef.current || "";
-        const limit = 50;
+        const currentCursor = reset || keepCount ? "" : cursorRef.current || "";
+        const limit = keepCount ? Math.max(tagsRef.current.length, 50) : 50;
         const res = await fetch(
           `/api/tags?search=${encodeURIComponent(searchQuery)}&category=${encodeURIComponent(categoryFilter)}&sortBy=${sortBy}&limit=${limit}&cursor=${currentCursor}`,
         );
         if (!res.ok) throw new Error("Failed to fetch tags");
         const data = await res.json();
 
-        setTags((prev) => (reset ? data.items : [...prev, ...data.items]));
+        setTags((prev) =>
+          reset || keepCount ? data.items : [...prev, ...data.items],
+        );
         setCursor(data.nextCursor);
         setHasMore(data.nextCursor !== null);
       } catch (err) {
@@ -555,7 +560,7 @@ export default function TagsManageClient({
       );
       setEditingCategory(null);
       setNotification({ type: "success", message: "Category updated." });
-      fetchTags(true);
+      fetchTags(false, true);
     } catch (err) {
       setNotification({
         type: "error",
@@ -582,7 +587,7 @@ export default function TagsManageClient({
           setEditingCategory(null);
         }
         setNotification({ type: "success", message: "Category deleted." });
-        fetchTags(true);
+        fetchTags(false, true);
       } else {
         setNotification({
           type: "error",
@@ -668,7 +673,7 @@ export default function TagsManageClient({
         setShowBulkMerge(false);
         setMergeTargetInput("");
         setSelectedTagIds(new Set());
-        fetchTags(true);
+        fetchTags(false, true);
         router.refresh();
       } catch (err) {
         setNotification({
@@ -714,7 +719,7 @@ export default function TagsManageClient({
         setShowBulkAlias(false);
         setAliasTargetInput("");
         setSelectedTagIds(new Set());
-        fetchTags(true);
+        fetchTags(false, true);
         router.refresh();
       } catch (err) {
         setNotification({
@@ -760,7 +765,7 @@ export default function TagsManageClient({
         setShowBulkParent(false);
         setParentTargetInput("");
         setSelectedTagIds(new Set());
-        fetchTags(true);
+        fetchTags(false, true);
         router.refresh();
       } catch (err) {
         setNotification({
@@ -815,7 +820,7 @@ export default function TagsManageClient({
           message: `Successfully deleted ${count} tags.`,
         });
         setSelectedTagIds(new Set());
-        fetchTags(true);
+        fetchTags(false, true);
         router.refresh();
       } catch (err) {
         setNotification({
@@ -880,7 +885,7 @@ export default function TagsManageClient({
         setShowBulkCategory(false);
         setCategoryTargetInput("");
         setSelectedTagIds(new Set());
-        fetchTags(true);
+        fetchTags(false, true);
         router.refresh();
       } catch (err) {
         setNotification({
@@ -907,7 +912,7 @@ export default function TagsManageClient({
           type: "success",
           message: `Cleaned up ${count} orphaned tags.`,
         });
-        fetchTags(true);
+        fetchTags(false, true);
         router.refresh();
       } catch (err) {
         setNotification({
