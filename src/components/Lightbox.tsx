@@ -115,19 +115,40 @@ export default function Lightbox({
       resetInactivityTimer();
     };
 
-    window.addEventListener("mousemove", handleUserActivity);
-    window.addEventListener("keydown", handleUserActivity);
-    window.addEventListener("touchstart", handleUserActivity);
+    const events = [
+      "pointerdown",
+      "mousedown",
+      "click",
+      "pointermove",
+      "mousemove",
+      "keydown",
+      "touchstart",
+      "touchend",
+      "touchmove",
+      "wheel",
+    ];
+
+    for (const ev of events) {
+      window.addEventListener(ev, handleUserActivity, { passive: true });
+    }
 
     return () => {
       if (inactivityTimerRef.current) {
         clearTimeout(inactivityTimerRef.current);
       }
-      window.removeEventListener("mousemove", handleUserActivity);
-      window.removeEventListener("keydown", handleUserActivity);
-      window.removeEventListener("touchstart", handleUserActivity);
+      for (const ev of events) {
+        window.removeEventListener(ev, handleUserActivity);
+      }
     };
   }, [autoHideControls, resetInactivityTimer]);
+
+  // Reset inactivity timer whenever active media item changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset timer when active media item changes
+  useEffect(() => {
+    if (autoHideControls) {
+      resetInactivityTimer();
+    }
+  }, [item.id, autoHideControls, resetInactivityTimer]);
 
   const toggleTagSelection = (tagId: number) => {
     setSelectedTagIds((prev) => {
