@@ -231,14 +231,6 @@ export default function ScrapeHistoryTable({
                 </td>
                 <td>
                   <div className={styles.actionGroup}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedLogItem(item)}
-                      className={styles.iconButton}
-                      title="View Log"
-                    >
-                      <FileText size={14} />
-                    </button>
                     {(item.status === "failed" ||
                       item.status === "stopped") && (
                       <button
@@ -254,6 +246,14 @@ export default function ScrapeHistoryTable({
                         <RotateCcw size={14} />
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLogItem(item)}
+                      className={styles.iconButton}
+                      title="View Log"
+                    >
+                      <FileText size={14} />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -355,14 +355,6 @@ export default function ScrapeHistoryTable({
             </div>
 
             <div className={styles.taskCardActions}>
-              <button
-                type="button"
-                onClick={() => setSelectedLogItem(item)}
-                className={styles.iconButton}
-                title="View Log"
-              >
-                <FileText size={14} />
-              </button>
               {(item.status === "failed" || item.status === "stopped") && (
                 <button
                   type="button"
@@ -377,6 +369,14 @@ export default function ScrapeHistoryTable({
                   <RotateCcw size={14} />
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => setSelectedLogItem(item)}
+                className={styles.iconButton}
+                title="View Log"
+              >
+                <FileText size={14} />
+              </button>
             </div>
           </div>
         ))}
