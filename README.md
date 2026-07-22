@@ -16,7 +16,7 @@ By leveraging powerful scraping tools like `gallery-dl` and `yt-dlp`, this appli
   - [Option C: Direct Installation (Node.js/npm)](#option-c-direct-installation-nodejsnpm)
   - [Usage](#usage)
 - [Technology Stack](#technology-stack)
-- [Development & Testing](#development--testing)
+- [Development & Contributing](#development--contributing)
 - [Documentation](#documentation)
 - [Disclaimer](#disclaimer)
 - [License](#license)
@@ -203,27 +203,9 @@ Example Sources:
 - **Standalone Packaging**: [@yao-pkg/pkg](https://github.com/yao-pkg/pkg)
 - **Testing**: [Vitest](https://vitest.dev/) (Unit & Integration) and [Playwright](https://playwright.dev/) (E2E)
 
-## Development & Testing
+## Development & Contributing
 
-If you are looking to contribute or run the application in a development environment:
-
-1. Follow steps 1-3 from **Option C: Direct Installation**.
-2. Start the hot-reloading development server:
-   ```bash
-   npm run dev
-   ```
-3. Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-### Running Tests
-
-- **Unit & Integration Tests (Vitest)**:
-  ```bash
-  npm run test:unit
-  ```
-- **End-to-End Tests (Playwright)**:
-  ```bash
-  npm run test:e2e
-  ```
+If you want to contribute to Web Gallery, set up a local development environment, or run tests, please refer to [CONTRIBUTING.md](./CONTRIBUTING.md) for full development guidelines, coding standards, and test commands.
 
 ## Documentation
 
