@@ -134,6 +134,23 @@
   gap: 12px;
 }
 
+.userClickableAvatar {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  display: inline-flex;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.userClickableAvatar:hover {
+  transform: scale(1.05);
+  opacity: 0.9;
+}
+
 .avatar {
   width: 48px;
   height: 48px;
@@ -145,6 +162,23 @@
 .userInfo {
   display: flex;
   flex-direction: column;
+}
+
+.userClickableText {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: opacity 0.2s ease;
+}
+
+.userClickableText:hover {
+  opacity: 0.85;
+}
+
+.userClickableText:hover .userName {
+  text-decoration: underline;
 }
 
 .userName {

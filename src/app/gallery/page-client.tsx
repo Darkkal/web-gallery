@@ -373,6 +373,10 @@ function GalleryPageContent({
             setSearchQuery(`tag:${tagName} `);
             closeLightbox();
           }}
+          onUserClick={(userName) => {
+            setSearchQuery(`user:${userName} `);
+            closeLightbox();
+          }}
         />
       )}
 

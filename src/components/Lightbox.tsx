@@ -41,6 +41,7 @@ interface LightboxProps {
   loopVideos?: boolean;
   isPageLoading?: boolean;
   onTagClick?: (tagName: string) => void;
+  onUserClick?: (userName: string) => void;
 }
 
 export default function Lightbox({
@@ -59,6 +60,7 @@ export default function Lightbox({
   loopVideos,
   isPageLoading = false,
   onTagClick,
+  onUserClick,
 }: LightboxProps) {
   const { item } = row;
   const [showInfo, setShowInfo] = useState(true);
@@ -90,6 +92,16 @@ export default function Lightbox({
       onTagClick(tagName);
     } else {
       router.push(`/gallery?search=${encodeURIComponent(`tag:${tagName} `)}`);
+      onClose();
+    }
+  };
+
+  const handleUserClick = (userName: string) => {
+    if (!userName) return;
+    if (onUserClick) {
+      onUserClick(userName);
+    } else {
+      router.push(`/gallery?search=${encodeURIComponent(`user:${userName} `)}`);
       onClose();
     }
   };
@@ -512,38 +524,70 @@ export default function Lightbox({
         {user && (
           <div className={`${styles.section} ${styles.userCard}`}>
             {user.profileImage && (
-              <Image
-                src={user.profileImage || ""}
-                alt={user.name || "User"}
-                width={48}
-                height={48}
-                className={styles.avatar}
-              />
+              <button
+                type="button"
+                className={styles.userClickableAvatar}
+                onClick={() =>
+                  handleUserClick(user.name || user.nick || user.username || "")
+                }
+                title={`Search gallery for ${user.name || user.nick || user.username}`}
+              >
+                <Image
+                  src={user.profileImage || ""}
+                  alt={user.name || "User"}
+                  width={48}
+                  height={48}
+                  className={styles.avatar}
+                />
+              </button>
             )}
-            <div className={styles.userInfo}>
+            <button
+              type="button"
+              className={`${styles.userInfo} ${styles.userClickableText}`}
+              onClick={() =>
+                handleUserClick(user.name || user.nick || user.username || "")
+              }
+              title={`Search gallery for ${user.name || user.nick || user.username}`}
+            >
               <span className={styles.userName}>{user.name}</span>
               <span className={styles.userHandle}>
                 @{user.nick || user.username}
               </span>
-            </div>
+            </button>
           </div>
         )}
 
         {pixivUser && (
           <div className={`${styles.section} ${styles.userCard}`}>
             {pixivUser.profileImage && (
-              <Image
-                src={pixivUser.profileImage || ""}
-                alt={pixivUser.name || "User"}
-                width={48}
-                height={48}
-                className={styles.avatar}
-              />
+              <button
+                type="button"
+                className={styles.userClickableAvatar}
+                onClick={() =>
+                  handleUserClick(pixivUser.name || pixivUser.account || "")
+                }
+                title={`Search gallery for ${pixivUser.name || pixivUser.account}`}
+              >
+                <Image
+                  src={pixivUser.profileImage || ""}
+                  alt={pixivUser.name || "User"}
+                  width={48}
+                  height={48}
+                  className={styles.avatar}
+                />
+              </button>
             )}
-            <div className={styles.userInfo}>
+            <button
+              type="button"
+              className={`${styles.userInfo} ${styles.userClickableText}`}
+              onClick={() =>
+                handleUserClick(pixivUser.name || pixivUser.account || "")
+              }
+              title={`Search gallery for ${pixivUser.name || pixivUser.account}`}
+            >
               <span className={styles.userName}>{pixivUser.name}</span>
               <span className={styles.userHandle}>@{pixivUser.account}</span>
-            </div>
+            </button>
           </div>
         )}
 
