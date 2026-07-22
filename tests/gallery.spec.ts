@@ -102,6 +102,62 @@ test("lightbox navigation zones span full-height and handle navigation", async (
   await expect(lightbox).not.toBeVisible();
 });
 
+test("lightbox show/hide controls toggles, H key shortcut, and two-step Escape", async ({
+  page,
+}) => {
+  await page.goto("/gallery");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+
+  try {
+    await expect(page.locator('img[class*="media"]').first()).toBeVisible({
+      timeout: 5000,
+    });
+  } catch {
+    test.skip(true, "No gallery items to test lightbox controls toggle");
+    return;
+  }
+
+  // Open lightbox
+  await page.locator('img[class*="media"]').first().click();
+  const lightbox = page.locator('div[class*="overlay"]');
+  await expect(lightbox).toBeVisible();
+
+  const toggleBtn = page.locator('button[class*="persistentToggleBtn"]');
+  await expect(toggleBtn).toBeVisible();
+
+  const controls = page.locator('div[class*="controls"]').first();
+  const sidebar = page.locator('div[class*="sidebar"]').first();
+
+  // Initially controls and sidebar are visible
+  await expect(controls).toHaveAttribute("data-visible", "true");
+  await expect(sidebar).not.toHaveClass(/sidebarHidden/);
+
+  // Click persistent toggle button -> controls & sidebar hide
+  await toggleBtn.click();
+  await expect(controls).toHaveAttribute("data-visible", "false");
+  await expect(sidebar).toHaveClass(/sidebarHidden/);
+
+  // Toggle button remains visible
+  await expect(toggleBtn).toBeVisible();
+
+  // Press H key -> controls & sidebar reappear
+  await page.keyboard.press("h");
+  await expect(controls).toHaveAttribute("data-visible", "true");
+  await expect(sidebar).not.toHaveClass(/sidebarHidden/);
+
+  // Hide controls again with H key
+  await page.keyboard.press("H");
+  await expect(controls).toHaveAttribute("data-visible", "false");
+
+  // Two-step Escape: First Escape restores controls, second Escape closes lightbox
+  await page.keyboard.press("Escape");
+  await expect(controls).toHaveAttribute("data-visible", "true");
+  await expect(lightbox).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(lightbox).not.toBeVisible();
+});
+
 test("gallery defaults to infinite scroll mode", async ({ page }) => {
   await page.goto("/gallery");
   await expect(page.getByTestId("loading-skeleton")).toBeHidden();
