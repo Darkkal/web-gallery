@@ -29,6 +29,8 @@ export default function GalleryPageClient({
   loopVideos,
   autoplayVideos,
   muteAutoplayVideos,
+  autoHideControls,
+  autoHideDelay,
   playlistId,
 }: {
   initialItems: GalleryGroup[];
@@ -41,6 +43,8 @@ export default function GalleryPageClient({
   loopVideos: boolean;
   autoplayVideos: boolean;
   muteAutoplayVideos: boolean;
+  autoHideControls?: boolean;
+  autoHideDelay?: number;
   playlistId?: number;
 }) {
   return (
@@ -55,6 +59,8 @@ export default function GalleryPageClient({
       loopVideos={loopVideos}
       autoplayVideos={autoplayVideos}
       muteAutoplayVideos={muteAutoplayVideos}
+      autoHideControls={autoHideControls}
+      autoHideDelay={autoHideDelay}
       playlistId={playlistId}
     />
   );
@@ -71,6 +77,8 @@ function GalleryPageContent({
   loopVideos,
   autoplayVideos,
   muteAutoplayVideos,
+  autoHideControls,
+  autoHideDelay,
   playlistId,
 }: {
   initialItems: GalleryGroup[];
@@ -83,6 +91,8 @@ function GalleryPageContent({
   loopVideos: boolean;
   autoplayVideos: boolean;
   muteAutoplayVideos: boolean;
+  autoHideControls?: boolean;
+  autoHideDelay?: number;
   playlistId?: number;
 }) {
   const [columnCount, setColumnCount] = useState(4);
@@ -369,6 +379,8 @@ function GalleryPageContent({
           onRefetch={handleRefetchSingle}
           loopVideos={loopVideos}
           isPageLoading={isPageLoading}
+          autoHideControls={autoHideControls}
+          autoHideDelay={autoHideDelay}
           onTagClick={(tagName) => {
             setSearchQuery(`tag:${tagName} `);
             closeLightbox();

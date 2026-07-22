@@ -30,6 +30,8 @@ export default function TimelinePageClient({
   muteAutoplayVideos,
   condensePostText,
   condensePostLines,
+  autoHideControls,
+  autoHideDelay,
 }: {
   initialPosts: TimelinePost[];
   initialNextCursor: string | null;
@@ -43,6 +45,8 @@ export default function TimelinePageClient({
   muteAutoplayVideos: boolean;
   condensePostText: boolean;
   condensePostLines: number;
+  autoHideControls?: boolean;
+  autoHideDelay?: number;
 }) {
   return (
     <TimelinePageContent
@@ -58,6 +62,8 @@ export default function TimelinePageClient({
       muteAutoplayVideos={muteAutoplayVideos}
       condensePostText={condensePostText}
       condensePostLines={condensePostLines}
+      autoHideControls={autoHideControls}
+      autoHideDelay={autoHideDelay}
     />
   );
 }
@@ -75,6 +81,8 @@ function TimelinePageContent({
   muteAutoplayVideos,
   condensePostText,
   condensePostLines,
+  autoHideControls,
+  autoHideDelay,
 }: {
   initialPosts: TimelinePost[];
   initialNextCursor: string | null;
@@ -88,6 +96,8 @@ function TimelinePageContent({
   muteAutoplayVideos: boolean;
   condensePostText: boolean;
   condensePostLines: number;
+  autoHideControls?: boolean;
+  autoHideDelay?: number;
 }) {
   const [suppressSearch, setSuppressSearch] = useState(false);
 
@@ -311,6 +321,8 @@ function TimelinePageContent({
           onDelete={undefined}
           loopVideos={loopVideos}
           isPageLoading={isPageLoading}
+          autoHideControls={autoHideControls}
+          autoHideDelay={autoHideDelay}
         />
       )}
     </div>

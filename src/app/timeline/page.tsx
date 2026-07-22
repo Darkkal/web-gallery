@@ -45,6 +45,8 @@ export default async function TimelinePage({
       muteAutoplayVideos={muteAutoplayVideos}
       condensePostText={settings.condensePostText ?? true}
       condensePostLines={settings.condensePostLines ?? 2}
+      autoHideControls={settings.lightboxAutoHideControls ?? false}
+      autoHideDelay={settings.lightboxAutoHideDelay ?? 3}
     />
   );
 }
