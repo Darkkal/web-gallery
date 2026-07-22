@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import styles from "@/app/timeline/page.module.css";
@@ -18,6 +19,7 @@ interface PostCardProps {
     mediaIndex: number,
     e: React.MouseEvent,
   ) => void;
+  onUserClick?: (userName: string) => void;
   loopVideos?: boolean;
   autoplayVideos?: boolean;
   muteAutoplayVideos?: boolean;
@@ -30,6 +32,7 @@ export default function PostCard({
   post,
   postIndex,
   onMediaClick,
+  onUserClick,
   loopVideos,
   autoplayVideos = false,
   muteAutoplayVideos = true,
@@ -37,9 +40,25 @@ export default function PostCard({
   condensePostLines = 2,
   id,
 }: PostCardProps) {
+  const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasOverflow, setHasOverflow] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  const authorName = post.author?.name || post.author?.handle || "";
+  const hasAuthor = authorName.length > 0;
+
+  const handleUserClick = (e?: React.SyntheticEvent) => {
+    if (e) e.stopPropagation();
+    if (!hasAuthor) return;
+    if (onUserClick) {
+      onUserClick(authorName);
+    } else {
+      router.push(
+        `/gallery?search=${encodeURIComponent(`user:${authorName} `)}`,
+      );
+    }
+  };
 
   useEffect(() => {
     if (!condensePostText) {
@@ -69,7 +88,26 @@ export default function PostCard({
     <article id={id} className={styles.postCard}>
       {/* Header: Avatar, Name, Date */}
       <div className={styles.postHeader}>
-        {post.author?.avatar ? (
+        {hasAuthor ? (
+          <button
+            type="button"
+            className={`${styles.avatarWrapper} ${styles.authorClickable}`}
+            onClick={handleUserClick}
+            title={`Search posts by ${authorName}`}
+          >
+            {post.author?.avatar ? (
+              <Image
+                src={post.author.avatar}
+                alt={post.author.name || "User"}
+                width={40}
+                height={40}
+                className={styles.avatar}
+              />
+            ) : (
+              <div className={styles.avatarPlaceholder} />
+            )}
+          </button>
+        ) : post.author?.avatar ? (
           <Image
             src={post.author.avatar}
             alt={post.author.name || "User"}
@@ -81,14 +119,34 @@ export default function PostCard({
           <div className={styles.avatarPlaceholder} />
         )}
         <div className={styles.postMeta}>
-          <div className={styles.authorRow}>
-            <span className={styles.authorName}>
-              {post.author?.name || "Unknown"}
-            </span>
-            {post.author?.handle && (
-              <span className={styles.authorHandle}>@{post.author.handle}</span>
-            )}
-          </div>
+          {hasAuthor ? (
+            <button
+              type="button"
+              className={`${styles.authorRow} ${styles.authorClickable}`}
+              onClick={handleUserClick}
+              title={`Search posts by ${authorName}`}
+            >
+              <span className={styles.authorName}>
+                {post.author?.name || "Unknown"}
+              </span>
+              {post.author?.handle && (
+                <span className={styles.authorHandle}>
+                  @{post.author.handle}
+                </span>
+              )}
+            </button>
+          ) : (
+            <div className={styles.authorRow}>
+              <span className={styles.authorName}>
+                {post.author?.name || "Unknown"}
+              </span>
+              {post.author?.handle && (
+                <span className={styles.authorHandle}>
+                  @{post.author.handle}
+                </span>
+              )}
+            </div>
+          )}
           <div className={styles.dateRow}>
             <span className={styles.date}>
               {new Date(post.date).toLocaleString()}
