@@ -1160,7 +1160,7 @@ export default function TagsManageClient({
                   <td className={`${styles.td} ${styles.tagNameCell}`}>
                     <div className={styles.tagNameContainer}>
                       <Link
-                        href={`/gallery?search=${encodeURIComponent(tag.name)}`}
+                        href={`/gallery?search=${encodeURIComponent(`tag:${tag.name} `)}`}
                         className={styles.tagNameLink}
                         style={{ color: "inherit", textDecoration: "none" }}
                       >

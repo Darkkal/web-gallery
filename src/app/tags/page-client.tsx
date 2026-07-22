@@ -197,7 +197,7 @@ export default function TagsPageClient({
 
           <div className={styles.treeContentCol}>
             <Link
-              href={`/gallery?search=${encodeURIComponent(node.name)}`}
+              href={`/gallery?search=${encodeURIComponent(`tag:${node.name} `)}`}
               className={styles.treeNodeLink}
             >
               {node.name}
@@ -371,7 +371,7 @@ export default function TagsPageClient({
               <Link
                 // biome-ignore lint/suspicious/noArrayIndexKey: Index used for uniqueness
                 key={`${tag.name}-${i}`}
-                href={`/gallery?search=${encodeURIComponent(tag.name)}`}
+                href={`/gallery?search=${encodeURIComponent(`tag:${tag.name} `)}`}
                 className={styles.tagCard}
               >
                 <span className={styles.tagName}>{tag.name}</span>
