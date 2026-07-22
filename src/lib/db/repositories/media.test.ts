@@ -72,7 +72,7 @@ describe("Media Repository", () => {
   });
 
   describe("getMediaItems", () => {
-    it("should fetch media items and return grouped by post", async () => {
+    it("should fetch media items and return grouped by post showing first media item as thumbnail", async () => {
       const source = await seedSource(testDb);
       const post = await seedPost(testDb, source.id);
       const media1 = await seedMediaItem(testDb, post.id, {
@@ -85,9 +85,9 @@ describe("Media Repository", () => {
       const { items } = await getMediaItems();
       expect(items.length).toBe(1); // Grouped by post, so 1 group
       expect(items[0].groupCount).toBe(2);
+      expect(items[0].item.id).toBe(media1.id); // Thumbnail is first media item
       const itemIds = items[0].groupItems.map((gi) => gi.item.id);
-      expect(itemIds).toContain(media1.id);
-      expect(itemIds).toContain(media2.id);
+      expect(itemIds).toEqual([media1.id, media2.id]); // Group items ordered ascending
     });
 
     it("should handle cursor pagination correctly", async () => {
