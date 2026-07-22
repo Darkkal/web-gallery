@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -41,6 +41,8 @@ interface LightboxProps {
   onRefetch?: (postId: number) => Promise<void>;
   loopVideos?: boolean;
   isPageLoading?: boolean;
+  autoHideControls?: boolean;
+  autoHideDelay?: number;
   onTagClick?: (tagName: string) => void;
   onUserClick?: (userName: string) => void;
 }
@@ -60,11 +62,15 @@ export default function Lightbox({
   onRefetch,
   loopVideos,
   isPageLoading = false,
+  autoHideControls = false,
+  autoHideDelay = 3,
   onTagClick,
   onUserClick,
 }: LightboxProps) {
   const { item } = row;
   const [showInfo, setShowInfo] = useState(true);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [isAutoHidden, setIsAutoHidden] = useState(false);
   const [postTags, setPostTags] = useState<TagWithCategory[]>([]);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isRecentlyMounted, setIsRecentlyMounted] = useState(true);
@@ -75,6 +81,53 @@ export default function Lightbox({
     [],
   );
   const router = useRouter();
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const resetInactivityTimer = useCallback(() => {
+    setIsAutoHidden(false);
+    setControlsVisible(true);
+
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+
+    if (autoHideControls) {
+      const delayMs = (autoHideDelay ?? 3) * 1000;
+      inactivityTimerRef.current = setTimeout(() => {
+        setIsAutoHidden(true);
+        setControlsVisible(false);
+      }, delayMs);
+    }
+  }, [autoHideControls, autoHideDelay]);
+
+  useEffect(() => {
+    if (!autoHideControls) {
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+      setIsAutoHidden(false);
+      return;
+    }
+
+    resetInactivityTimer();
+
+    const handleUserActivity = () => {
+      resetInactivityTimer();
+    };
+
+    window.addEventListener("mousemove", handleUserActivity);
+    window.addEventListener("keydown", handleUserActivity);
+    window.addEventListener("touchstart", handleUserActivity);
+
+    return () => {
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+      window.removeEventListener("mousemove", handleUserActivity);
+      window.removeEventListener("keydown", handleUserActivity);
+      window.removeEventListener("touchstart", handleUserActivity);
+    };
+  }, [autoHideControls, resetInactivityTimer]);
 
   const toggleTagSelection = (tagId: number) => {
     setSelectedTagIds((prev) => {
@@ -305,14 +358,33 @@ export default function Lightbox({
     }
   }
 
-  // Keyboard navigation
+  // Keyboard navigation & shortcuts
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight" && onNext && !isPageLoading) onNext();
-      if (e.key === "ArrowLeft" && onPrev) onPrev();
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")
+      ) {
+        return;
+      }
+
+      if (e.key === "h" || e.key === "H") {
+        e.preventDefault();
+        setControlsVisible((prev) => !prev);
+      } else if (e.key === "Escape") {
+        if (!controlsVisible) {
+          setControlsVisible(true);
+        } else {
+          onClose();
+        }
+      } else if (e.key === "ArrowRight" && onNext && !isPageLoading) {
+        onNext();
+      } else if (e.key === "ArrowLeft" && onPrev) {
+        onPrev();
+      }
     },
-    [onClose, onNext, onPrev, isPageLoading],
+    [onClose, onNext, onPrev, isPageLoading, controlsVisible],
   );
 
   useEffect(() => {
@@ -351,9 +423,7 @@ export default function Lightbox({
       <div
         className={styles.mainArea}
         onClick={(e) => {
-          // If clicking the background (not the image), close?
-          // Or maybe clicking image toggles sidebar?
-          // Let's make clicking background close.
+          // If clicking the background (not the image), close
           if (e.target === e.currentTarget) {
             if (isRecentlyMounted) return;
             onClose();
@@ -361,7 +431,6 @@ export default function Lightbox({
         }}
         onKeyDown={handleKeyActivate(() => {
           if (typeof window !== "undefined") {
-            // Check if we are actually on the target area, though handleKeyActivate handles the key
             onClose();
           }
         })}
@@ -369,10 +438,24 @@ export default function Lightbox({
         tabIndex={0}
         aria-label="Close lightbox"
       >
+        <button
+          type="button"
+          className={`${styles.persistentToggleBtn} ${isAutoHidden ? styles.autoHidden : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setControlsVisible((prev) => !prev);
+          }}
+          title={controlsVisible ? "Hide controls (H)" : "Show controls (H)"}
+          aria-label="Toggle controls"
+        >
+          {controlsVisible ? <Eye size={20} /> : <EyeOff size={20} />}
+        </button>
+
         {onPrev && (
           <button
             type="button"
             className={`${styles.navZone} ${styles.navZonePrev}`}
+            data-visible={controlsVisible}
             onClick={(e) => {
               e.stopPropagation();
               onPrev();
@@ -400,13 +483,13 @@ export default function Lightbox({
             <div
               className={styles.textContent}
               onClick={(e) => {
-                // Don't toggle info if clicking a link
+                // Don't toggle if clicking a link
                 if ((e.target as HTMLElement).tagName === "A") return;
                 e.stopPropagation();
-                setShowInfo(!showInfo);
+                setControlsVisible((prev) => !prev);
               }}
               onKeyDown={handleKeyActivate(() => {
-                setShowInfo(!showInfo);
+                setControlsVisible((prev) => !prev);
               })}
               role="button"
               tabIndex={0}
@@ -421,9 +504,7 @@ export default function Lightbox({
               onClick={(e) => {
                 e.stopPropagation();
                 if (isRecentlyMounted) return;
-                if (typeof window !== "undefined" && window.innerWidth >= 768) {
-                  setShowInfo(!showInfo);
-                }
+                setControlsVisible((prev) => !prev);
               }}
               width={1200}
               height={800}
@@ -436,6 +517,7 @@ export default function Lightbox({
           <button
             type="button"
             className={`${styles.navZone} ${styles.navZoneNext} ${isPageLoading ? styles.loadingButton : ""}`}
+            data-visible={controlsVisible}
             onClick={(e) => {
               e.stopPropagation();
               if (isPageLoading) return;
@@ -453,7 +535,7 @@ export default function Lightbox({
           </button>
         )}
 
-        <div className={styles.controls}>
+        <div className={styles.controls} data-visible={controlsVisible}>
           {onDelete && (
             <>
               <button
@@ -507,7 +589,7 @@ export default function Lightbox({
 
       {/* Sidebar */}
       <div
-        className={`${styles.sidebar} ${!showInfo ? styles.sidebarHidden : ""}`}
+        className={`${styles.sidebar} ${!showInfo || !controlsVisible ? styles.sidebarHidden : ""}`}
       >
         <button
           type="button"
