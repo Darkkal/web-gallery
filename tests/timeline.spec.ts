@@ -226,3 +226,30 @@ test("timeline post condensing settings and toggle interaction", async ({
   await showMoreBtn.click();
   await expect(showMoreBtn).toHaveText("Show More");
 });
+
+test("timeline user click navigates to gallery with user filter", async ({
+  page,
+}) => {
+  await page.goto("/timeline");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+
+  try {
+    await expect(page.locator("article").first()).toBeVisible({
+      timeout: 5000,
+    });
+  } catch {
+    test.skip(true, "No posts found to test user click navigation");
+    return;
+  }
+
+  const authorClickable = page.locator('div[class*="authorClickable"]').first();
+  if ((await authorClickable.count()) === 0) {
+    test.skip(true, "No clickable author found on post");
+    return;
+  }
+
+  await expect(authorClickable).toBeVisible({ timeout: 5000 });
+  await authorClickable.click();
+
+  await expect(page).toHaveURL(/.*\/gallery\?search=user%3A.*/);
+});

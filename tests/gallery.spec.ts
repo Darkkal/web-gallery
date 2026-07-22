@@ -159,3 +159,40 @@ test("gallery column controls change column counts", async ({ page }) => {
   await expect(label).toHaveText("Columns: 3");
   await expect(decreaseBtn).toBeEnabled();
 });
+
+test("lightbox user click populates user filter search", async ({ page }) => {
+  await page.goto("/gallery");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+
+  try {
+    await expect(page.locator('img[class*="media"]').first()).toBeVisible({
+      timeout: 5000,
+    });
+  } catch {
+    test.skip(true, "No gallery items to test user click in lightbox");
+    return;
+  }
+
+  await page.locator('img[class*="media"]').first().click();
+  const lightbox = page.locator('div[class*="overlay"]');
+  await expect(lightbox).toBeVisible();
+
+  const userAvatar = page
+    .locator('button[class*="userClickableAvatar"]')
+    .first();
+  const userText = page.locator('button[class*="userClickableText"]').first();
+
+  if ((await userAvatar.count()) > 0) {
+    await userAvatar.click();
+    await expect(lightbox).not.toBeVisible();
+    const searchInput = page.getByPlaceholder(/Search \(e\.g\..*\)/).first();
+    await expect(searchInput).toHaveValue(/user:.*/);
+  } else if ((await userText.count()) > 0) {
+    await userText.click();
+    await expect(lightbox).not.toBeVisible();
+    const searchInput = page.getByPlaceholder(/Search \(e\.g\..*\)/).first();
+    await expect(searchInput).toHaveValue(/user:.*/);
+  } else {
+    test.skip(true, "No user metadata present on open lightbox item");
+  }
+});
