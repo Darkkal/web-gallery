@@ -252,11 +252,15 @@ export async function getMediaItems(filters?: {
     );
   }
 
-  // Return the items minus the internal sortVal to match the previous structure as closely as possible
+  // Return the items minus the internal sortVal to match the previous structure as closely as possible.
+  // Sort group items ascending by item ID so multi-image posts display the first media item as thumbnail.
   const items = Array.from(groupedMap.values()).map((g) => {
-    const { ...rest } = g;
+    g.groupItems.sort((a, b) => a.item.id - b.item.id);
+    const firstItemRow = g.groupItems[0] || g;
+    const { ...rest } = firstItemRow;
     return {
       ...rest,
+      groupCount: g.groupCount,
       groupItems: g.groupItems.map((gi) => {
         const { ...giRest } = gi;
         return giRest;
