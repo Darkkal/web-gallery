@@ -51,6 +51,57 @@ test("gallery grid and lightbox", async ({ page }) => {
   await expect(lightbox).not.toBeVisible();
 });
 
+test("lightbox navigation zones span full-height and handle navigation", async ({
+  page,
+}) => {
+  await page.goto("/gallery");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+
+  try {
+    await expect(page.locator('img[class*="media"]').first()).toBeVisible({
+      timeout: 5000,
+    });
+  } catch {
+    test.skip(true, "No gallery items to test lightbox navigation zones");
+    return;
+  }
+
+  // Open lightbox on first item
+  await page.locator('img[class*="media"]').first().click();
+  const lightbox = page.locator('div[class*="overlay"]');
+  await expect(lightbox).toBeVisible();
+
+  // Next navigation zone should be visible and attached
+  const nextZone = page.locator('button[class*="navZoneNext"]').first();
+  const prevZone = page.locator('button[class*="navZonePrev"]').first();
+
+  await expect(nextZone).toBeVisible();
+
+  // Verify bounding box height matches mainArea
+  const boundingBox = await nextZone.boundingBox();
+  const mainAreaBox = await page
+    .locator('div[class*="mainArea"]')
+    .first()
+    .boundingBox();
+
+  expect(boundingBox).not.toBeNull();
+  expect(mainAreaBox).not.toBeNull();
+
+  if (boundingBox && mainAreaBox) {
+    expect(boundingBox.height).toBeGreaterThanOrEqual(mainAreaBox.height - 2);
+  }
+
+  // Click next zone
+  if (await nextZone.isVisible()) {
+    await nextZone.click();
+    // After navigating to second item, prev zone should become visible
+    await expect(prevZone).toBeVisible();
+  }
+
+  await page.keyboard.press("Escape");
+  await expect(lightbox).not.toBeVisible();
+});
+
 test("gallery defaults to infinite scroll mode", async ({ page }) => {
   await page.goto("/gallery");
   await expect(page.getByTestId("loading-skeleton")).toBeHidden();
