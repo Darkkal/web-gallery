@@ -5,6 +5,7 @@ import {
   CheckCircle,
   Edit3,
   Globe,
+  Maximize2,
   Play,
   RotateCcw,
   Save,
@@ -154,6 +155,63 @@ export default function SettingsPageClient({
       setNotification({
         type: "error",
         message: "Statistics ranking limit must be between 1 and 100.",
+      });
+      setIsSaving(false);
+      return;
+    }
+
+    if (
+      settings.app.lightboxZoomMin < 10 ||
+      settings.app.lightboxZoomMin > 100
+    ) {
+      setNotification({
+        type: "error",
+        message: "Lightbox minimum zoom must be between 10% and 100%.",
+      });
+      setIsSaving(false);
+      return;
+    }
+
+    if (
+      settings.app.lightboxZoomMax < 100 ||
+      settings.app.lightboxZoomMax > 1000
+    ) {
+      setNotification({
+        type: "error",
+        message: "Lightbox maximum zoom must be between 100% and 1000%.",
+      });
+      setIsSaving(false);
+      return;
+    }
+
+    if (settings.app.lightboxZoomMin > settings.app.lightboxZoomMax) {
+      setNotification({
+        type: "error",
+        message: "Lightbox minimum zoom cannot be greater than maximum zoom.",
+      });
+      setIsSaving(false);
+      return;
+    }
+
+    if (
+      settings.app.lightboxZoomStep < 5 ||
+      settings.app.lightboxZoomStep > 100
+    ) {
+      setNotification({
+        type: "error",
+        message: "Lightbox zoom step must be between 5% and 100%.",
+      });
+      setIsSaving(false);
+      return;
+    }
+
+    if (
+      settings.app.lightboxAutoHideDelay < 1 ||
+      settings.app.lightboxAutoHideDelay > 30
+    ) {
+      setNotification({
+        type: "error",
+        message: "Lightbox auto-hide delay must be between 1 and 30 seconds.",
       });
       setIsSaving(false);
       return;
@@ -591,6 +649,180 @@ export default function SettingsPageClient({
                   />
                   <span className={styles.slider} />
                 </label>
+              </div>
+
+              <h2 className={styles.sectionTitle}>
+                <Maximize2 size={18} />
+                <span>Lightbox Settings</span>
+              </h2>
+
+              <div className={styles.grid} style={{ marginBottom: "1.5rem" }}>
+                <div className={styles.formGroup}>
+                  <label htmlFor="lightboxFitMode" className={styles.label}>
+                    Default Fit Mode
+                  </label>
+                  <select
+                    id="lightboxFitMode"
+                    value={settings.app.lightboxFitMode}
+                    onChange={(e) =>
+                      handleAppChange(
+                        "lightboxFitMode",
+                        e.target.value as "fitBoth" | "fitWidth" | "fitHeight",
+                      )
+                    }
+                    className={styles.select}
+                  >
+                    <option value="fitBoth">Fit Both (Default)</option>
+                    <option value="fitWidth">Fit Width</option>
+                    <option value="fitHeight">Fit Height</option>
+                  </select>
+                  <p className={styles.helperText}>
+                    Initial media sizing inside the lightbox container.
+                  </p>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label htmlFor="lightboxZoomMin" className={styles.label}>
+                    Minimum Zoom Level (%)
+                  </label>
+                  <input
+                    id="lightboxZoomMin"
+                    type="number"
+                    min="10"
+                    max="100"
+                    value={settings.app.lightboxZoomMin}
+                    onChange={(e) =>
+                      handleAppChange(
+                        "lightboxZoomMin",
+                        parseInt(e.target.value, 10) || 25,
+                      )
+                    }
+                    className={styles.input}
+                    required
+                  />
+                  <p className={styles.helperText}>
+                    Lower scale bound when zooming media in lightbox (10-100%).
+                  </p>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label htmlFor="lightboxZoomMax" className={styles.label}>
+                    Maximum Zoom Level (%)
+                  </label>
+                  <input
+                    id="lightboxZoomMax"
+                    type="number"
+                    min="100"
+                    max="1000"
+                    value={settings.app.lightboxZoomMax}
+                    onChange={(e) =>
+                      handleAppChange(
+                        "lightboxZoomMax",
+                        parseInt(e.target.value, 10) || 500,
+                      )
+                    }
+                    className={styles.input}
+                    required
+                  />
+                  <p className={styles.helperText}>
+                    Upper scale bound when zooming media in lightbox
+                    (100-1000%).
+                  </p>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label htmlFor="lightboxZoomStep" className={styles.label}>
+                    Zoom Step Increment (%)
+                  </label>
+                  <input
+                    id="lightboxZoomStep"
+                    type="number"
+                    min="5"
+                    max="100"
+                    value={settings.app.lightboxZoomStep}
+                    onChange={(e) =>
+                      handleAppChange(
+                        "lightboxZoomStep",
+                        parseInt(e.target.value, 10) || 25,
+                      )
+                    }
+                    className={styles.input}
+                    required
+                  />
+                  <p className={styles.helperText}>
+                    Percentage change per zoom click or scroll wheel step
+                    (5-100%).
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className={styles.toggleContainer}
+                style={{ marginBottom: "1.5rem" }}
+              >
+                <div className={styles.toggleInfo}>
+                  <span className={styles.toggleTitle}>
+                    Auto-Hide Lightbox Controls
+                  </span>
+                  <span className={styles.toggleDescription}>
+                    Automatically fade out lightbox navigation and action
+                    controls after a period of mouse inactivity.
+                  </span>
+                </div>
+                <label
+                  className={styles.switch}
+                  htmlFor="lightboxAutoHideControls"
+                >
+                  <input
+                    id="lightboxAutoHideControls"
+                    aria-label="Auto-Hide Lightbox Controls"
+                    type="checkbox"
+                    checked={settings.app.lightboxAutoHideControls}
+                    onChange={(e) =>
+                      handleAppChange(
+                        "lightboxAutoHideControls",
+                        e.target.checked,
+                      )
+                    }
+                  />
+                  <span className={styles.slider} />
+                </label>
+              </div>
+
+              <div
+                className={styles.formGroup}
+                style={{
+                  marginBottom: "2rem",
+                  opacity: settings.app.lightboxAutoHideControls ? 1 : 0.5,
+                  transition: "opacity 0.2s ease-in-out",
+                  pointerEvents: settings.app.lightboxAutoHideControls
+                    ? "auto"
+                    : "none",
+                }}
+              >
+                <label htmlFor="lightboxAutoHideDelay" className={styles.label}>
+                  Auto-Hide Inactivity Delay (seconds)
+                </label>
+                <input
+                  id="lightboxAutoHideDelay"
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={settings.app.lightboxAutoHideDelay}
+                  disabled={!settings.app.lightboxAutoHideControls}
+                  onChange={(e) =>
+                    handleAppChange(
+                      "lightboxAutoHideDelay",
+                      parseInt(e.target.value, 10) || 3,
+                    )
+                  }
+                  className={styles.input}
+                  required
+                />
+                <p className={styles.helperText}>
+                  Inactivity delay in seconds before controls automatically hide
+                  (1-30s).
+                </p>
               </div>
 
               <h2 className={styles.sectionTitle}>
