@@ -165,11 +165,11 @@ The database migrations are applied automatically at startup when the applicatio
 
 ---
 
-## Usage
+### Usage
 
-To start populating your timeline and gallery views with posts, you need to scrape some posts from a source.
+To start populating your time#ine and gallery views with posts, you need to scrape some posts from a source.
 
-### 1. Add a source
+#### 1. Add a source
 
 Go to the sources page and add a source. 
 
@@ -184,7 +184,7 @@ Example Sources:
 > [!NOTE]
 > If you want to access content like your favorites or sources that require authentication, you will have to go to the settings page and choose which browser to use cookies from. Individual cookies/auth token support may come in a future release
 
-### 2. Start a scrape task
+#### 2. Start a scrape task
 
 1. Go to the scrape page and create a scrape task. 
   - The download limits can let you test to see if it works before trying to scrape the entire history. 
