@@ -1,13 +1,14 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { RotateCcw } from "lucide-react";
+import { FileText, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import {
   getActiveScrapeStatuses,
   getScrapeHistory,
   resumeFromHistory,
 } from "@/app/scrape/actions";
+import LogViewerModal from "@/app/scrape/components/log-viewer-modal";
 import styles from "@/app/scrape/page.module.css";
 import { formatDuration } from "@/lib/utils/format";
 
@@ -77,6 +78,9 @@ export default function ScrapeHistoryTable({
 }) {
   const [historyItems, setHistoryItems] =
     useState<HistoryItem[]>(initialHistory);
+  const [selectedLogItem, setSelectedLogItem] = useState<HistoryItem | null>(
+    null,
+  );
 
   useEffect(() => {
     setHistoryItems(initialHistory);
@@ -191,7 +195,7 @@ export default function ScrapeHistoryTable({
               <th className={styles.thRight}>Skipped</th>
               <th className={styles.thRight}>Size</th>
               <th className={styles.thRight}>Errors</th>
-              <th>Actions</th>
+              <th style={{ textAlign: "right" }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -226,20 +230,31 @@ export default function ScrapeHistoryTable({
                   {item.errorCount}
                 </td>
                 <td>
-                  {(item.status === "failed" || item.status === "stopped") && (
+                  <div className={styles.actionGroup}>
+                    {(item.status === "failed" ||
+                      item.status === "stopped") && (
+                      <button
+                        type="button"
+                        onClick={() => handleResume(item.id)}
+                        className={styles.iconButton}
+                        title={
+                          item.cursor
+                            ? `Resume from cursor: ${item.cursor}`
+                            : "Try to resume from log file"
+                        }
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => handleResume(item.id)}
+                      onClick={() => setSelectedLogItem(item)}
                       className={styles.iconButton}
-                      title={
-                        item.cursor
-                          ? `Resume from cursor: ${item.cursor}`
-                          : "Try to resume from log file"
-                      }
+                      title="View Log"
                     >
-                      <RotateCcw size={14} />
+                      <FileText size={14} />
                     </button>
-                  )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -339,8 +354,8 @@ export default function ScrapeHistoryTable({
               </div>
             </div>
 
-            {(item.status === "failed" || item.status === "stopped") && (
-              <div className={styles.taskCardActions}>
+            <div className={styles.taskCardActions}>
+              {(item.status === "failed" || item.status === "stopped") && (
                 <button
                   type="button"
                   onClick={() => handleResume(item.id)}
@@ -353,8 +368,16 @@ export default function ScrapeHistoryTable({
                 >
                   <RotateCcw size={14} />
                 </button>
-              </div>
-            )}
+              )}
+              <button
+                type="button"
+                onClick={() => setSelectedLogItem(item)}
+                className={styles.iconButton}
+                title="View Log"
+              >
+                <FileText size={14} />
+              </button>
+            </div>
           </div>
         ))}
         {historyItems.length === 0 && (
@@ -363,6 +386,14 @@ export default function ScrapeHistoryTable({
           </div>
         )}
       </div>
+
+      {selectedLogItem && (
+        <LogViewerModal
+          historyId={selectedLogItem.id}
+          initialStatus={selectedLogItem.status}
+          onClose={() => setSelectedLogItem(null)}
+        />
+      )}
     </div>
   );
 }
