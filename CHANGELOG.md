@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.6.0](https://github.com/Darkkal/web-gallery/compare/v0.5.0...v0.6.0) (2026-07-15)
+
+
+### Features
+
+* **actions:** add tag category server actions ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **actions:** expose tag hierarchy server actions ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **actions:** implement tag management server actions ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **actions:** implement tag_relations server actions ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **api:** add tags pagination route handler ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **db:** add alias column to tags and statistics schema ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **db:** add parentTagId to schema and generate migration ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **db:** add tag category repository operations ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **db:** add tag repository functions for phase 2 ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **db:** add tag_categories table and tags.categoryId FK ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **db:** add tag_relations schema and migrations ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **db:** implement tag alias repository operations ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **db:** implement tag hierarchy repository operations ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **db:** implement tag_relations repository operations ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **db:** remove general category and make tag category optional ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **lightbox:** render category-colored tag chips in details sidebar ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **scanner:** auto-import e-hentai tag categories during scan ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **scanner:** auto-import gelbooru tag categories during scan ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **search:** implement bi-directional query-time alias expansion ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **search:** implement hierarchy expansion in search queries ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **settings:** add implicit hierarchy filtering setting ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **settings:** add tag category management panel to system settings ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **tags:** add category filter and colored badges to tags page ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **tags:** add loading boundary to tags manage route ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **tags:** enable infinite scroll in manage tags dashboard ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **tags:** implement tag management dashboard, bulk actions, and relocated category manager ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **types:** add TagCategory and TagWithCategory types ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **ui:** add alias management to tags dashboard ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **ui:** add canonical tag toggle to statistics page ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **ui:** add parent assignment to tag management dashboard ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **ui:** add related tags management to tags dashboard ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **ui:** add sorting and filtering options to tag tree view ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **ui:** display related tag suggestions in lightbox ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **ui:** implement lazy-loaded tree view on tag listing page ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **ui:** implement modal with autocomplete for category assignment ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **ui:** suggest ancestors during tagging workflow ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **ui:** update autocomplete to display tag alias indicators ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+* **ui:** update tags dashboard to prevent category changes on aliases ([21643b0](https://github.com/Darkkal/web-gallery/commit/21643b036cbeb24fd55e2596e485fc0c978af5df))
+
+
+### Bug Fixes
+
+* **media:** improve compatibility with complex gallery-dl filenames ([cd63071](https://github.com/Darkkal/web-gallery/commit/cd63071fdb4725a208204677ab9255dbd7f4f432))
+
 ## [0.5.0](https://github.com/Darkkal/web-gallery/compare/v0.4.0...v0.5.0) (2026-06-18)
 
 
