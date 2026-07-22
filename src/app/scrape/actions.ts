@@ -311,3 +311,67 @@ export async function getSources() {
     orderBy: desc(sources.createdAt),
   });
 }
+
+export interface ScrapeLogResult {
+  success: boolean;
+  historyId: number;
+  log?: string;
+  logPath?: string | null;
+  status?: "running" | "completed" | "stopped" | "failed";
+  error?: string;
+}
+
+export async function getScrapeLog(
+  historyId: number,
+): Promise<ScrapeLogResult> {
+  const history = await db.query.scrapeHistory.findFirst({
+    where: eq(scrapeHistory.id, historyId),
+  });
+
+  if (!history) {
+    return {
+      success: false,
+      historyId,
+      error: "History record not found",
+    };
+  }
+
+  if (!history.logPath) {
+    return {
+      success: false,
+      historyId,
+      status: history.status,
+      error: "No log path recorded for this run",
+    };
+  }
+
+  if (!fs.existsSync(history.logPath)) {
+    return {
+      success: false,
+      historyId,
+      logPath: history.logPath,
+      status: history.status,
+      error: "Log file not found or has been cleaned up",
+    };
+  }
+
+  try {
+    const log = fs.readFileSync(history.logPath, "utf-8");
+    return {
+      success: true,
+      historyId,
+      log,
+      logPath: history.logPath,
+      status: history.status,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      success: false,
+      historyId,
+      logPath: history.logPath,
+      status: history.status,
+      error: `Failed to read log file: ${message}`,
+    };
+  }
+}
