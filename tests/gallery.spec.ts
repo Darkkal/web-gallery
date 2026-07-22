@@ -132,18 +132,17 @@ test("lightbox show/hide controls toggles, H key shortcut, and two-step Escape",
   await expect(controls).toHaveAttribute("data-visible", "true");
   await expect(sidebar).not.toHaveClass(/sidebarHidden/);
 
-  // Click persistent toggle button -> controls & sidebar hide
+  // Click persistent toggle button -> controls hide, sidebar remains visible
   await toggleBtn.click();
   await expect(controls).toHaveAttribute("data-visible", "false");
-  await expect(sidebar).toHaveClass(/sidebarHidden/);
+  await expect(sidebar).not.toHaveClass(/sidebarHidden/);
 
   // Toggle button remains visible
   await expect(toggleBtn).toBeVisible();
 
-  // Press H key -> controls & sidebar reappear
+  // Press H key -> controls reappear
   await page.keyboard.press("h");
   await expect(controls).toHaveAttribute("data-visible", "true");
-  await expect(sidebar).not.toHaveClass(/sidebarHidden/);
 
   // Hide controls again with H key
   await page.keyboard.press("H");

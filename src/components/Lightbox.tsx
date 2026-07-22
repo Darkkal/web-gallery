@@ -507,10 +507,10 @@ export default function Lightbox({
                 // Don't toggle if clicking a link
                 if ((e.target as HTMLElement).tagName === "A") return;
                 e.stopPropagation();
-                setControlsVisible((prev) => !prev);
+                setShowInfo((prev) => !prev);
               }}
               onKeyDown={handleKeyActivate(() => {
-                setControlsVisible((prev) => !prev);
+                setShowInfo((prev) => !prev);
               })}
               role="button"
               tabIndex={0}
@@ -525,7 +525,7 @@ export default function Lightbox({
               onClick={(e) => {
                 e.stopPropagation();
                 if (isRecentlyMounted) return;
-                setControlsVisible((prev) => !prev);
+                setShowInfo((prev) => !prev);
               }}
               width={1200}
               height={800}
@@ -610,7 +610,7 @@ export default function Lightbox({
 
       {/* Sidebar */}
       <div
-        className={`${styles.sidebar} ${!showInfo || !controlsVisible ? styles.sidebarHidden : ""}`}
+        className={`${styles.sidebar} ${!showInfo ? styles.sidebarHidden : ""}`}
       >
         <button
           type="button"
