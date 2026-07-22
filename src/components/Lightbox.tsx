@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -371,13 +372,15 @@ export default function Lightbox({
         {onPrev && (
           <button
             type="button"
-            className={`${styles.navButton} ${styles.prevButton}`}
+            className={`${styles.navZone} ${styles.navZonePrev}`}
             onClick={(e) => {
               e.stopPropagation();
               onPrev();
             }}
+            aria-label="Previous item"
+            title="Previous"
           >
-            ‹
+            <ChevronLeft className={styles.navChevron} size={32} />
           </button>
         )}
 
@@ -432,16 +435,21 @@ export default function Lightbox({
         {onNext && (
           <button
             type="button"
-            className={`${styles.navButton} ${styles.nextButton} ${isPageLoading ? styles.loadingButton : ""}`}
+            className={`${styles.navZone} ${styles.navZoneNext} ${isPageLoading ? styles.loadingButton : ""}`}
             onClick={(e) => {
               e.stopPropagation();
               if (isPageLoading) return;
               onNext();
             }}
             disabled={isPageLoading}
+            aria-label="Next item"
             title={isPageLoading ? "Loading next page..." : "Next"}
           >
-            {isPageLoading ? <span className={styles.spinner} /> : "›"}
+            {isPageLoading ? (
+              <span className={styles.spinner} />
+            ) : (
+              <ChevronRight className={styles.navChevron} size={32} />
+            )}
           </button>
         )}
 

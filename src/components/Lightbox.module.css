@@ -296,38 +296,49 @@
   border: 1px solid hsl(var(--border));
 }
 
-.navButton {
+.navZone {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: hsl(var(--secondary));
-  color: hsl(var(--foreground));
-  border: none;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
+  top: 0;
+  bottom: 0;
+  height: 100%;
+  width: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
+  background: transparent;
+  border: none;
   z-index: 5;
-  font-size: 1.5rem;
-  opacity: 0.7;
+  transition: background 0.25s ease;
 }
 
-.navButton:hover {
-  background: hsl(var(--accent));
+.navZonePrev {
+  left: 0;
+}
+
+.navZoneNext {
+  right: 0;
+}
+
+.navZonePrev:hover {
+  background: linear-gradient(to right, hsl(0 0% 0% / 0.4), transparent);
+}
+
+.navZoneNext:hover {
+  background: linear-gradient(to left, hsl(0 0% 0% / 0.4), transparent);
+}
+
+.navChevron {
+  color: hsl(var(--foreground));
+  opacity: 0.3;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.navZone:hover .navChevron {
   opacity: 1;
-  transform: translateY(-50%) scale(1.1);
-}
-
-.prevButton {
-  left: 20px;
-}
-
-.nextButton {
-  right: 20px;
+  transform: scale(1.15);
 }
 
 /* Scrollbar styling for sidebar */
@@ -425,18 +436,8 @@
     text-align: center;
   }
 
-  .navButton {
-    width: 40px;
-    height: 40px;
-    font-size: 1.2rem;
-  }
-
-  .prevButton {
-    left: 10px;
-  }
-
-  .nextButton {
-    right: 10px;
+  .navZone {
+    width: 44px;
   }
 
   .controls {
