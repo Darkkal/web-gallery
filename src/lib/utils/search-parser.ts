@@ -94,28 +94,67 @@ export function parseSearchQuery(search: string = ""): ParsedSearchQuery {
   const validFtsColumns = new Set(Object.values(ftsColumnAliases));
 
   // Map friendly aliases to exact FTS5 column names
-  cleanQuery = cleanQuery.replace(/\b([a-zA-Z0-9_]+):/gi, (match, prefix) => {
-    const lowerPrefix = prefix.toLowerCase();
-    if (ftsColumnAliases[lowerPrefix]) {
-      return `${ftsColumnAliases[lowerPrefix]}:`;
-    }
-    return match;
-  });
+  cleanQuery = cleanQuery.replace(
+    /(^|\s)([a-zA-Z0-9_]+):/gi,
+    (match, space, prefix) => {
+      const lowerPrefix = prefix.toLowerCase();
+      if (ftsColumnAliases[lowerPrefix]) {
+        return `${space}${ftsColumnAliases[lowerPrefix]}:`;
+      }
+      return match;
+    },
+  );
 
   // FTS5 syntax safety: remove characters that could cause SQLite parse errors if unbalanced/misused
-  // Preserves letters, numbers, spaces, colons (for column filters), and underscores.
+  // Preserves letters, numbers, spaces, colons (for column filters), quotes, and underscores.
   cleanQuery = cleanQuery
-    .replace(/[^\p{L}\p{N}\s:_]/gu, " ")
+    .replace(/[^\p{L}\p{N}\s:_"]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 
-  // Prevent FTS5 "no such column" crashes: strip colons if they don't match a valid FTS5 column
-  cleanQuery = cleanQuery.replace(/([a-zA-Z0-9_]+):/g, (match, colName) => {
-    if (validFtsColumns.has(colName.toLowerCase())) {
-      return match;
+  if (!cleanQuery) {
+    return { cleanQuery: "", sourceFilter };
+  }
+
+  // Tokenize query into tokens (either double-quoted strings or unquoted words)
+  const tokenRegex = /"(.*?)"|(\S+)/g;
+  const processedTokens: string[] = [];
+
+  let match: RegExpExecArray | null;
+  // biome-ignore lint/suspicious/noAssignInExpressions: standard regex loop over token pattern
+  while ((match = tokenRegex.exec(cleanQuery)) !== null) {
+    const doubleQuoted = match[1];
+    const unquoted = match[2];
+
+    if (doubleQuoted !== undefined) {
+      processedTokens.push(`"${doubleQuoted}"`);
+    } else if (unquoted !== undefined) {
+      const colonIdx = unquoted.indexOf(":");
+      if (colonIdx !== -1) {
+        const potentialCol = unquoted.slice(0, colonIdx).toLowerCase();
+        const value = unquoted.slice(colonIdx + 1);
+
+        if (validFtsColumns.has(potentialCol)) {
+          // Valid column filter (e.g., tag_names:勝利の女神:NIKKE or user_name:john)
+          if (value.includes(":") || value.includes('"')) {
+            const safeVal = value.replace(/"/g, "");
+            processedTokens.push(`${potentialCol}:"${safeVal}"`);
+          } else {
+            processedTokens.push(unquoted);
+          }
+        } else {
+          // Invalid column specifier (e.g., 勝利の女神:NIKKE or invalid_col:hello)
+          // Quote the term so FTS5 treats it as a literal text search term
+          const safeTerm = unquoted.replace(/"/g, "");
+          processedTokens.push(`"${safeTerm}"`);
+        }
+      } else {
+        processedTokens.push(unquoted);
+      }
     }
-    return `${colName} `; // Convert to standard text search by removing the colon
-  });
+  }
+
+  cleanQuery = processedTokens.join(" ");
 
   return { cleanQuery, sourceFilter };
 }

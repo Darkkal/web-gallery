@@ -468,23 +468,28 @@ async function getEquivalentTags(tagName: string): Promise<string[]> {
 }
 
 export async function expandSearchTags(query: string): Promise<string> {
-  const tagRegex = /\btag_names:([a-zA-Z0-9_]+)/gi;
+  // Match tag_names:"quoted_value" or tag_names:unquoted_value
+  const tagRegex = /tag_names:(?:"([^"]+)"|([^\s()]+))/gi;
   const matches = [...query.matchAll(tagRegex)];
   if (matches.length === 0) {
     return query;
   }
 
-  const uniqueTags = Array.from(new Set(matches.map((m) => m[1])));
+  const uniqueTags = Array.from(
+    new Set(matches.map((m) => m[1] || m[2]).filter(Boolean)),
+  );
 
   const replacements: Record<string, string> = {};
   await Promise.all(
     uniqueTags.map(async (tagName) => {
       const equivalents = await getEquivalentTags(tagName);
       if (equivalents.length > 1) {
-        replacements[tagName] =
-          `(${equivalents.map((t) => `tag_names:${t}`).join(" OR ")})`;
+        replacements[tagName] = `(${equivalents
+          .map((t) => `tag_names:"${t.replace(/"/g, "")}"`)
+          .join(" OR ")})`;
       } else {
-        replacements[tagName] = `tag_names:${equivalents[0]}`;
+        replacements[tagName] =
+          `tag_names:"${equivalents[0].replace(/"/g, "")}"`;
       }
     }),
   );
@@ -492,7 +497,10 @@ export async function expandSearchTags(query: string): Promise<string> {
   let expandedQuery = query;
   for (const tagName of uniqueTags) {
     const escapedTag = tagName.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
-    const regex = new RegExp(`\\btag_names:${escapedTag}\\b`, "gi");
+    const regex = new RegExp(
+      `tag_names:(?:"${escapedTag}"|${escapedTag})(?=\\s|\\)|$)`,
+      "gi",
+    );
     if (replacements[tagName]) {
       expandedQuery = expandedQuery.replace(regex, replacements[tagName]);
     }

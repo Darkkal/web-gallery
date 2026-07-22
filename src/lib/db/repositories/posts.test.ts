@@ -177,6 +177,32 @@ describe("Posts Repository", () => {
       const resAuto = await getTimelinePosts({ search: "tag:automobile" });
       expect(resAuto.posts.length).toBe(2);
     });
+
+    it("should search tags containing colons without throwing FTS5 syntax error", async () => {
+      const source = await seedSource(testDb);
+      const postNikke = await seedPost(testDb, source.id, {
+        title: "Nikke artwork",
+        content: "Featured character from NIKKE",
+        date: "2026-01-01",
+      });
+
+      const tagNikke = await seedTag(testDb, "勝利の女神:NIKKE");
+      await testDb
+        .insert(postTags)
+        .values({ postId: postNikke.id, tagId: tagNikke.id });
+
+      const resNikkeTag = await getTimelinePosts({
+        search: "tag:勝利の女神:NIKKE",
+      });
+      expect(resNikkeTag.posts.length).toBe(1);
+      expect(resNikkeTag.posts[0].internalDbId).toBe(postNikke.id);
+
+      const resNikkeRaw = await getTimelinePosts({
+        search: "勝利の女神:NIKKE",
+      });
+      expect(resNikkeRaw.posts.length).toBe(1);
+      expect(resNikkeRaw.posts[0].internalDbId).toBe(postNikke.id);
+    });
   });
 
   describe("getPostTags", () => {
