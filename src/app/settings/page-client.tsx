@@ -160,6 +160,15 @@ export default function SettingsPageClient({
       return;
     }
 
+    if (settings.app.lightboxZoomMin > settings.app.lightboxZoomMax) {
+      setNotification({
+        type: "error",
+        message: "Lightbox minimum zoom cannot be greater than maximum zoom.",
+      });
+      setIsSaving(false);
+      return;
+    }
+
     if (
       settings.app.lightboxZoomMin < 10 ||
       settings.app.lightboxZoomMin > 100
@@ -179,15 +188,6 @@ export default function SettingsPageClient({
       setNotification({
         type: "error",
         message: "Lightbox maximum zoom must be between 100% and 1000%.",
-      });
-      setIsSaving(false);
-      return;
-    }
-
-    if (settings.app.lightboxZoomMin > settings.app.lightboxZoomMax) {
-      setNotification({
-        type: "error",
-        message: "Lightbox minimum zoom cannot be greater than maximum zoom.",
       });
       setIsSaving(false);
       return;
