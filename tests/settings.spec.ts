@@ -319,4 +319,124 @@ test.describe
       await expect(page.locator("#galleryPageSize").first()).toHaveValue("50");
       await expect(page.locator("#loopVideos").first()).toBeChecked();
     });
+
+    test("renders Lightbox settings section and handles auto-hide toggle state", async ({
+      page,
+    }) => {
+      // Lightbox heading should be visible under App Settings
+      await expect(
+        page.getByRole("heading", { name: "Lightbox Settings" }).first(),
+      ).toBeVisible();
+
+      // Check all controls exist with defaults
+      const fitModeSelect = page.locator("#lightboxFitMode").first();
+      const zoomMinInput = page.locator("#lightboxZoomMin").first();
+      const zoomMaxInput = page.locator("#lightboxZoomMax").first();
+      const zoomStepInput = page.locator("#lightboxZoomStep").first();
+      const autoHideToggle = page.locator("#lightboxAutoHideControls").first();
+      const autoHideDelayInput = page.locator("#lightboxAutoHideDelay").first();
+
+      await expect(fitModeSelect).toBeVisible();
+      await expect(fitModeSelect).toHaveValue("fitBoth");
+
+      await expect(zoomMinInput).toBeVisible();
+      await expect(zoomMinInput).toHaveValue("25");
+
+      await expect(zoomMaxInput).toBeVisible();
+      await expect(zoomMaxInput).toHaveValue("500");
+
+      await expect(zoomStepInput).toBeVisible();
+      await expect(zoomStepInput).toHaveValue("25");
+
+      await expect(autoHideToggle).toBeAttached();
+      expect(await autoHideToggle.isChecked()).toBe(false);
+
+      // Auto-hide delay input should be disabled when auto-hide is off
+      await expect(autoHideDelayInput).toBeDisabled();
+
+      // Toggle auto-hide on via switch label
+      const toggleLabel = page
+        .locator("label[for='lightboxAutoHideControls']")
+        .first();
+      await toggleLabel.click();
+
+      expect(await autoHideToggle.isChecked()).toBe(true);
+      await expect(autoHideDelayInput).toBeEnabled();
+    });
+
+    test("validates Lightbox zoom bounds and range rules", async ({ page }) => {
+      const zoomMinInput = page.locator("#lightboxZoomMin").first();
+      const zoomMaxInput = page.locator("#lightboxZoomMax").first();
+      const saveButton = page
+        .getByRole("button", { name: "Save Changes" })
+        .first();
+
+      // Min zoom out of range (< 10)
+      await zoomMinInput.fill("5");
+      await saveButton.click();
+      const alert = page.locator("[class*='notification']").first();
+      await expect(alert).toBeVisible({ timeout: 15000 });
+      await expect(alert).toContainText(
+        "Lightbox minimum zoom must be between 10% and 100%.",
+      );
+
+      // Reset min zoom, test min > max validation
+      await zoomMinInput.fill("800");
+      await saveButton.click();
+      await expect(alert).toBeVisible({ timeout: 15000 });
+      await expect(alert).toContainText(
+        "Lightbox minimum zoom cannot be greater than maximum zoom.",
+      );
+    });
+
+    test("can modify, save, and persist Lightbox settings", async ({
+      page,
+    }) => {
+      const fitModeSelect = page.locator("#lightboxFitMode").first();
+      const zoomMinInput = page.locator("#lightboxZoomMin").first();
+      const zoomMaxInput = page.locator("#lightboxZoomMax").first();
+      const zoomStepInput = page.locator("#lightboxZoomStep").first();
+      const autoHideToggleLabel = page
+        .locator("label[for='lightboxAutoHideControls']")
+        .first();
+      const autoHideDelayInput = page.locator("#lightboxAutoHideDelay").first();
+      const saveButton = page
+        .getByRole("button", { name: "Save Changes" })
+        .first();
+
+      await fitModeSelect.selectOption("fitWidth");
+      await zoomMinInput.fill("30");
+      await zoomMaxInput.fill("600");
+      await zoomStepInput.fill("50");
+      await autoHideToggleLabel.click();
+      await autoHideDelayInput.fill("5");
+
+      await saveButton.click();
+
+      const alert = page.locator("[class*='notification']").first();
+      await expect(alert).toBeVisible({ timeout: 15000 });
+      await expect(alert).toContainText(
+        "Settings saved and updated successfully!",
+      );
+
+      // Reload page and verify settings are preserved
+      await page.reload();
+      await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+      await expect(
+        page.locator("[data-hydrated='true']").first(),
+      ).toBeVisible();
+
+      await expect(page.locator("#lightboxFitMode").first()).toHaveValue(
+        "fitWidth",
+      );
+      await expect(page.locator("#lightboxZoomMin").first()).toHaveValue("30");
+      await expect(page.locator("#lightboxZoomMax").first()).toHaveValue("600");
+      await expect(page.locator("#lightboxZoomStep").first()).toHaveValue("50");
+      expect(
+        await page.locator("#lightboxAutoHideControls").first().isChecked(),
+      ).toBe(true);
+      await expect(page.locator("#lightboxAutoHideDelay").first()).toHaveValue(
+        "5",
+      );
+    });
   });
