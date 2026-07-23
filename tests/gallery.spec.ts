@@ -219,6 +219,63 @@ test("lightbox fit mode cycling and zoom controls", async ({ page }) => {
   await expect(lightbox).not.toBeVisible();
 });
 
+test("lightbox touch pinch-to-zoom gesture", async ({ page }) => {
+  await page.goto("/gallery");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+
+  try {
+    await expect(page.locator('img[class*="media"]').first()).toBeVisible({
+      timeout: 5000,
+    });
+  } catch {
+    test.skip(true, "No gallery items to test lightbox pinch-to-zoom");
+    return;
+  }
+
+  // Open lightbox
+  await page.locator('img[class*="media"]').first().click();
+  const lightbox = page.locator('div[class*="overlay"]');
+  await expect(lightbox).toBeVisible();
+
+  const img = page.locator('img[class*="image"]').first();
+  await expect(img).toBeVisible();
+  const zoomResetBtn = page.locator('button[aria-label="Reset Zoom"]').first();
+
+  // Dispatch multi-touch pinch outward gesture on image
+  const box = await img.boundingBox();
+  if (box) {
+    const centerX = box.x + box.width / 2;
+    const centerY = box.y + box.height / 2;
+
+    await img.dispatchEvent("touchstart", {
+      touches: [
+        { clientX: centerX - 10, clientY: centerY - 10 },
+        { clientX: centerX + 10, clientY: centerY + 10 },
+      ],
+    });
+
+    await img.dispatchEvent("touchmove", {
+      touches: [
+        { clientX: centerX - 50, clientY: centerY - 50 },
+        { clientX: centerX + 50, clientY: centerY + 50 },
+      ],
+    });
+
+    await expect(zoomResetBtn).not.toHaveText("100%");
+
+    await img.dispatchEvent("touchend", {
+      touches: [],
+      changedTouches: [
+        { clientX: centerX - 50, clientY: centerY - 50 },
+        { clientX: centerX + 50, clientY: centerY + 50 },
+      ],
+    });
+  }
+
+  await page.keyboard.press("Escape");
+  await expect(lightbox).not.toBeVisible();
+});
+
 test("gallery defaults to infinite scroll mode", async ({ page }) => {
   await page.goto("/gallery");
   await expect(page.getByTestId("loading-skeleton")).toBeHidden();
