@@ -118,8 +118,80 @@ export default function Lightbox({
   const stepZoomVal = zoomStep / 100;
 
   const isPannable = zoom > 1.0 || currentFitMode !== "fitBoth";
+  const mediaWrapperRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
   const touchDragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragDistanceRef = useRef(0);
+
+  const clampPanOffset = useCallback(
+    (rawX: number, rawY: number) => {
+      if (zoom <= 1.0 && currentFitMode === "fitBoth") {
+        return { x: 0, y: 0 };
+      }
+
+      const wrapper = mediaWrapperRef.current;
+      const img = imageRef.current;
+
+      if (zoom > 1.0) {
+        // Zoom mode: pan allowed in both axes, bounded so an edge can only pan to half the screen (center).
+        const wrapperWidth = wrapper ? wrapper.clientWidth : window.innerWidth;
+        const wrapperHeight = wrapper
+          ? wrapper.clientHeight
+          : window.innerHeight;
+        const imgWidth = img ? img.offsetWidth * zoom : wrapperWidth * zoom;
+        const imgHeight = img ? img.offsetHeight * zoom : wrapperHeight * zoom;
+
+        const maxPanX = Math.max(0, imgWidth / 2);
+        const maxPanY = Math.max(0, imgHeight / 2);
+
+        return {
+          x: Math.max(-maxPanX, Math.min(maxPanX, rawX)),
+          y: Math.max(-maxPanY, Math.min(maxPanY, rawY)),
+        };
+      }
+
+      if (currentFitMode === "fitWidth") {
+        // Fit width mode: ONLY pan up/down (X locked to 0).
+        // Bounds: keep fitted top/bottom edges on screen.
+        if (!wrapper || !img) return { x: 0, y: 0 };
+
+        const containerHeight = wrapper.clientHeight;
+        const renderedHeight = img.offsetHeight;
+
+        if (renderedHeight <= containerHeight) {
+          return { x: 0, y: 0 };
+        }
+
+        const maxPanY = (renderedHeight - containerHeight) / 2;
+        return {
+          x: 0,
+          y: Math.max(-maxPanY, Math.min(maxPanY, rawY)),
+        };
+      }
+
+      if (currentFitMode === "fitHeight") {
+        // Fit height mode: ONLY pan left/right (Y locked to 0).
+        // Bounds: keep fitted left/right edges on screen.
+        if (!wrapper || !img) return { x: 0, y: 0 };
+
+        const containerWidth = wrapper.clientWidth;
+        const renderedWidth = img.offsetWidth;
+
+        if (renderedWidth <= containerWidth) {
+          return { x: 0, y: 0 };
+        }
+
+        const maxPanX = (renderedWidth - containerWidth) / 2;
+        return {
+          x: Math.max(-maxPanX, Math.min(maxPanX, rawX)),
+          y: 0,
+        };
+      }
+
+      return { x: 0, y: 0 };
+    },
+    [zoom, currentFitMode],
+  );
 
   const cycleFitMode = () => {
     setPanOffset({ x: 0, y: 0 });
@@ -152,11 +224,11 @@ export default function Lightbox({
     const delta = e.deltaY < 0 ? stepZoomVal : -stepZoomVal;
     setZoom((prev) => {
       const next = parseFloat((prev + delta).toFixed(2));
-      const clamped = Math.min(maxZoomVal, Math.max(minZoomVal, next));
-      if (clamped <= 1.0) {
+      const clampedZoom = Math.min(maxZoomVal, Math.max(minZoomVal, next));
+      if (clampedZoom <= 1.0 && currentFitMode === "fitBoth") {
         setPanOffset({ x: 0, y: 0 });
       }
-      return clamped;
+      return clampedZoom;
     });
   };
 
@@ -175,10 +247,9 @@ export default function Lightbox({
     if (!isDragging || !dragStartRef.current || !isPannable) return;
     e.preventDefault();
     dragDistanceRef.current += 1;
-    setPanOffset({
-      x: e.clientX - dragStartRef.current.x,
-      y: e.clientY - dragStartRef.current.y,
-    });
+    const rawX = e.clientX - dragStartRef.current.x;
+    const rawY = e.clientY - dragStartRef.current.y;
+    setPanOffset(clampPanOffset(rawX, rawY));
   };
 
   const handleMouseUp = () => {
@@ -201,10 +272,9 @@ export default function Lightbox({
     const touch = e.touches[0];
     dragDistanceRef.current += 1;
     setIsDragging(true);
-    setPanOffset({
-      x: touch.clientX - touchDragStartRef.current.x,
-      y: touch.clientY - touchDragStartRef.current.y,
-    });
+    const rawX = touch.clientX - touchDragStartRef.current.x;
+    const rawY = touch.clientY - touchDragStartRef.current.y;
+    setPanOffset(clampPanOffset(rawX, rawY));
   };
 
   const handleTouchEndImage = () => {
@@ -619,7 +689,11 @@ export default function Lightbox({
           </button>
         )}
 
-        <div className={styles.mediaWrapper} onWheel={handleWheel}>
+        <div
+          ref={mediaWrapperRef}
+          className={styles.mediaWrapper}
+          onWheel={handleWheel}
+        >
           {item.mediaType === "video" ? (
             // biome-ignore lint/a11y/useMediaCaption: User generated content does not have captions
             <video
@@ -650,6 +724,7 @@ export default function Lightbox({
             </div>
           ) : (
             <Image
+              ref={imageRef}
               src={encodeFilePath(item.filePath)}
               alt={row.post?.title || "Gallery Image"}
               className={`${styles.image} ${

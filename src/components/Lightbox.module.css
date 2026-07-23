@@ -28,6 +28,9 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .mediaWrapper {
@@ -315,6 +318,9 @@
   display: flex;
   gap: 10px;
   z-index: 10;
+  max-width: calc(100% - 80px);
+  flex-wrap: wrap;
+  justify-content: flex-end;
   transition:
     opacity 0.3s ease,
     transform 0.3s ease;
