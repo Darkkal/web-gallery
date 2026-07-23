@@ -117,7 +117,12 @@ export default function Lightbox({
   const maxZoomVal = zoomMax / 100;
   const stepZoomVal = zoomStep / 100;
 
+  const isPannable = zoom > 1.0 || currentFitMode !== "fitBoth";
+  const touchDragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragDistanceRef = useRef(0);
+
   const cycleFitMode = () => {
+    setPanOffset({ x: 0, y: 0 });
     setCurrentFitMode((prev) => {
       if (prev === "fitBoth") return "fitWidth";
       if (prev === "fitWidth") return "fitHeight";
@@ -156,8 +161,9 @@ export default function Lightbox({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (zoom <= 1.0) return;
+    if (!isPannable) return;
     e.preventDefault();
+    dragDistanceRef.current = 0;
     setIsDragging(true);
     dragStartRef.current = {
       x: e.clientX - panOffset.x,
@@ -166,8 +172,9 @@ export default function Lightbox({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !dragStartRef.current || zoom <= 1.0) return;
+    if (!isDragging || !dragStartRef.current || !isPannable) return;
     e.preventDefault();
+    dragDistanceRef.current += 1;
     setPanOffset({
       x: e.clientX - dragStartRef.current.x,
       y: e.clientY - dragStartRef.current.y,
@@ -177,6 +184,32 @@ export default function Lightbox({
   const handleMouseUp = () => {
     setIsDragging(false);
     dragStartRef.current = null;
+  };
+
+  const handleTouchStartImage = (e: React.TouchEvent) => {
+    if (!isPannable) return;
+    const touch = e.touches[0];
+    dragDistanceRef.current = 0;
+    touchDragStartRef.current = {
+      x: touch.clientX - panOffset.x,
+      y: touch.clientY - panOffset.y,
+    };
+  };
+
+  const handleTouchMoveImage = (e: React.TouchEvent) => {
+    if (!touchDragStartRef.current || !isPannable) return;
+    const touch = e.touches[0];
+    dragDistanceRef.current += 1;
+    setIsDragging(true);
+    setPanOffset({
+      x: touch.clientX - touchDragStartRef.current.x,
+      y: touch.clientY - touchDragStartRef.current.y,
+    });
+  };
+
+  const handleTouchEndImage = () => {
+    touchDragStartRef.current = null;
+    setIsDragging(false);
   };
 
   const resetInactivityTimer = useCallback(() => {
@@ -625,7 +658,7 @@ export default function Lightbox({
                   : currentFitMode === "fitHeight"
                     ? styles.fitHeight
                     : styles.fitBoth
-              } ${zoom > 1.0 ? (isDragging ? styles.grabbing : styles.grab) : ""}`}
+              } ${isPannable ? (isDragging ? styles.grabbing : styles.grab) : ""}`}
               style={{
                 transform: `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`,
                 transition: isDragging ? "none" : "transform 0.15s ease-out",
@@ -634,9 +667,16 @@ export default function Lightbox({
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStartImage}
+              onTouchMove={handleTouchMoveImage}
+              onTouchEnd={handleTouchEndImage}
               onClick={(e) => {
                 e.stopPropagation();
                 if (isRecentlyMounted) return;
+                if (dragDistanceRef.current > 3) {
+                  dragDistanceRef.current = 0;
+                  return;
+                }
                 setShowInfo((prev) => !prev);
               }}
               width={1200}
