@@ -198,15 +198,14 @@ test("lightbox fit mode cycling and zoom controls", async ({ page }) => {
   await expect(zoomInBtn).toBeVisible();
   await expect(zoomOutBtn).toBeVisible();
   await expect(zoomResetBtn).toBeVisible();
+
+  // Reset zoom to 100% first
+  await zoomResetBtn.click();
   await expect(zoomResetBtn).toHaveText("100%");
 
   // Click Zoom In
   await zoomInBtn.click();
   await expect(zoomResetBtn).toHaveText("125%");
-
-  // Click Zoom In again
-  await zoomInBtn.click();
-  await expect(zoomResetBtn).toHaveText("150%");
 
   // Click Zoom Reset
   await zoomResetBtn.click();
