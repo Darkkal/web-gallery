@@ -232,6 +232,12 @@ export default function Lightbox({
     });
   };
 
+  const isPinchingRef = useRef(false);
+  const initialPinchDistRef = useRef<number | null>(null);
+  const initialPinchZoomRef = useRef<number>(1.0);
+  const initialPinchPanRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const initialPinchCenterRef = useRef<{ x: number; y: number } | null>(null);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!isPannable) return;
     e.preventDefault();
@@ -258,28 +264,118 @@ export default function Lightbox({
   };
 
   const handleTouchStartImage = (e: React.TouchEvent) => {
-    if (!isPannable) return;
-    const touch = e.touches[0];
-    dragDistanceRef.current = 0;
-    touchDragStartRef.current = {
-      x: touch.clientX - panOffset.x,
-      y: touch.clientY - panOffset.y,
-    };
+    if (item.mediaType === "video" || item.mediaType === "text") return;
+
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      e.stopPropagation();
+      isPinchingRef.current = true;
+      setIsDragging(true);
+
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      initialPinchDistRef.current = dist;
+      initialPinchZoomRef.current = zoom;
+      initialPinchPanRef.current = { ...panOffset };
+      initialPinchCenterRef.current = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2,
+      };
+      return;
+    }
+
+    if (e.touches.length === 1 && isPannable) {
+      const touch = e.touches[0];
+      dragDistanceRef.current = 0;
+      touchDragStartRef.current = {
+        x: touch.clientX - panOffset.x,
+        y: touch.clientY - panOffset.y,
+      };
+    }
   };
 
   const handleTouchMoveImage = (e: React.TouchEvent) => {
-    if (!touchDragStartRef.current || !isPannable) return;
-    const touch = e.touches[0];
-    dragDistanceRef.current += 1;
-    setIsDragging(true);
-    const rawX = touch.clientX - touchDragStartRef.current.x;
-    const rawY = touch.clientY - touchDragStartRef.current.y;
-    setPanOffset(clampPanOffset(rawX, rawY));
+    if (item.mediaType === "video" || item.mediaType === "text") return;
+
+    if (
+      e.touches.length === 2 &&
+      isPinchingRef.current &&
+      initialPinchDistRef.current &&
+      initialPinchCenterRef.current
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      dragDistanceRef.current += 1;
+
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const newDist = Math.hypot(
+        t1.clientX - t2.clientX,
+        t1.clientY - t2.clientY,
+      );
+
+      const scaleRatio = newDist / initialPinchDistRef.current;
+      const targetZoom = parseFloat(
+        (initialPinchZoomRef.current * scaleRatio).toFixed(2),
+      );
+      const clampedZoom = Math.min(
+        maxZoomVal,
+        Math.max(minZoomVal, targetZoom),
+      );
+
+      const currentCenter = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2,
+      };
+      const centerShiftX = currentCenter.x - initialPinchCenterRef.current.x;
+      const centerShiftY = currentCenter.y - initialPinchCenterRef.current.y;
+
+      const rawX = initialPinchPanRef.current.x + centerShiftX;
+      const rawY = initialPinchPanRef.current.y + centerShiftY;
+
+      setZoom(clampedZoom);
+      setPanOffset(clampPanOffset(rawX, rawY));
+      return;
+    }
+
+    if (
+      e.touches.length === 1 &&
+      touchDragStartRef.current &&
+      isPannable &&
+      !isPinchingRef.current
+    ) {
+      const touch = e.touches[0];
+      dragDistanceRef.current += 1;
+      setIsDragging(true);
+      const rawX = touch.clientX - touchDragStartRef.current.x;
+      const rawY = touch.clientY - touchDragStartRef.current.y;
+      setPanOffset(clampPanOffset(rawX, rawY));
+    }
   };
 
-  const handleTouchEndImage = () => {
-    touchDragStartRef.current = null;
-    setIsDragging(false);
+  const handleTouchEndImage = (e: React.TouchEvent) => {
+    if (isPinchingRef.current) {
+      e.stopPropagation();
+      if (e.touches.length < 2) {
+        isPinchingRef.current = false;
+        initialPinchDistRef.current = null;
+        initialPinchCenterRef.current = null;
+        setIsDragging(false);
+
+        if (zoom <= 1.0 && currentFitMode === "fitBoth") {
+          setZoom(1.0);
+          setPanOffset({ x: 0, y: 0 });
+        }
+      }
+      return;
+    }
+
+    if (touchDragStartRef.current) {
+      touchDragStartRef.current = null;
+      setIsDragging(false);
+    }
   };
 
   const resetInactivityTimer = useCallback(() => {
@@ -499,6 +595,11 @@ export default function Lightbox({
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (isPinchingRef.current || isPannable) {
+      touchStartX.current = null;
+      touchStartY.current = null;
+      return;
+    }
     if (touchStartX.current === null || touchStartY.current === null) return;
     const touch = e.changedTouches[0];
     const diffX = touch.clientX - touchStartX.current;
