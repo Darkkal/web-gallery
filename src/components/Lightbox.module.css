@@ -13,6 +13,7 @@
   animation: fadeIn 0.3s forwards;
   color: hsl(var(--foreground));
   font-family: system-ui, -apple-system, sans-serif;
+  touch-action: none;
 }
 
 @keyframes fadeIn {
@@ -42,6 +43,7 @@
   justify-content: center;
   pointer-events: none;
   overflow: hidden;
+  touch-action: none;
 }
 
 .image {
@@ -53,6 +55,7 @@
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
   transform-origin: center center;
+  touch-action: none;
 }
 
 .fitBoth {

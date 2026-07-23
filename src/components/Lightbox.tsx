@@ -617,6 +617,27 @@ export default function Lightbox({
     touchStartY.current = null;
   };
 
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  // Prevent browser-level viewport zoom / pinch-zoom gestures while lightbox is active
+  useEffect(() => {
+    const container = overlayRef.current;
+    if (!container) return;
+
+    const preventBrowserZoom = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    };
+
+    container.addEventListener("touchmove", preventBrowserZoom, {
+      passive: false,
+    });
+    return () => {
+      container.removeEventListener("touchmove", preventBrowserZoom);
+    };
+  }, []);
+
   // Lock body scroll on mount, restore on unmount
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
@@ -737,6 +758,7 @@ export default function Lightbox({
 
   return (
     <div
+      ref={overlayRef}
       className={styles.overlay}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
