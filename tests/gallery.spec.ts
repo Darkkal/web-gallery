@@ -157,6 +157,69 @@ test("lightbox show/hide controls toggles, H key shortcut, and two-step Escape",
   await expect(lightbox).not.toBeVisible();
 });
 
+test("lightbox fit mode cycling and zoom controls", async ({ page }) => {
+  await page.goto("/gallery");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+
+  try {
+    await expect(page.locator('img[class*="media"]').first()).toBeVisible({
+      timeout: 5000,
+    });
+  } catch {
+    test.skip(true, "No gallery items to test lightbox fit mode and zoom");
+    return;
+  }
+
+  // Open lightbox
+  await page.locator('img[class*="media"]').first().click();
+  const lightbox = page.locator('div[class*="overlay"]');
+  await expect(lightbox).toBeVisible();
+
+  // Check Fit Mode cycle button
+  const fitBtn = page.locator('button[aria-label="Cycle fit mode"]').first();
+  await expect(fitBtn).toBeVisible();
+  await expect(fitBtn).toHaveAttribute("title", /Fit mode:.*/);
+
+  // Click to cycle fit modes
+  const initialTitle = await fitBtn.getAttribute("title");
+  await fitBtn.click();
+  const nextTitle = await fitBtn.getAttribute("title");
+  expect(nextTitle).not.toBe(initialTitle);
+
+  await fitBtn.click();
+  const thirdTitle = await fitBtn.getAttribute("title");
+  expect(thirdTitle).not.toBe(nextTitle);
+
+  // Zoom controls
+  const zoomInBtn = page.locator('button[aria-label="Zoom In"]').first();
+  const zoomOutBtn = page.locator('button[aria-label="Zoom Out"]').first();
+  const zoomResetBtn = page.locator('button[aria-label="Reset Zoom"]').first();
+
+  await expect(zoomInBtn).toBeVisible();
+  await expect(zoomOutBtn).toBeVisible();
+  await expect(zoomResetBtn).toBeVisible();
+  await expect(zoomResetBtn).toHaveText("100%");
+
+  // Click Zoom In
+  await zoomInBtn.click();
+  await expect(zoomResetBtn).toHaveText("125%");
+
+  // Click Zoom In again
+  await zoomInBtn.click();
+  await expect(zoomResetBtn).toHaveText("150%");
+
+  // Click Zoom Reset
+  await zoomResetBtn.click();
+  await expect(zoomResetBtn).toHaveText("100%");
+
+  // Click Zoom Out
+  await zoomOutBtn.click();
+  await expect(zoomResetBtn).toHaveText("75%");
+
+  await page.keyboard.press("Escape");
+  await expect(lightbox).not.toBeVisible();
+});
+
 test("gallery defaults to infinite scroll mode", async ({ page }) => {
   await page.goto("/gallery");
   await expect(page.getByTestId("loading-skeleton")).toBeHidden();
