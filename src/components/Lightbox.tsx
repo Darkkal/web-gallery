@@ -1,5 +1,16 @@
 "use client";
 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Maximize2,
+  MoveHorizontal,
+  MoveVertical,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -40,6 +51,12 @@ interface LightboxProps {
   onRefetch?: (postId: number) => Promise<void>;
   loopVideos?: boolean;
   isPageLoading?: boolean;
+  autoHideControls?: boolean;
+  autoHideDelay?: number;
+  fitMode?: "fitBoth" | "fitWidth" | "fitHeight";
+  zoomMin?: number;
+  zoomMax?: number;
+  zoomStep?: number;
   onTagClick?: (tagName: string) => void;
   onUserClick?: (userName: string) => void;
 }
@@ -59,11 +76,27 @@ export default function Lightbox({
   onRefetch,
   loopVideos,
   isPageLoading = false,
+  autoHideControls = false,
+  autoHideDelay = 3,
+  fitMode = "fitBoth",
+  zoomMin = 50,
+  zoomMax = 200,
+  zoomStep = 25,
   onTagClick,
   onUserClick,
 }: LightboxProps) {
   const { item } = row;
   const [showInfo, setShowInfo] = useState(true);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [isAutoHidden, setIsAutoHidden] = useState(false);
+  const [currentFitMode, setCurrentFitMode] = useState<
+    "fitBoth" | "fitWidth" | "fitHeight"
+  >(fitMode);
+  const [zoom, setZoom] = useState(1.0);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+
   const [postTags, setPostTags] = useState<TagWithCategory[]>([]);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isRecentlyMounted, setIsRecentlyMounted] = useState(true);
@@ -74,6 +107,346 @@ export default function Lightbox({
     [],
   );
   const router = useRouter();
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setCurrentFitMode(fitMode);
+  }, [fitMode]);
+
+  const minZoomVal = zoomMin / 100;
+  const maxZoomVal = zoomMax / 100;
+  const stepZoomVal = zoomStep / 100;
+
+  const isPannable = zoom > 1.0 || currentFitMode !== "fitBoth";
+  const mediaWrapperRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const touchDragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragDistanceRef = useRef(0);
+
+  const clampPanOffset = useCallback(
+    (rawX: number, rawY: number) => {
+      if (zoom <= 1.0 && currentFitMode === "fitBoth") {
+        return { x: 0, y: 0 };
+      }
+
+      const wrapper = mediaWrapperRef.current;
+      const img = imageRef.current;
+
+      if (zoom > 1.0) {
+        // Zoom mode: pan allowed in both axes, bounded so an edge can only pan to half the screen (center).
+        const wrapperWidth = wrapper ? wrapper.clientWidth : window.innerWidth;
+        const wrapperHeight = wrapper
+          ? wrapper.clientHeight
+          : window.innerHeight;
+        const imgWidth = img ? img.offsetWidth * zoom : wrapperWidth * zoom;
+        const imgHeight = img ? img.offsetHeight * zoom : wrapperHeight * zoom;
+
+        const maxPanX = Math.max(0, imgWidth / 2);
+        const maxPanY = Math.max(0, imgHeight / 2);
+
+        return {
+          x: Math.max(-maxPanX, Math.min(maxPanX, rawX)),
+          y: Math.max(-maxPanY, Math.min(maxPanY, rawY)),
+        };
+      }
+
+      if (currentFitMode === "fitWidth") {
+        // Fit width mode: ONLY pan up/down (X locked to 0).
+        // Bounds: keep fitted top/bottom edges on screen.
+        if (!wrapper || !img) return { x: 0, y: 0 };
+
+        const containerHeight = wrapper.clientHeight;
+        const renderedHeight = img.offsetHeight;
+
+        if (renderedHeight <= containerHeight) {
+          return { x: 0, y: 0 };
+        }
+
+        const maxPanY = (renderedHeight - containerHeight) / 2;
+        return {
+          x: 0,
+          y: Math.max(-maxPanY, Math.min(maxPanY, rawY)),
+        };
+      }
+
+      if (currentFitMode === "fitHeight") {
+        // Fit height mode: ONLY pan left/right (Y locked to 0).
+        // Bounds: keep fitted left/right edges on screen.
+        if (!wrapper || !img) return { x: 0, y: 0 };
+
+        const containerWidth = wrapper.clientWidth;
+        const renderedWidth = img.offsetWidth;
+
+        if (renderedWidth <= containerWidth) {
+          return { x: 0, y: 0 };
+        }
+
+        const maxPanX = (renderedWidth - containerWidth) / 2;
+        return {
+          x: Math.max(-maxPanX, Math.min(maxPanX, rawX)),
+          y: 0,
+        };
+      }
+
+      return { x: 0, y: 0 };
+    },
+    [zoom, currentFitMode],
+  );
+
+  const cycleFitMode = () => {
+    setZoom(1.0);
+    setPanOffset({ x: 0, y: 0 });
+    setCurrentFitMode((prev) => {
+      if (prev === "fitBoth") return "fitWidth";
+      if (prev === "fitWidth") return "fitHeight";
+      return "fitBoth";
+    });
+  };
+
+  const handleZoomIn = () => {
+    setZoom((prev) =>
+      Math.min(maxZoomVal, parseFloat((prev + stepZoomVal).toFixed(2))),
+    );
+  };
+
+  const handleZoomOut = () => {
+    setZoom((prev) =>
+      Math.max(minZoomVal, parseFloat((prev - stepZoomVal).toFixed(2))),
+    );
+  };
+
+  const handleResetZoom = () => {
+    setZoom(1.0);
+    setPanOffset({ x: 0, y: 0 });
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (item.mediaType === "video") return;
+    const delta = e.deltaY < 0 ? stepZoomVal : -stepZoomVal;
+    setZoom((prev) => {
+      const next = parseFloat((prev + delta).toFixed(2));
+      const clampedZoom = Math.min(maxZoomVal, Math.max(minZoomVal, next));
+      if (clampedZoom <= 1.0 && currentFitMode === "fitBoth") {
+        setPanOffset({ x: 0, y: 0 });
+      }
+      return clampedZoom;
+    });
+  };
+
+  const isPinchingRef = useRef(false);
+  const initialPinchDistRef = useRef<number | null>(null);
+  const initialPinchZoomRef = useRef<number>(1.0);
+  const initialPinchPanRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const initialPinchCenterRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!isPannable) return;
+    e.preventDefault();
+    dragDistanceRef.current = 0;
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX - panOffset.x,
+      y: e.clientY - panOffset.y,
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !dragStartRef.current || !isPannable) return;
+    e.preventDefault();
+    dragDistanceRef.current += 1;
+    const rawX = e.clientX - dragStartRef.current.x;
+    const rawY = e.clientY - dragStartRef.current.y;
+    setPanOffset(clampPanOffset(rawX, rawY));
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    dragStartRef.current = null;
+  };
+
+  const handleTouchStartImage = (e: React.TouchEvent) => {
+    if (item.mediaType === "video" || item.mediaType === "text") return;
+
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      e.stopPropagation();
+      isPinchingRef.current = true;
+      setIsDragging(true);
+
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      initialPinchDistRef.current = dist;
+      initialPinchZoomRef.current = zoom;
+      initialPinchPanRef.current = { ...panOffset };
+      initialPinchCenterRef.current = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2,
+      };
+      return;
+    }
+
+    if (e.touches.length === 1 && isPannable) {
+      const touch = e.touches[0];
+      dragDistanceRef.current = 0;
+      touchDragStartRef.current = {
+        x: touch.clientX - panOffset.x,
+        y: touch.clientY - panOffset.y,
+      };
+    }
+  };
+
+  const handleTouchMoveImage = (e: React.TouchEvent) => {
+    if (item.mediaType === "video" || item.mediaType === "text") return;
+
+    if (
+      e.touches.length === 2 &&
+      isPinchingRef.current &&
+      initialPinchDistRef.current &&
+      initialPinchCenterRef.current
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      dragDistanceRef.current += 1;
+
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const newDist = Math.hypot(
+        t1.clientX - t2.clientX,
+        t1.clientY - t2.clientY,
+      );
+
+      const scaleRatio = newDist / initialPinchDistRef.current;
+      const targetZoom = parseFloat(
+        (initialPinchZoomRef.current * scaleRatio).toFixed(2),
+      );
+      const clampedZoom = Math.min(
+        maxZoomVal,
+        Math.max(minZoomVal, targetZoom),
+      );
+
+      const currentCenter = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2,
+      };
+      const centerShiftX = currentCenter.x - initialPinchCenterRef.current.x;
+      const centerShiftY = currentCenter.y - initialPinchCenterRef.current.y;
+
+      const rawX = initialPinchPanRef.current.x + centerShiftX;
+      const rawY = initialPinchPanRef.current.y + centerShiftY;
+
+      setZoom(clampedZoom);
+      setPanOffset(clampPanOffset(rawX, rawY));
+      return;
+    }
+
+    if (
+      e.touches.length === 1 &&
+      touchDragStartRef.current &&
+      isPannable &&
+      !isPinchingRef.current
+    ) {
+      const touch = e.touches[0];
+      dragDistanceRef.current += 1;
+      setIsDragging(true);
+      const rawX = touch.clientX - touchDragStartRef.current.x;
+      const rawY = touch.clientY - touchDragStartRef.current.y;
+      setPanOffset(clampPanOffset(rawX, rawY));
+    }
+  };
+
+  const handleTouchEndImage = (e: React.TouchEvent) => {
+    if (isPinchingRef.current) {
+      e.stopPropagation();
+      if (e.touches.length < 2) {
+        isPinchingRef.current = false;
+        initialPinchDistRef.current = null;
+        initialPinchCenterRef.current = null;
+        setIsDragging(false);
+
+        if (zoom <= 1.0 && currentFitMode === "fitBoth") {
+          setZoom(1.0);
+          setPanOffset({ x: 0, y: 0 });
+        }
+      }
+      return;
+    }
+
+    if (touchDragStartRef.current) {
+      touchDragStartRef.current = null;
+      setIsDragging(false);
+    }
+  };
+
+  const resetInactivityTimer = useCallback(() => {
+    setIsAutoHidden(false);
+    setControlsVisible(true);
+
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+
+    if (autoHideControls) {
+      const delayMs = (autoHideDelay ?? 3) * 1000;
+      inactivityTimerRef.current = setTimeout(() => {
+        setIsAutoHidden(true);
+        setControlsVisible(false);
+      }, delayMs);
+    }
+  }, [autoHideControls, autoHideDelay]);
+
+  useEffect(() => {
+    if (!autoHideControls) {
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+      setIsAutoHidden(false);
+      return;
+    }
+
+    resetInactivityTimer();
+
+    const handleUserActivity = () => {
+      resetInactivityTimer();
+    };
+
+    const events = [
+      "pointerdown",
+      "mousedown",
+      "click",
+      "pointermove",
+      "mousemove",
+      "keydown",
+      "touchstart",
+      "touchend",
+      "touchmove",
+      "wheel",
+    ];
+
+    for (const ev of events) {
+      window.addEventListener(ev, handleUserActivity, { passive: true });
+    }
+
+    return () => {
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+      for (const ev of events) {
+        window.removeEventListener(ev, handleUserActivity);
+      }
+    };
+  }, [autoHideControls, resetInactivityTimer]);
+
+  // Reset inactivity timer & zoom level whenever active media item changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset timer and zoom when active media item changes
+  useEffect(() => {
+    setZoom(1.0);
+    setPanOffset({ x: 0, y: 0 });
+    if (autoHideControls) {
+      resetInactivityTimer();
+    }
+  }, [item.id, autoHideControls, resetInactivityTimer]);
 
   const toggleTagSelection = (tagId: number) => {
     setSelectedTagIds((prev) => {
@@ -223,6 +596,11 @@ export default function Lightbox({
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (isPinchingRef.current || isPannable) {
+      touchStartX.current = null;
+      touchStartY.current = null;
+      return;
+    }
     if (touchStartX.current === null || touchStartY.current === null) return;
     const touch = e.changedTouches[0];
     const diffX = touch.clientX - touchStartX.current;
@@ -239,6 +617,27 @@ export default function Lightbox({
     touchStartX.current = null;
     touchStartY.current = null;
   };
+
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  // Prevent browser-level viewport zoom / pinch-zoom gestures while lightbox is active
+  useEffect(() => {
+    const container = overlayRef.current;
+    if (!container) return;
+
+    const preventBrowserZoom = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    };
+
+    container.addEventListener("touchmove", preventBrowserZoom, {
+      passive: false,
+    });
+    return () => {
+      container.removeEventListener("touchmove", preventBrowserZoom);
+    };
+  }, []);
 
   // Lock body scroll on mount, restore on unmount
   useEffect(() => {
@@ -304,14 +703,33 @@ export default function Lightbox({
     }
   }
 
-  // Keyboard navigation
+  // Keyboard navigation & shortcuts
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight" && onNext && !isPageLoading) onNext();
-      if (e.key === "ArrowLeft" && onPrev) onPrev();
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")
+      ) {
+        return;
+      }
+
+      if (e.key === "h" || e.key === "H") {
+        e.preventDefault();
+        setControlsVisible((prev) => !prev);
+      } else if (e.key === "Escape") {
+        if (!controlsVisible) {
+          setControlsVisible(true);
+        } else {
+          onClose();
+        }
+      } else if (e.key === "ArrowRight" && onNext && !isPageLoading) {
+        onNext();
+      } else if (e.key === "ArrowLeft" && onPrev) {
+        onPrev();
+      }
     },
-    [onClose, onNext, onPrev, isPageLoading],
+    [onClose, onNext, onPrev, isPageLoading, controlsVisible],
   );
 
   useEffect(() => {
@@ -341,6 +759,7 @@ export default function Lightbox({
 
   return (
     <div
+      ref={overlayRef}
       className={styles.overlay}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -350,9 +769,7 @@ export default function Lightbox({
       <div
         className={styles.mainArea}
         onClick={(e) => {
-          // If clicking the background (not the image), close?
-          // Or maybe clicking image toggles sidebar?
-          // Let's make clicking background close.
+          // If clicking the background (not the image), close
           if (e.target === e.currentTarget) {
             if (isRecentlyMounted) return;
             onClose();
@@ -360,7 +777,6 @@ export default function Lightbox({
         }}
         onKeyDown={handleKeyActivate(() => {
           if (typeof window !== "undefined") {
-            // Check if we are actually on the target area, though handleKeyActivate handles the key
             onClose();
           }
         })}
@@ -368,20 +784,40 @@ export default function Lightbox({
         tabIndex={0}
         aria-label="Close lightbox"
       >
+        <button
+          type="button"
+          className={`${styles.persistentToggleBtn} ${isAutoHidden ? styles.autoHidden : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setControlsVisible((prev) => !prev);
+          }}
+          title={controlsVisible ? "Hide controls (H)" : "Show controls (H)"}
+          aria-label="Toggle controls"
+        >
+          {controlsVisible ? <Eye size={20} /> : <EyeOff size={20} />}
+        </button>
+
         {onPrev && (
           <button
             type="button"
-            className={`${styles.navButton} ${styles.prevButton}`}
+            className={`${styles.navZone} ${styles.navZonePrev}`}
+            data-visible={controlsVisible}
             onClick={(e) => {
               e.stopPropagation();
               onPrev();
             }}
+            aria-label="Previous item"
+            title="Previous"
           >
-            ‹
+            <ChevronLeft className={styles.navChevron} size={32} />
           </button>
         )}
 
-        <div className={styles.mediaWrapper}>
+        <div
+          ref={mediaWrapperRef}
+          className={styles.mediaWrapper}
+          onWheel={handleWheel}
+        >
           {item.mediaType === "video" ? (
             // biome-ignore lint/a11y/useMediaCaption: User generated content does not have captions
             <video
@@ -397,13 +833,13 @@ export default function Lightbox({
             <div
               className={styles.textContent}
               onClick={(e) => {
-                // Don't toggle info if clicking a link
+                // Don't toggle if clicking a link
                 if ((e.target as HTMLElement).tagName === "A") return;
                 e.stopPropagation();
-                setShowInfo(!showInfo);
+                setShowInfo((prev) => !prev);
               }}
               onKeyDown={handleKeyActivate(() => {
-                setShowInfo(!showInfo);
+                setShowInfo((prev) => !prev);
               })}
               role="button"
               tabIndex={0}
@@ -412,15 +848,35 @@ export default function Lightbox({
             </div>
           ) : (
             <Image
+              ref={imageRef}
               src={encodeFilePath(item.filePath)}
               alt={row.post?.title || "Gallery Image"}
-              className={styles.image}
+              className={`${styles.image} ${
+                currentFitMode === "fitWidth"
+                  ? styles.fitWidth
+                  : currentFitMode === "fitHeight"
+                    ? styles.fitHeight
+                    : styles.fitBoth
+              } ${isPannable ? (isDragging ? styles.grabbing : styles.grab) : ""}`}
+              style={{
+                transform: `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`,
+                transition: isDragging ? "none" : "transform 0.15s ease-out",
+              }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStartImage}
+              onTouchMove={handleTouchMoveImage}
+              onTouchEnd={handleTouchEndImage}
               onClick={(e) => {
                 e.stopPropagation();
                 if (isRecentlyMounted) return;
-                if (typeof window !== "undefined" && window.innerWidth >= 768) {
-                  setShowInfo(!showInfo);
+                if (dragDistanceRef.current > 3) {
+                  dragDistanceRef.current = 0;
+                  return;
                 }
+                setShowInfo((prev) => !prev);
               }}
               width={1200}
               height={800}
@@ -432,20 +888,86 @@ export default function Lightbox({
         {onNext && (
           <button
             type="button"
-            className={`${styles.navButton} ${styles.nextButton} ${isPageLoading ? styles.loadingButton : ""}`}
+            className={`${styles.navZone} ${styles.navZoneNext} ${isPageLoading ? styles.loadingButton : ""}`}
+            data-visible={controlsVisible}
             onClick={(e) => {
               e.stopPropagation();
               if (isPageLoading) return;
               onNext();
             }}
             disabled={isPageLoading}
+            aria-label="Next item"
             title={isPageLoading ? "Loading next page..." : "Next"}
           >
-            {isPageLoading ? <span className={styles.spinner} /> : "›"}
+            {isPageLoading ? (
+              <span className={styles.spinner} />
+            ) : (
+              <ChevronRight className={styles.navChevron} size={32} />
+            )}
           </button>
         )}
 
-        <div className={styles.controls}>
+        <div className={styles.controls} data-visible={controlsVisible}>
+          {/* Fit Mode Cycle */}
+          <button
+            type="button"
+            className={styles.iconButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              cycleFitMode();
+            }}
+            title={`Fit mode: ${currentFitMode}`}
+            aria-label="Cycle fit mode"
+          >
+            {currentFitMode === "fitBoth" ? (
+              <Maximize2 size={18} />
+            ) : currentFitMode === "fitWidth" ? (
+              <MoveHorizontal size={18} />
+            ) : (
+              <MoveVertical size={18} />
+            )}
+          </button>
+
+          {/* Zoom Controls */}
+          <button
+            type="button"
+            className={styles.iconButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleZoomOut();
+            }}
+            disabled={zoom <= minZoomVal}
+            title="Zoom Out"
+            aria-label="Zoom Out"
+          >
+            <ZoomOut size={18} />
+          </button>
+          <button
+            type="button"
+            className={`${styles.iconButton} ${styles.zoomResetButton}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleResetZoom();
+            }}
+            title="Reset Zoom (100%)"
+            aria-label="Reset Zoom"
+          >
+            <span className={styles.zoomText}>{Math.round(zoom * 100)}%</span>
+          </button>
+          <button
+            type="button"
+            className={styles.iconButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleZoomIn();
+            }}
+            disabled={zoom >= maxZoomVal}
+            title="Zoom In"
+            aria-label="Zoom In"
+          >
+            <ZoomIn size={18} />
+          </button>
+
           {onDelete && (
             <>
               <button

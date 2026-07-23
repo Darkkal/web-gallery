@@ -14,6 +14,12 @@ export interface AppSettings {
   computeStorageStatistics: boolean;
   statisticsRankingLimit: number;
   implicitHierarchyFiltering: boolean;
+  lightboxFitMode: "fitBoth" | "fitWidth" | "fitHeight";
+  lightboxZoomMin: number;
+  lightboxZoomMax: number;
+  lightboxZoomStep: number;
+  lightboxAutoHideControls: boolean;
+  lightboxAutoHideDelay: number;
 }
 
 export interface ScraperSettings {
@@ -56,6 +62,12 @@ export const DEFAULT_SETTINGS: SystemSettings = {
     computeStorageStatistics: true,
     statisticsRankingLimit: 10,
     implicitHierarchyFiltering: true,
+    lightboxFitMode: "fitBoth",
+    lightboxZoomMin: 50,
+    lightboxZoomMax: 200,
+    lightboxZoomStep: 25,
+    lightboxAutoHideControls: false,
+    lightboxAutoHideDelay: 3,
   },
   scraper: {
     rateLimit: "5M",

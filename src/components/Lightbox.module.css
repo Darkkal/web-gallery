@@ -13,6 +13,7 @@
   animation: fadeIn 0.3s forwards;
   color: hsl(var(--foreground));
   font-family: system-ui, -apple-system, sans-serif;
+  touch-action: none;
 }
 
 @keyframes fadeIn {
@@ -28,6 +29,9 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .mediaWrapper {
@@ -38,6 +42,8 @@
   align-items: center;
   justify-content: center;
   pointer-events: none;
+  overflow: hidden;
+  touch-action: none;
 }
 
 .image {
@@ -47,8 +53,41 @@
   max-height: 100%;
   object-fit: contain;
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
-  transition: transform 0.3s ease;
   pointer-events: auto;
+  transform-origin: center center;
+  touch-action: none;
+}
+
+.fitBoth {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.fitWidth {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  object-fit: contain;
+}
+
+.fitHeight {
+  height: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+  max-width: none !important;
+  object-fit: contain;
+}
+
+.grab {
+  cursor: grab;
+}
+
+.grabbing {
+  cursor: grabbing;
 }
 
 .video {
@@ -243,6 +282,38 @@
   margin-top: 10px;
 }
 
+.persistentToggleBtn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 300;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.8;
+  transition:
+    opacity 0.3s ease,
+    transform 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.persistentToggleBtn:hover {
+  background: hsl(var(--accent));
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.persistentToggleBtn.autoHidden {
+  opacity: 0.3;
+}
+
 .controls {
   position: absolute;
   top: 20px;
@@ -250,6 +321,24 @@
   display: flex;
   gap: 10px;
   z-index: 10;
+  max-width: calc(100% - 80px);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+
+.controls[data-visible="false"],
+.navZone[data-visible="false"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.controls[data-visible="true"],
+.navZone[data-visible="true"] {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .iconButton {
@@ -271,6 +360,17 @@
 .iconButton:hover {
   background: hsl(var(--accent));
   transform: scale(1.1);
+}
+
+.zoomResetButton {
+  width: auto !important;
+  padding: 0 12px !important;
+  border-radius: 20px !important;
+}
+
+.zoomText {
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .deleteDBButton:hover {
@@ -296,38 +396,49 @@
   border: 1px solid hsl(var(--border));
 }
 
-.navButton {
+.navZone {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: hsl(var(--secondary));
-  color: hsl(var(--foreground));
-  border: none;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
+  top: 0;
+  bottom: 0;
+  height: 100%;
+  width: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
+  background: transparent;
+  border: none;
   z-index: 5;
-  font-size: 1.5rem;
-  opacity: 0.7;
+  transition: background 0.25s ease;
 }
 
-.navButton:hover {
-  background: hsl(var(--accent));
+.navZonePrev {
+  left: 0;
+}
+
+.navZoneNext {
+  right: 0;
+}
+
+.navZonePrev:hover {
+  background: linear-gradient(to right, hsl(0 0% 0% / 0.4), transparent);
+}
+
+.navZoneNext:hover {
+  background: linear-gradient(to left, hsl(0 0% 0% / 0.4), transparent);
+}
+
+.navChevron {
+  color: hsl(var(--foreground));
+  opacity: 0.3;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.navZone:hover .navChevron {
   opacity: 1;
-  transform: translateY(-50%) scale(1.1);
-}
-
-.prevButton {
-  left: 20px;
-}
-
-.nextButton {
-  right: 20px;
+  transform: scale(1.15);
 }
 
 /* Scrollbar styling for sidebar */
@@ -425,18 +536,8 @@
     text-align: center;
   }
 
-  .navButton {
-    width: 40px;
-    height: 40px;
-    font-size: 1.2rem;
-  }
-
-  .prevButton {
-    left: 10px;
-  }
-
-  .nextButton {
-    right: 10px;
+  .navZone {
+    width: 44px;
   }
 
   .controls {

@@ -51,6 +51,231 @@ test("gallery grid and lightbox", async ({ page }) => {
   await expect(lightbox).not.toBeVisible();
 });
 
+test("lightbox navigation zones span full-height and handle navigation", async ({
+  page,
+}) => {
+  await page.goto("/gallery");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+
+  try {
+    await expect(page.locator('img[class*="media"]').first()).toBeVisible({
+      timeout: 5000,
+    });
+  } catch {
+    test.skip(true, "No gallery items to test lightbox navigation zones");
+    return;
+  }
+
+  // Open lightbox on first item
+  await page.locator('img[class*="media"]').first().click();
+  const lightbox = page.locator('div[class*="overlay"]');
+  await expect(lightbox).toBeVisible();
+
+  // Next navigation zone should be visible and attached
+  const nextZone = page.locator('button[class*="navZoneNext"]').first();
+  const prevZone = page.locator('button[class*="navZonePrev"]').first();
+
+  await expect(nextZone).toBeVisible();
+
+  // Verify bounding box height matches mainArea
+  const boundingBox = await nextZone.boundingBox();
+  const mainAreaBox = await page
+    .locator('div[class*="mainArea"]')
+    .first()
+    .boundingBox();
+
+  expect(boundingBox).not.toBeNull();
+  expect(mainAreaBox).not.toBeNull();
+
+  if (boundingBox && mainAreaBox) {
+    expect(boundingBox.height).toBeGreaterThanOrEqual(mainAreaBox.height - 2);
+  }
+
+  // Click next zone
+  if (await nextZone.isVisible()) {
+    await nextZone.click();
+    // After navigating to second item, prev zone should become visible
+    await expect(prevZone).toBeVisible();
+  }
+
+  await page.keyboard.press("Escape");
+  await expect(lightbox).not.toBeVisible();
+});
+
+test("lightbox show/hide controls toggles, H key shortcut, and two-step Escape", async ({
+  page,
+}) => {
+  await page.goto("/gallery");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+
+  try {
+    await expect(page.locator('img[class*="media"]').first()).toBeVisible({
+      timeout: 5000,
+    });
+  } catch {
+    test.skip(true, "No gallery items to test lightbox controls toggle");
+    return;
+  }
+
+  // Open lightbox
+  await page.locator('img[class*="media"]').first().click();
+  const lightbox = page.locator('div[class*="overlay"]');
+  await expect(lightbox).toBeVisible();
+
+  const toggleBtn = page.locator('button[class*="persistentToggleBtn"]');
+  await expect(toggleBtn).toBeVisible();
+
+  const controls = page.locator('div[class*="controls"]').first();
+  const sidebar = page.locator('div[class*="sidebar"]').first();
+
+  // Initially controls and sidebar are visible
+  await expect(controls).toHaveAttribute("data-visible", "true");
+  await expect(sidebar).not.toHaveClass(/sidebarHidden/);
+
+  // Click persistent toggle button -> controls hide, sidebar remains visible
+  await toggleBtn.click();
+  await expect(controls).toHaveAttribute("data-visible", "false");
+  await expect(sidebar).not.toHaveClass(/sidebarHidden/);
+
+  // Toggle button remains visible
+  await expect(toggleBtn).toBeVisible();
+
+  // Press H key -> controls reappear
+  await page.keyboard.press("h");
+  await expect(controls).toHaveAttribute("data-visible", "true");
+
+  // Hide controls again with H key
+  await page.keyboard.press("H");
+  await expect(controls).toHaveAttribute("data-visible", "false");
+
+  // Two-step Escape: First Escape restores controls, second Escape closes lightbox
+  await page.keyboard.press("Escape");
+  await expect(controls).toHaveAttribute("data-visible", "true");
+  await expect(lightbox).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(lightbox).not.toBeVisible();
+});
+
+test("lightbox fit mode cycling and zoom controls", async ({ page }) => {
+  await page.goto("/gallery");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+
+  try {
+    await expect(page.locator('img[class*="media"]').first()).toBeVisible({
+      timeout: 5000,
+    });
+  } catch {
+    test.skip(true, "No gallery items to test lightbox fit mode and zoom");
+    return;
+  }
+
+  // Open lightbox
+  await page.locator('img[class*="media"]').first().click();
+  const lightbox = page.locator('div[class*="overlay"]');
+  await expect(lightbox).toBeVisible();
+
+  // Check Fit Mode cycle button
+  const fitBtn = page.locator('button[aria-label="Cycle fit mode"]').first();
+  await expect(fitBtn).toBeVisible();
+  await expect(fitBtn).toHaveAttribute("title", /Fit mode:.*/);
+
+  // Click to cycle fit modes
+  const initialTitle = await fitBtn.getAttribute("title");
+  await fitBtn.click();
+  const nextTitle = await fitBtn.getAttribute("title");
+  expect(nextTitle).not.toBe(initialTitle);
+
+  await fitBtn.click();
+  const thirdTitle = await fitBtn.getAttribute("title");
+  expect(thirdTitle).not.toBe(nextTitle);
+
+  // Zoom controls
+  const zoomInBtn = page.locator('button[aria-label="Zoom In"]').first();
+  const zoomOutBtn = page.locator('button[aria-label="Zoom Out"]').first();
+  const zoomResetBtn = page.locator('button[aria-label="Reset Zoom"]').first();
+
+  await expect(zoomInBtn).toBeVisible();
+  await expect(zoomOutBtn).toBeVisible();
+  await expect(zoomResetBtn).toBeVisible();
+
+  // Reset zoom to 100% first
+  await zoomResetBtn.click();
+  await expect(zoomResetBtn).toHaveText("100%");
+
+  // Click Zoom In
+  await zoomInBtn.click();
+  await expect(zoomResetBtn).toHaveText(/(125|150)%/);
+
+  // Click Zoom Reset
+  await zoomResetBtn.click();
+  await expect(zoomResetBtn).toHaveText("100%");
+
+  // Click Zoom Out
+  await zoomOutBtn.click();
+  await expect(zoomResetBtn).toHaveText(/(75|50)%/);
+
+  await page.keyboard.press("Escape");
+  await expect(lightbox).not.toBeVisible();
+});
+
+test("lightbox touch pinch-to-zoom gesture", async ({ page }) => {
+  await page.goto("/gallery");
+  await expect(page.getByTestId("loading-skeleton")).toBeHidden();
+
+  try {
+    await expect(page.locator('img[class*="media"]').first()).toBeVisible({
+      timeout: 5000,
+    });
+  } catch {
+    test.skip(true, "No gallery items to test lightbox pinch-to-zoom");
+    return;
+  }
+
+  // Open lightbox
+  await page.locator('img[class*="media"]').first().click();
+  const lightbox = page.locator('div[class*="overlay"]');
+  await expect(lightbox).toBeVisible();
+
+  const img = page.locator('img[class*="image"]').first();
+  await expect(img).toBeVisible();
+  const zoomResetBtn = page.locator('button[aria-label="Reset Zoom"]').first();
+
+  // Dispatch multi-touch pinch outward gesture on image
+  const box = await img.boundingBox();
+  if (box) {
+    const centerX = box.x + box.width / 2;
+    const centerY = box.y + box.height / 2;
+
+    await img.dispatchEvent("touchstart", {
+      touches: [
+        { identifier: 0, clientX: centerX - 10, clientY: centerY - 10 },
+        { identifier: 1, clientX: centerX + 10, clientY: centerY + 10 },
+      ],
+    });
+
+    await img.dispatchEvent("touchmove", {
+      touches: [
+        { identifier: 0, clientX: centerX - 50, clientY: centerY - 50 },
+        { identifier: 1, clientX: centerX + 50, clientY: centerY + 50 },
+      ],
+    });
+
+    await expect(zoomResetBtn).not.toHaveText("100%");
+
+    await img.dispatchEvent("touchend", {
+      touches: [],
+      changedTouches: [
+        { identifier: 0, clientX: centerX - 50, clientY: centerY - 50 },
+        { identifier: 1, clientX: centerX + 50, clientY: centerY + 50 },
+      ],
+    });
+  }
+
+  await page.keyboard.press("Escape");
+  await expect(lightbox).not.toBeVisible();
+});
+
 test("gallery defaults to infinite scroll mode", async ({ page }) => {
   await page.goto("/gallery");
   await expect(page.getByTestId("loading-skeleton")).toBeHidden();

@@ -30,6 +30,12 @@ export default function TimelinePageClient({
   muteAutoplayVideos,
   condensePostText,
   condensePostLines,
+  autoHideControls,
+  autoHideDelay,
+  lightboxFitMode,
+  lightboxZoomMin,
+  lightboxZoomMax,
+  lightboxZoomStep,
 }: {
   initialPosts: TimelinePost[];
   initialNextCursor: string | null;
@@ -43,6 +49,12 @@ export default function TimelinePageClient({
   muteAutoplayVideos: boolean;
   condensePostText: boolean;
   condensePostLines: number;
+  autoHideControls?: boolean;
+  autoHideDelay?: number;
+  lightboxFitMode?: "fitBoth" | "fitWidth" | "fitHeight";
+  lightboxZoomMin?: number;
+  lightboxZoomMax?: number;
+  lightboxZoomStep?: number;
 }) {
   return (
     <TimelinePageContent
@@ -58,6 +70,12 @@ export default function TimelinePageClient({
       muteAutoplayVideos={muteAutoplayVideos}
       condensePostText={condensePostText}
       condensePostLines={condensePostLines}
+      autoHideControls={autoHideControls}
+      autoHideDelay={autoHideDelay}
+      lightboxFitMode={lightboxFitMode}
+      lightboxZoomMin={lightboxZoomMin}
+      lightboxZoomMax={lightboxZoomMax}
+      lightboxZoomStep={lightboxZoomStep}
     />
   );
 }
@@ -75,6 +93,12 @@ function TimelinePageContent({
   muteAutoplayVideos,
   condensePostText,
   condensePostLines,
+  autoHideControls,
+  autoHideDelay,
+  lightboxFitMode,
+  lightboxZoomMin,
+  lightboxZoomMax,
+  lightboxZoomStep,
 }: {
   initialPosts: TimelinePost[];
   initialNextCursor: string | null;
@@ -88,6 +112,12 @@ function TimelinePageContent({
   muteAutoplayVideos: boolean;
   condensePostText: boolean;
   condensePostLines: number;
+  autoHideControls?: boolean;
+  autoHideDelay?: number;
+  lightboxFitMode?: "fitBoth" | "fitWidth" | "fitHeight";
+  lightboxZoomMin?: number;
+  lightboxZoomMax?: number;
+  lightboxZoomStep?: number;
 }) {
   const [suppressSearch, setSuppressSearch] = useState(false);
 
@@ -311,6 +341,12 @@ function TimelinePageContent({
           onDelete={undefined}
           loopVideos={loopVideos}
           isPageLoading={isPageLoading}
+          autoHideControls={autoHideControls}
+          autoHideDelay={autoHideDelay}
+          fitMode={lightboxFitMode}
+          zoomMin={lightboxZoomMin}
+          zoomMax={lightboxZoomMax}
+          zoomStep={lightboxZoomStep}
         />
       )}
     </div>
