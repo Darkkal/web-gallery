@@ -47,6 +47,10 @@ export default async function TimelinePage({
       condensePostLines={settings.condensePostLines ?? 2}
       autoHideControls={settings.lightboxAutoHideControls ?? false}
       autoHideDelay={settings.lightboxAutoHideDelay ?? 3}
+      lightboxFitMode={settings.lightboxFitMode ?? "fitBoth"}
+      lightboxZoomMin={settings.lightboxZoomMin ?? 25}
+      lightboxZoomMax={settings.lightboxZoomMax ?? 500}
+      lightboxZoomStep={settings.lightboxZoomStep ?? 25}
     />
   );
 }

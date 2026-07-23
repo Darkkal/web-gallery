@@ -49,6 +49,10 @@ export default async function GalleryPage({
       muteAutoplayVideos={settings.muteAutoplayVideos ?? true}
       autoHideControls={settings.lightboxAutoHideControls ?? false}
       autoHideDelay={settings.lightboxAutoHideDelay ?? 3}
+      lightboxFitMode={settings.lightboxFitMode ?? "fitBoth"}
+      lightboxZoomMin={settings.lightboxZoomMin ?? 25}
+      lightboxZoomMax={settings.lightboxZoomMax ?? 500}
+      lightboxZoomStep={settings.lightboxZoomStep ?? 25}
       playlistId={
         playlistId && !Number.isNaN(playlistId) ? playlistId : undefined
       }

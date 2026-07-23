@@ -31,6 +31,10 @@ export default function GalleryPageClient({
   muteAutoplayVideos,
   autoHideControls,
   autoHideDelay,
+  lightboxFitMode,
+  lightboxZoomMin,
+  lightboxZoomMax,
+  lightboxZoomStep,
   playlistId,
 }: {
   initialItems: GalleryGroup[];
@@ -45,6 +49,10 @@ export default function GalleryPageClient({
   muteAutoplayVideos: boolean;
   autoHideControls?: boolean;
   autoHideDelay?: number;
+  lightboxFitMode?: "fitBoth" | "fitWidth" | "fitHeight";
+  lightboxZoomMin?: number;
+  lightboxZoomMax?: number;
+  lightboxZoomStep?: number;
   playlistId?: number;
 }) {
   return (
@@ -61,6 +69,10 @@ export default function GalleryPageClient({
       muteAutoplayVideos={muteAutoplayVideos}
       autoHideControls={autoHideControls}
       autoHideDelay={autoHideDelay}
+      lightboxFitMode={lightboxFitMode}
+      lightboxZoomMin={lightboxZoomMin}
+      lightboxZoomMax={lightboxZoomMax}
+      lightboxZoomStep={lightboxZoomStep}
       playlistId={playlistId}
     />
   );
@@ -79,6 +91,10 @@ function GalleryPageContent({
   muteAutoplayVideos,
   autoHideControls,
   autoHideDelay,
+  lightboxFitMode,
+  lightboxZoomMin,
+  lightboxZoomMax,
+  lightboxZoomStep,
   playlistId,
 }: {
   initialItems: GalleryGroup[];
@@ -93,6 +109,10 @@ function GalleryPageContent({
   muteAutoplayVideos: boolean;
   autoHideControls?: boolean;
   autoHideDelay?: number;
+  lightboxFitMode?: "fitBoth" | "fitWidth" | "fitHeight";
+  lightboxZoomMin?: number;
+  lightboxZoomMax?: number;
+  lightboxZoomStep?: number;
   playlistId?: number;
 }) {
   const [columnCount, setColumnCount] = useState(4);
@@ -381,6 +401,10 @@ function GalleryPageContent({
           isPageLoading={isPageLoading}
           autoHideControls={autoHideControls}
           autoHideDelay={autoHideDelay}
+          fitMode={lightboxFitMode}
+          zoomMin={lightboxZoomMin}
+          zoomMax={lightboxZoomMax}
+          zoomStep={lightboxZoomStep}
           onTagClick={(tagName) => {
             setSearchQuery(`tag:${tagName} `);
             closeLightbox();
