@@ -20,6 +20,7 @@ For day-to-day coding conventions and established patterns, see [CONTRIBUTING.md
    - [3.7 Settings & Configuration System](#37-settings--configuration-system)
    - [3.8 Task Scheduling Subsystem](#38-task-scheduling-subsystem)
    - [3.9 Statistics Subsystem](#39-statistics-subsystem)
+   - [3.10 Lightbox Media Viewer Subsystem](#310-lightbox-media-viewer-subsystem)
 4. [Data Flow](#4-data-flow)
    - [4.1 Scrape → Scan → Display](#41-scrape--scan--display)
    - [4.2 Client-Side Data Fetching](#42-client-side-data-fetching)
@@ -119,7 +120,7 @@ web-gallery/
 │   │   ├── error.tsx               # Root error boundary
 │   │   └── not-found.tsx           # 404 page
 │   ├── components/                 # Shared UI components
-│   │   ├── Lightbox.tsx            #   Full-screen media viewer
+│   │   ├── Lightbox.tsx            #   Full-screen media viewer (fit modes, zoom/pan, touch gestures)
 │   │   ├── MasonryGrid.tsx         #   CSS columns masonry layout
 │   │   ├── Navbar.tsx              #   Top navigation bar + theme toggle
 │   │   ├── ThemeProvider.tsx       #   Dark/light theme via data-theme attribute
@@ -373,6 +374,22 @@ The Statistics Subsystem provides pre-computed counters and historical growth me
 - **Proportional Timeline Distribution**: For historical charts, cumulative growth is tracked daily in `statistics_history`. If a metric lacks historical timestamps (such as tags or user entries), the repository maps them proportionally to the daily posts import velocity to provide clean growth curves.
 - **REST Endpoints & Client Rendering**: The dashboard fetches its data on-demand from `/api/statistics` for modular caching and instant filters (date granularity, range limits, active page sorting).
 
+### 3.10 Lightbox Media Viewer Subsystem
+
+**Location**: [`src/components/Lightbox.tsx`](./src/components/Lightbox.tsx), [`src/hooks/useLightbox.ts`](./src/hooks/useLightbox.ts)
+
+The Lightbox subsystem provides interactive, full-screen media viewing with configurable zoom, panning, fit modes, navigation, and gesture handling:
+
+- **Fit Mode Cycling**: Supports `fitBoth` (contain within viewport bounds), `fitWidth` (expand to full container width), and `fitHeight` (expand to full container height). Changing fit modes automatically resets zoom level to 100% and pan offset to `{ x: 0, y: 0 }`.
+- **Directional Clamping & Pan Boundaries**: Drag panning via mouse or touch is constrained by `clampPanOffset`:
+  - `fitWidth` mode locks horizontal panning (`x: 0`) and allows vertical panning bounded to keep rendered top/bottom image edges within the viewport.
+  - `fitHeight` mode locks vertical panning (`y: 0`) and allows horizontal panning bounded to keep rendered left/right image edges within the viewport.
+  - Zoomed mode (`zoom > 1.0`) allows two-axis panning bounded so image edges can pan up to half the container dimension.
+  - `fitBoth` at 100% zoom disables panning entirely, preserving swipe-to-navigate.
+- **Multi-Touch Pinch-to-Zoom**: Detects two-finger touch events (`onTouchStart`, `onTouchMove`, `onTouchEnd`) to dynamically update zoom level based on touch distance ratios. Uses initial touch midpoint anchoring (`initialPinchCenterRef`) to calculate translation shifts during scaling.
+- **Auto-Hide Controls Framework**: Supports a persistent toggle button (`Eye`/`EyeOff`) and configurable inactivity auto-hide timers (`autoHideDelay`). Timer resets on pointer, click, touch, wheel, keyboard, or navigation activity. Pressing `Escape` while controls are hidden restores control visibility before closing on second press.
+- **Full-Height Navigation Overlay**: Replaces small target buttons with full-height left and right click/touch zones (`navZonePrev`, `navZoneNext`) for effortless media cycling.
+
 ---
 
 ## 4. Data Flow
@@ -583,6 +600,12 @@ Separating fast-access data (database, scraper state) from bulk media allows ope
 
 ### FIFO schedule execution for SQLite safety
 To prevent multiple concurrent scheduled scraping tasks from locking or corrupting the SQLite database, all scheduled runs are serialized through a sequential FIFO queue. The next scheduled task begins execution only after the current scraper process completes and its database synchronization finishes.
+
+### Scoped browser zoom prevention over global user-scalable=no
+Disabling viewport zoom globally via `user-scalable=no` meta tags violates WCAG accessibility standards. To prevent mobile pinch gestures from zooming the entire web application layout while interacting with the media viewer, `Lightbox.tsx` attaches a non-passive `touchmove` event listener (`{ passive: false }`) scoped exclusively to the Lightbox overlay element (`overlayRef`), calling `preventDefault()` only when multi-touch gestures occur.
+
+### Pan offset divided by zoom factor in CSS transform
+CSS `transform` matrix operations evaluate transformations right-to-left (`scale()` then `translate()`). In `Lightbox.tsx`, inline styling applies `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`. Dividing the raw screen-pixel drag offset by the zoom level converts pan deltas back into pre-scaled coordinate space, ensuring 1:1 physical cursor-to-image tracking at any zoom magnification level.
 
 ---
 

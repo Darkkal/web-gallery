@@ -116,7 +116,7 @@ Frontend types are in `src/types/`:
 | `autocomplete.ts` | `AutocompleteSuggestion`, `AutocompleteResponse` definitions |
 | `playlist.ts` | `Playlist`, playlist-related types |
 | `posts.ts` | `TimelinePost`, post-related types |
-| `settings.ts` | `SystemSettings`, `AppSettings` definitions |
+| `settings.ts` | `SystemSettings`, `AppSettings` (including Lightbox fit, zoom, and auto-hide config) definitions |
 | `source.ts` | `Source`, source-related types |
 | `statistics.ts` | `LibraryStatistics`, `StatisticsHistoryPoint`, etc. |
 | `users.ts` | `TwitterUser`, `PixivUser` |
