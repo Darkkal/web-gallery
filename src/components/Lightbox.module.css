@@ -47,8 +47,40 @@
   max-height: 100%;
   object-fit: contain;
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
-  transition: transform 0.3s ease;
   pointer-events: auto;
+  transform-origin: center center;
+}
+
+.fitBoth {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.fitWidth {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  object-fit: contain;
+}
+
+.fitHeight {
+  height: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+  max-width: none !important;
+  object-fit: contain;
+}
+
+.grab {
+  cursor: grab;
+}
+
+.grabbing {
+  cursor: grabbing;
 }
 
 .video {
@@ -318,6 +350,17 @@
 .iconButton:hover {
   background: hsl(var(--accent));
   transform: scale(1.1);
+}
+
+.zoomResetButton {
+  width: auto !important;
+  padding: 0 12px !important;
+  border-radius: 20px !important;
+}
+
+.zoomText {
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .deleteDBButton:hover {

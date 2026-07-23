@@ -1,6 +1,16 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Maximize2,
+  MoveHorizontal,
+  MoveVertical,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,6 +53,10 @@ interface LightboxProps {
   isPageLoading?: boolean;
   autoHideControls?: boolean;
   autoHideDelay?: number;
+  fitMode?: "fitBoth" | "fitWidth" | "fitHeight";
+  zoomMin?: number;
+  zoomMax?: number;
+  zoomStep?: number;
   onTagClick?: (tagName: string) => void;
   onUserClick?: (userName: string) => void;
 }
@@ -64,6 +78,10 @@ export default function Lightbox({
   isPageLoading = false,
   autoHideControls = false,
   autoHideDelay = 3,
+  fitMode = "fitBoth",
+  zoomMin = 25,
+  zoomMax = 500,
+  zoomStep = 25,
   onTagClick,
   onUserClick,
 }: LightboxProps) {
@@ -71,6 +89,14 @@ export default function Lightbox({
   const [showInfo, setShowInfo] = useState(true);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isAutoHidden, setIsAutoHidden] = useState(false);
+  const [currentFitMode, setCurrentFitMode] = useState<
+    "fitBoth" | "fitWidth" | "fitHeight"
+  >(fitMode);
+  const [zoom, setZoom] = useState(1.0);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+
   const [postTags, setPostTags] = useState<TagWithCategory[]>([]);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isRecentlyMounted, setIsRecentlyMounted] = useState(true);
@@ -82,6 +108,76 @@ export default function Lightbox({
   );
   const router = useRouter();
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setCurrentFitMode(fitMode);
+  }, [fitMode]);
+
+  const minZoomVal = zoomMin / 100;
+  const maxZoomVal = zoomMax / 100;
+  const stepZoomVal = zoomStep / 100;
+
+  const cycleFitMode = () => {
+    setCurrentFitMode((prev) => {
+      if (prev === "fitBoth") return "fitWidth";
+      if (prev === "fitWidth") return "fitHeight";
+      return "fitBoth";
+    });
+  };
+
+  const handleZoomIn = () => {
+    setZoom((prev) =>
+      Math.min(maxZoomVal, parseFloat((prev + stepZoomVal).toFixed(2))),
+    );
+  };
+
+  const handleZoomOut = () => {
+    setZoom((prev) =>
+      Math.max(minZoomVal, parseFloat((prev - stepZoomVal).toFixed(2))),
+    );
+  };
+
+  const handleResetZoom = () => {
+    setZoom(1.0);
+    setPanOffset({ x: 0, y: 0 });
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (item.mediaType === "video") return;
+    const delta = e.deltaY < 0 ? stepZoomVal : -stepZoomVal;
+    setZoom((prev) => {
+      const next = parseFloat((prev + delta).toFixed(2));
+      const clamped = Math.min(maxZoomVal, Math.max(minZoomVal, next));
+      if (clamped <= 1.0) {
+        setPanOffset({ x: 0, y: 0 });
+      }
+      return clamped;
+    });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoom <= 1.0) return;
+    e.preventDefault();
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX - panOffset.x,
+      y: e.clientY - panOffset.y,
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !dragStartRef.current || zoom <= 1.0) return;
+    e.preventDefault();
+    setPanOffset({
+      x: e.clientX - dragStartRef.current.x,
+      y: e.clientY - dragStartRef.current.y,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    dragStartRef.current = null;
+  };
 
   const resetInactivityTimer = useCallback(() => {
     setIsAutoHidden(false);
@@ -142,9 +238,11 @@ export default function Lightbox({
     };
   }, [autoHideControls, resetInactivityTimer]);
 
-  // Reset inactivity timer whenever active media item changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset timer when active media item changes
+  // Reset inactivity timer & zoom level whenever active media item changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset timer and zoom when active media item changes
   useEffect(() => {
+    setZoom(1.0);
+    setPanOffset({ x: 0, y: 0 });
     if (autoHideControls) {
       resetInactivityTimer();
     }
@@ -488,7 +586,7 @@ export default function Lightbox({
           </button>
         )}
 
-        <div className={styles.mediaWrapper}>
+        <div className={styles.mediaWrapper} onWheel={handleWheel}>
           {item.mediaType === "video" ? (
             // biome-ignore lint/a11y/useMediaCaption: User generated content does not have captions
             <video
@@ -521,7 +619,21 @@ export default function Lightbox({
             <Image
               src={encodeFilePath(item.filePath)}
               alt={row.post?.title || "Gallery Image"}
-              className={styles.image}
+              className={`${styles.image} ${
+                currentFitMode === "fitWidth"
+                  ? styles.fitWidth
+                  : currentFitMode === "fitHeight"
+                    ? styles.fitHeight
+                    : styles.fitBoth
+              } ${zoom > 1.0 ? (isDragging ? styles.grabbing : styles.grab) : ""}`}
+              style={{
+                transform: `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`,
+                transition: isDragging ? "none" : "transform 0.15s ease-out",
+              }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
               onClick={(e) => {
                 e.stopPropagation();
                 if (isRecentlyMounted) return;
@@ -557,6 +669,66 @@ export default function Lightbox({
         )}
 
         <div className={styles.controls} data-visible={controlsVisible}>
+          {/* Fit Mode Cycle */}
+          <button
+            type="button"
+            className={styles.iconButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              cycleFitMode();
+            }}
+            title={`Fit mode: ${currentFitMode}`}
+            aria-label="Cycle fit mode"
+          >
+            {currentFitMode === "fitBoth" ? (
+              <Maximize2 size={18} />
+            ) : currentFitMode === "fitWidth" ? (
+              <MoveHorizontal size={18} />
+            ) : (
+              <MoveVertical size={18} />
+            )}
+          </button>
+
+          {/* Zoom Controls */}
+          <button
+            type="button"
+            className={styles.iconButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleZoomOut();
+            }}
+            disabled={zoom <= minZoomVal}
+            title="Zoom Out"
+            aria-label="Zoom Out"
+          >
+            <ZoomOut size={18} />
+          </button>
+          <button
+            type="button"
+            className={`${styles.iconButton} ${styles.zoomResetButton}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleResetZoom();
+            }}
+            title="Reset Zoom (100%)"
+            aria-label="Reset Zoom"
+          >
+            <span className={styles.zoomText}>{Math.round(zoom * 100)}%</span>
+          </button>
+          <button
+            type="button"
+            className={styles.iconButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleZoomIn();
+            }}
+            disabled={zoom >= maxZoomVal}
+            title="Zoom In"
+            aria-label="Zoom In"
+          >
+            <ZoomIn size={18} />
+          </button>
+
           {onDelete && (
             <>
               <button
