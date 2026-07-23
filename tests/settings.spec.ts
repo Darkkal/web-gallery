@@ -340,10 +340,10 @@ test.describe
       await expect(fitModeSelect).toHaveValue("fitBoth");
 
       await expect(zoomMinInput).toBeVisible();
-      await expect(zoomMinInput).toHaveValue("25");
+      await expect(zoomMinInput).toHaveValue("50");
 
       await expect(zoomMaxInput).toBeVisible();
-      await expect(zoomMaxInput).toHaveValue("500");
+      await expect(zoomMaxInput).toHaveValue("200");
 
       await expect(zoomStepInput).toBeVisible();
       await expect(zoomStepInput).toHaveValue("25");

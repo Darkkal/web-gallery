@@ -48,8 +48,8 @@ export default async function TimelinePage({
       autoHideControls={settings.lightboxAutoHideControls ?? false}
       autoHideDelay={settings.lightboxAutoHideDelay ?? 3}
       lightboxFitMode={settings.lightboxFitMode ?? "fitBoth"}
-      lightboxZoomMin={settings.lightboxZoomMin ?? 25}
-      lightboxZoomMax={settings.lightboxZoomMax ?? 500}
+      lightboxZoomMin={settings.lightboxZoomMin ?? 50}
+      lightboxZoomMax={settings.lightboxZoomMax ?? 200}
       lightboxZoomStep={settings.lightboxZoomStep ?? 25}
     />
   );

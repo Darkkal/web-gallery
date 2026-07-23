@@ -79,8 +79,8 @@ export default function Lightbox({
   autoHideControls = false,
   autoHideDelay = 3,
   fitMode = "fitBoth",
-  zoomMin = 25,
-  zoomMax = 500,
+  zoomMin = 50,
+  zoomMax = 200,
   zoomStep = 25,
   onTagClick,
   onUserClick,
@@ -194,6 +194,7 @@ export default function Lightbox({
   );
 
   const cycleFitMode = () => {
+    setZoom(1.0);
     setPanOffset({ x: 0, y: 0 });
     setCurrentFitMode((prev) => {
       if (prev === "fitBoth") return "fitWidth";
