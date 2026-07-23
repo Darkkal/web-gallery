@@ -249,15 +249,15 @@ test("lightbox touch pinch-to-zoom gesture", async ({ page }) => {
 
     await img.dispatchEvent("touchstart", {
       touches: [
-        { clientX: centerX - 10, clientY: centerY - 10 },
-        { clientX: centerX + 10, clientY: centerY + 10 },
+        { identifier: 0, clientX: centerX - 10, clientY: centerY - 10 },
+        { identifier: 1, clientX: centerX + 10, clientY: centerY + 10 },
       ],
     });
 
     await img.dispatchEvent("touchmove", {
       touches: [
-        { clientX: centerX - 50, clientY: centerY - 50 },
-        { clientX: centerX + 50, clientY: centerY + 50 },
+        { identifier: 0, clientX: centerX - 50, clientY: centerY - 50 },
+        { identifier: 1, clientX: centerX + 50, clientY: centerY + 50 },
       ],
     });
 
@@ -266,8 +266,8 @@ test("lightbox touch pinch-to-zoom gesture", async ({ page }) => {
     await img.dispatchEvent("touchend", {
       touches: [],
       changedTouches: [
-        { clientX: centerX - 50, clientY: centerY - 50 },
-        { clientX: centerX + 50, clientY: centerY + 50 },
+        { identifier: 0, clientX: centerX - 50, clientY: centerY - 50 },
+        { identifier: 1, clientX: centerX + 50, clientY: centerY + 50 },
       ],
     });
   }
