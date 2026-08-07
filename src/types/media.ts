@@ -2,6 +2,7 @@ import type { InferSelectModel } from "drizzle-orm";
 import type {
   mediaItems,
   pixivUsers,
+  postDetailsEHentai,
   postDetailsGelbooruV02,
   postDetailsPixiv,
   postDetailsTwitter,
@@ -31,14 +32,30 @@ export interface TagManageItem {
   parentName: string | null;
 }
 
+export type TwitterDetails = InferSelectModel<typeof postDetailsTwitter>;
+export type PixivDetails = InferSelectModel<typeof postDetailsPixiv>;
+export type GelbooruDetails = InferSelectModel<typeof postDetailsGelbooruV02>;
+export type EHentaiDetails = InferSelectModel<typeof postDetailsEHentai>;
+
+export interface PlatformDetails {
+  extractorType: string;
+  data: Record<string, unknown>;
+}
+
+export interface PlatformUser {
+  extractorType: string;
+  id: string | null;
+  name: string | null;
+  username: string | null;
+  profileImage: string | null;
+  data: Record<string, unknown>;
+}
+
 export interface GalleryRow {
   item: MediaItem;
   post?: InferSelectModel<typeof posts> | null;
-  twitter?: InferSelectModel<typeof postDetailsTwitter> | null;
-  pixiv?: InferSelectModel<typeof postDetailsPixiv> | null;
-  gelbooru?: InferSelectModel<typeof postDetailsGelbooruV02> | null;
-  user?: InferSelectModel<typeof twitterUsers> | null;
-  pixivUser?: InferSelectModel<typeof pixivUsers> | null;
+  platformDetails?: PlatformDetails | null;
+  platformUser?: PlatformUser | null;
   source?: InferSelectModel<typeof sources> | null;
 }
 
