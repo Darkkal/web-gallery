@@ -24,7 +24,12 @@ export default async function PlaylistPlayerPage({ params }: PageProps) {
   if (Number.isNaN(numericId)) notFound();
 
   const playlist = await getPlaylist(numericId);
-  if (!playlist || playlist.items.length === 0) notFound();
+  const hasContent =
+    playlist?.type === "dynamic"
+      ? playlist.posts && playlist.posts.length > 0
+      : playlist?.items && playlist.items.length > 0;
+
+  if (!playlist || !hasContent) notFound();
 
   const serializablePlaylist = JSON.parse(JSON.stringify(playlist));
 

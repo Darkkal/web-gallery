@@ -780,6 +780,19 @@ export async function getDynamicPlaylistPostIds(filters?: {
   const searchLower = cleanQuery.toLowerCase();
   const expandedSearch = searchLower ? await expandSearchTags(searchLower) : "";
 
+  if (expandedSearch && !sourceFilter) {
+    const rows = await db
+      .select({
+        postId: sql<number>`rowid`.mapWith(Number),
+      })
+      .from(sql`posts_fts`)
+      .where(sql`posts_fts MATCH ${expandedSearch}`)
+      .orderBy(desc(sql`rowid`));
+
+    const postIds = rows.map((r) => r.postId);
+    return { postIds, totalCount: postIds.length };
+  }
+
   const subqueryConditions: SQL[] = [ne(mediaItems.mediaType, "text")];
 
   if (sourceFilter) {

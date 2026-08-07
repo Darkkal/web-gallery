@@ -1,6 +1,8 @@
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
 import { getDynamicPlaylistPostIds } from "@/lib/db/repositories/media";
-import { getPlaylist } from "@/lib/db/repositories/playlists";
+import { playlists } from "@/lib/db/schema";
 
 export async function GET(
   _request: Request,
@@ -12,7 +14,9 @@ export async function GET(
     return NextResponse.json({ error: "Invalid playlist ID" }, { status: 400 });
   }
 
-  const playlist = await getPlaylist(numericId);
+  const playlist = await db.query.playlists.findFirst({
+    where: eq(playlists.id, numericId),
+  });
   if (!playlist) {
     return NextResponse.json({ error: "Playlist not found" }, { status: 404 });
   }
