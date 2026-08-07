@@ -12,6 +12,10 @@ export async function getMediaItems(filters?: {
   return mediaRepo.getMediaItems(filters);
 }
 
+export async function getPostMediaItems(postId: number) {
+  return mediaRepo.getPostMediaItems(postId);
+}
+
 export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
   const result = await mediaRepo.deleteMediaItems(ids, deleteFiles);
   revalidatePath("/gallery");
