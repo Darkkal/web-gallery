@@ -221,6 +221,23 @@ export async function getMediaItems(filters?: {
   }
 
   const subqueryConditions: SQL[] = [ne(mediaItems.mediaType, "text")];
+
+  if (sourceFilter) {
+    const sourcePostSubquery = db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.extractorType, sourceFilter));
+    subqueryConditions.push(inArray(mediaItems.postId, sourcePostSubquery));
+  }
+
+  if (expandedSearch) {
+    const ftsPostSubquery = db
+      .select({ id: sql<number>`rowid` })
+      .from(sql`posts_fts`)
+      .where(sql`posts_fts MATCH ${expandedSearch}`);
+    subqueryConditions.push(inArray(mediaItems.postId, ftsPostSubquery));
+  }
+
   if (filters?.playlistId && !isDynamicPlaylist) {
     const playlistItemSubquery = db
       .select({ mediaItemId: playlistItems.mediaItemId })
@@ -544,6 +561,23 @@ export async function getMediaItemIds(filters?: {
   }
 
   const subqueryConditions: SQL[] = [ne(mediaItems.mediaType, "text")];
+
+  if (sourceFilter) {
+    const sourcePostSubquery = db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.extractorType, sourceFilter));
+    subqueryConditions.push(inArray(mediaItems.postId, sourcePostSubquery));
+  }
+
+  if (expandedSearch) {
+    const ftsPostSubquery = db
+      .select({ id: sql<number>`rowid` })
+      .from(sql`posts_fts`)
+      .where(sql`posts_fts MATCH ${expandedSearch}`);
+    subqueryConditions.push(inArray(mediaItems.postId, ftsPostSubquery));
+  }
+
   if (filters?.playlistId && !isDynamicPlaylist) {
     const playlistItemSubquery = db
       .select({ mediaItemId: playlistItems.mediaItemId })
