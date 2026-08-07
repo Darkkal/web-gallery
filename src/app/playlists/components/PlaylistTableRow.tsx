@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit2, Play, Trash2 } from "lucide-react";
+import { Edit2, Play, Sparkles, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import styles from "@/app/playlists/page.module.css";
@@ -101,9 +101,20 @@ export default function PlaylistTableRow({
       </td>
 
       <td>
-        <Link href={`/playlists/${playlist.id}`} className={styles.rowTitle}>
-          {playlist.name}
-        </Link>
+        <div className={styles.badgeWrapper}>
+          <Link href={`/playlists/${playlist.id}`} className={styles.rowTitle}>
+            {playlist.name}
+          </Link>
+          {playlist.type === "dynamic" && (
+            <span
+              className={styles.dynamicBadge}
+              title={`Dynamic search query: "${playlist.searchQuery}"`}
+            >
+              <Sparkles size={12} />
+              Dynamic
+            </span>
+          )}
+        </div>
         {playlist.description && (
           <div className={styles.rowDesc}>{playlist.description}</div>
         )}

@@ -726,6 +726,12 @@
   margin-top: 0.35rem;
 }
 
+.badgeWrapper {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
 .dynamicBadge {
   display: inline-flex;
   align-items: center;
