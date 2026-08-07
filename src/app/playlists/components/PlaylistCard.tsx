@@ -101,7 +101,13 @@ export default function PlaylistCard({
               </span>
             )}
             <div className={styles.badge}>
-              {itemCount === 1 ? "1 item" : `${itemCount} items`}
+              {playlist.type === "dynamic"
+                ? itemCount === 1
+                  ? "1 post"
+                  : `${itemCount} posts`
+                : itemCount === 1
+                  ? "1 item"
+                  : `${itemCount} items`}
             </div>
           </div>
         </div>

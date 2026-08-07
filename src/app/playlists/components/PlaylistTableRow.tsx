@@ -120,7 +120,15 @@ export default function PlaylistTableRow({
         )}
       </td>
 
-      <td>{itemCount === 1 ? "1 item" : `${itemCount} items`}</td>
+      <td>
+        {playlist.type === "dynamic"
+          ? itemCount === 1
+            ? "1 post"
+            : `${itemCount} posts`
+          : itemCount === 1
+            ? "1 item"
+            : `${itemCount} items`}
+      </td>
 
       <td>
         {new Date(
