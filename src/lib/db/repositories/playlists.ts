@@ -126,9 +126,7 @@ export async function getPlaylist(
     }));
 
     const thumbnailPath =
-      playlist.thumbnail ||
-      searchResult.items[0]?.mediaItem?.filePath ||
-      undefined;
+      playlist.thumbnail || searchResult.items[0]?.item?.filePath || undefined;
 
     return {
       ...playlist,
