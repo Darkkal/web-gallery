@@ -318,6 +318,8 @@ export const playlists = sqliteTable("playlists", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   description: text("description"),
+  type: text("type").$type<"normal" | "dynamic">().notNull().default("normal"),
+  searchQuery: text("search_query"),
   thumbnail: text("thumbnail"),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
     () => new Date(),
