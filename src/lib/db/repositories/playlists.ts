@@ -1,6 +1,9 @@
 import { and, asc, desc, eq, inArray, like, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { getMediaItems } from "@/lib/db/repositories/media";
+import {
+  getDynamicPlaylistMeta,
+  getMediaItems,
+} from "@/lib/db/repositories/media";
 import { mediaItems, playlistItems, playlists } from "@/lib/db/schema";
 import type { PlaylistItem, PlaylistWithItems } from "@/types/playlist";
 
@@ -71,17 +74,11 @@ export async function getPlaylists(filters?: {
   const resolvedList = await Promise.all(
     list.map(async (p) => {
       if (p.type === "dynamic") {
-        const searchResult = await getMediaItems({
-          search: p.searchQuery ?? "",
-          limit: 1000,
-        });
-        const count = searchResult.items.length;
-        const thumb =
-          p.thumbnail || searchResult.items[0]?.item?.filePath || undefined;
+        const meta = await getDynamicPlaylistMeta(p.searchQuery ?? "");
         return {
           ...p,
-          itemCount: count,
-          thumbnailPath: thumb,
+          itemCount: meta.itemCount,
+          thumbnailPath: p.thumbnail || meta.thumbnailPath,
         };
       }
       return p;
@@ -99,6 +96,7 @@ export async function getPlaylists(filters?: {
 
 export async function getPlaylist(
   id: number,
+  options?: { limit?: number; cursor?: string },
 ): Promise<PlaylistWithItems | undefined> {
   const playlist = await db.query.playlists.findFirst({
     where: eq(playlists.id, id),
@@ -107,10 +105,13 @@ export async function getPlaylist(
   if (!playlist) return undefined;
 
   if (playlist.type === "dynamic") {
+    const limit = options?.limit ?? 100;
     const searchResult = await getMediaItems({
       search: playlist.searchQuery ?? "",
-      limit: 1000,
+      limit,
+      cursor: options?.cursor,
     });
+    const meta = await getDynamicPlaylistMeta(playlist.searchQuery ?? "");
 
     const items: PlaylistItem[] = searchResult.items.map((row, index) => ({
       id: -row.item.id,
@@ -121,13 +122,11 @@ export async function getPlaylist(
       mediaItem: row.item,
     }));
 
-    const count = items.length;
-    const thumbnailPath =
-      playlist.thumbnail || items[0]?.mediaItem?.filePath || undefined;
+    const thumbnailPath = playlist.thumbnail || meta.thumbnailPath || undefined;
 
     return {
       ...playlist,
-      itemCount: count,
+      itemCount: meta.itemCount,
       thumbnailPath,
       items,
     };
