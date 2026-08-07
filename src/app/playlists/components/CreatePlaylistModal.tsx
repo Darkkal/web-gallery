@@ -129,6 +129,11 @@ export default function CreatePlaylistModal({
                 Dynamic
               </button>
             </div>
+            <span className={styles.helperText}>
+              {type === "normal"
+                ? "Normal playlists are manually curated per media item."
+                : "Dynamic playlists are automatically generated from search queries and grouped per post."}
+            </span>
           </div>
 
           <div className={styles.formGroup}>
