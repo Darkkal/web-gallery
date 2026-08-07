@@ -389,6 +389,7 @@ The Lightbox subsystem provides interactive, full-screen media viewing with conf
 - **Multi-Touch Pinch-to-Zoom**: Detects two-finger touch events (`onTouchStart`, `onTouchMove`, `onTouchEnd`) to dynamically update zoom level based on touch distance ratios. Uses initial touch midpoint anchoring (`initialPinchCenterRef`) to calculate translation shifts during scaling.
 - **Auto-Hide Controls Framework**: Supports a persistent toggle button (`Eye`/`EyeOff`) and configurable inactivity auto-hide timers (`autoHideDelay`). Timer resets on pointer, click, touch, wheel, keyboard, or navigation activity. Pressing `Escape` while controls are hidden restores control visibility before closing on second press.
 - **Full-Height Navigation Overlay**: Replaces small target buttons with full-height left and right click/touch zones (`navZonePrev`, `navZoneNext`) for effortless media cycling.
+- **Generic Platform Metadata Access**: Reads author metadata directly from `row.platformUser` and platform-specific statistics/info via generic `getPlatformDetails<T>(row, extractorType)` accessors, keeping the UI completely decoupled from specific database schemas.
 
 ---
 
@@ -606,6 +607,9 @@ Disabling viewport zoom globally via `user-scalable=no` meta tags violates WCAG 
 
 ### Pan offset divided by zoom factor in CSS transform
 CSS `transform` matrix operations evaluate transformations right-to-left (`scale()` then `translate()`). In `Lightbox.tsx`, inline styling applies `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`. Dividing the raw screen-pixel drag offset by the zoom level converts pan deltas back into pre-scaled coordinate space, ensuring 1:1 physical cursor-to-image tracking at any zoom magnification level.
+
+### Decoupled Platform Metadata Slots (`GalleryRow`)
+Per-platform fields (`twitter`, `pixiv`, `gelbooru`, `user`, `pixivUser`) are collapsed into generic `platformDetails` and `platformUser` slots on `GalleryRow`. `flattenToGalleryRow()` in the repository layer maps database query joins into these generic slots before returning from `getMediaItems()`. This ensures that adding support for new extractors does not require modifying `GalleryRow` or UI rendering components.
 
 ---
 

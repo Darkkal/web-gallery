@@ -112,7 +112,7 @@ Frontend types are in `src/types/`:
 
 | File | Contains |
 |------|----------|
-| `media.ts` | `MediaItem`, `GalleryGroup`, `GalleryRow` |
+| `media.ts` | `MediaItem`, `GalleryGroup`, `GalleryRow`, `PlatformDetails`, `PlatformUser`, opt-in details types (`TwitterDetails`, `PixivDetails`, `GelbooruDetails`, `EHentaiDetails`) |
 | `autocomplete.ts` | `AutocompleteSuggestion`, `AutocompleteResponse` definitions |
 | `playlist.ts` | `Playlist`, playlist-related types |
 | `posts.ts` | `TimelinePost`, post-related types |
@@ -220,6 +220,13 @@ This project supports compiling a dependency-free standalone binary using `@yao-
 - **Build Script**: Developers can run `npm run build:release` which triggers `scripts/build-release.js`. This script compiles Next.js in standalone mode, copies static assets/drizzle migrations, patches `server.js` to run in the VFS snapshot, and packages the binary.
 - **Rule**: When adding new static files, templates, or folders that must be bundled with the binary, you MUST update the `assets` list in the `"pkg"` config within `package.json` to ensure they are captured by the compiler.
 - **Rule**: Avoid hardcoded references to `process.cwd() + "/public"` or assuming system binaries are globally available. Always check for local binaries in `./bin` using the `getCommandPath` helper and use `path.dirname(paths.downloads)` to resolve public assets correctly.
+
+### 1.16 Generic Platform Metadata Slots (`GalleryRow`)
+
+`GalleryRow` uses generic `platformDetails` (`extractorType`, `data`) and `platformUser` (`extractorType`, `id`, `name`, `username`, `profileImage`, `data`) slots to decouple UI components (`Lightbox.tsx`, `PostCard.tsx`) from specific database schemas.
+
+- **Rule**: When adding support for a new gallery-dl extractor, do NOT add platform-specific fields to `GalleryRow`. Map joined query results or metadata in `flattenToGalleryRow()` (`src/lib/db/repositories/media.ts`) to populate `platformDetails` and `platformUser`.
+- **Rule**: Use the generic accessor `getPlatformDetails<T>(row, extractorType)` from `@/lib/metadata` to retrieve typed platform details (e.g. `TwitterDetails`, `PixivDetails`, `GelbooruDetails`, `EHentaiDetails`) in UI components.
 
 ---
 
