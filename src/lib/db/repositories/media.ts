@@ -133,6 +133,46 @@ export function flattenToGalleryRow(row: {
   };
 }
 
+export async function getPostMediaItems(postId: number): Promise<GalleryRow[]> {
+  const rawResults = await db
+    .select({
+      item: mediaItems,
+      post: posts,
+      twitter: postDetailsTwitter,
+      pixiv: postDetailsPixiv,
+      gelbooru: postDetailsGelbooruV02,
+      ehentai: postDetailsEHentai,
+      user: twitterUsers,
+      pixivUser: pixivUsers,
+      source: sources,
+    })
+    .from(mediaItems)
+    .leftJoin(posts, eq(mediaItems.postId, posts.id))
+    .leftJoin(postDetailsTwitter, eq(posts.id, postDetailsTwitter.postId))
+    .leftJoin(postDetailsPixiv, eq(posts.id, postDetailsPixiv.postId))
+    .leftJoin(
+      postDetailsGelbooruV02,
+      eq(posts.id, postDetailsGelbooruV02.postId),
+    )
+    .leftJoin(postDetailsEHentai, eq(posts.id, postDetailsEHentai.postId))
+    .leftJoin(
+      twitterUsers,
+      and(
+        eq(posts.extractorType, "twitter"),
+        eq(posts.userId, twitterUsers.id),
+      ),
+    )
+    .leftJoin(
+      pixivUsers,
+      and(eq(posts.extractorType, "pixiv"), eq(posts.userId, pixivUsers.id)),
+    )
+    .leftJoin(sources, eq(posts.internalSourceId, sources.id))
+    .where(and(eq(mediaItems.postId, postId), ne(mediaItems.mediaType, "text")))
+    .orderBy(asc(mediaItems.id));
+
+  return rawResults.map((r) => flattenToGalleryRow(r));
+}
+
 export async function getMediaItems(filters?: {
   search?: string;
   sortBy?: string;
@@ -163,6 +203,25 @@ export async function getMediaItems(filters?: {
       .where(eq(playlistItems.playlistId, filters.playlistId));
     whereConditions.push(inArray(mediaItems.id, playlistItemSubquery));
   }
+
+  const subqueryConditions: SQL[] = [ne(mediaItems.mediaType, "text")];
+  if (filters?.playlistId) {
+    const playlistItemSubquery = db
+      .select({ mediaItemId: playlistItems.mediaItemId })
+      .from(playlistItems)
+      .where(eq(playlistItems.playlistId, filters.playlistId));
+    subqueryConditions.push(inArray(mediaItems.id, playlistItemSubquery));
+  }
+
+  const groupSubquery = db
+    .select({
+      minId: sql<number>`MIN(${mediaItems.id})`.as("min_id"),
+      groupCount: sql<number>`COUNT(*)`.as("group_count"),
+    })
+    .from(mediaItems)
+    .where(and(...subqueryConditions))
+    .groupBy(sql`COALESCE(${mediaItems.postId}, -${mediaItems.id})`)
+    .as("group_subquery");
 
   const searchSubquery = expandedSearch
     ? db
@@ -262,8 +321,10 @@ export async function getMediaItems(filters?: {
       pixivUser: pixivUsers,
       source: sources,
       sortVal: sortValOutput, // include sortVal to easily compute the next cursor
+      groupCount: groupSubquery.groupCount,
     })
     .from(mediaItems)
+    .innerJoin(groupSubquery, eq(mediaItems.id, groupSubquery.minId))
     .$dynamic();
 
   if (searchSubquery) {
@@ -307,41 +368,12 @@ export async function getMediaItems(filters?: {
     pixivUser: typeof pixivUsers.$inferSelect | null;
     source: typeof sources.$inferSelect | null;
     sortVal: unknown;
+    groupCount: number;
   }[];
 
-  const results = rawResults.map((r) => ({
-    ...flattenToGalleryRow(r),
-    sortVal: r.sortVal,
-  }));
-
-  type GroupedResult = (typeof results)[number] & {
-    groupItems: (typeof results)[number][];
-    groupCount: number;
-  };
-
-  const groupedMap = new Map<string, GroupedResult>();
-
-  for (const row of results) {
-    const key = row.post ? `p_${row.post.id}` : `i_${row.item.id}`;
-
-    if (!groupedMap.has(key)) {
-      groupedMap.set(key, {
-        ...row,
-        groupItems: [],
-        groupCount: 0,
-      });
-    }
-
-    const group = groupedMap.get(key);
-    if (group) {
-      group.groupItems.push(row);
-      group.groupCount++;
-    }
-  }
-
   let nextCursor: string | null = null;
-  if (results.length === limit) {
-    const lastItem = results[results.length - 1];
+  if (rawResults.length === limit) {
+    const lastItem = rawResults[rawResults.length - 1];
     const sortVal =
       lastItem.sortVal instanceof Date
         ? lastItem.sortVal.getTime()
@@ -354,19 +386,12 @@ export async function getMediaItems(filters?: {
     );
   }
 
-  // Return the items minus the internal sortVal to match the previous structure as closely as possible.
-  // Sort group items ascending by item ID so multi-image posts display the first media item as thumbnail.
-  const items = Array.from(groupedMap.values()).map((g) => {
-    g.groupItems.sort((a, b) => a.item.id - b.item.id);
-    const firstItemRow = g.groupItems[0] || g;
-    const { ...rest } = firstItemRow;
+  const items = rawResults.map((r) => {
+    const flattened = flattenToGalleryRow(r);
     return {
-      ...rest,
-      groupCount: g.groupCount,
-      groupItems: g.groupItems.map((gi) => {
-        const { ...giRest } = gi;
-        return giRest;
-      }),
+      ...flattened,
+      groupCount: Number(r.groupCount || 1),
+      groupItems: [flattened],
     };
   });
 

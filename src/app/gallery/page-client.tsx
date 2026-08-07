@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { deleteMediaItems, refetchPostData } from "@/app/actions/gallery";
+import {
+  deleteMediaItems,
+  getPostMediaItems,
+  refetchPostData,
+} from "@/app/actions/gallery";
 import BulkActionBar from "@/app/gallery/components/BulkActionBar";
 import BulkTagPopover from "@/app/gallery/components/BulkTagPopover";
 import FilterBar from "@/app/gallery/components/FilterBar";
@@ -123,6 +127,7 @@ function GalleryPageContent({
 
   const {
     items,
+    setItems,
     searchQuery,
     setSearchQuery,
     sortBy,
@@ -175,12 +180,56 @@ function GalleryPageContent({
     prev: prevLightbox,
     setSelectedIndex,
     isPageLoading,
-  } = useLightbox(items.length, (idx) => items[idx].groupItems.length, {
-    onLoadMore: loadMore,
-    hasMore,
-    isLoading,
-    preloadBuffer: 3,
-  });
+  } = useLightbox(
+    items.length,
+    (idx) => items[idx]?.groupCount || items[idx]?.groupItems.length || 1,
+    {
+      onLoadMore: loadMore,
+      hasMore,
+      isLoading,
+      preloadBuffer: 3,
+    },
+  );
+
+  // Lazily load full media items for active & adjacent post groups in Lightbox
+  useEffect(() => {
+    if (selectedIndex === null) return;
+
+    const indicesToFetch = [
+      selectedIndex,
+      selectedIndex + 1,
+      selectedIndex - 1,
+    ].filter((i) => i >= 0 && i < items.length);
+
+    for (const idx of indicesToFetch) {
+      const group = items[idx];
+      if (!group || !group.post?.id) continue;
+      if (group.groupCount > 1 && group.groupItems.length < group.groupCount) {
+        const postId = group.post.id;
+        getPostMediaItems(postId)
+          .then((fullGroupItems) => {
+            if (fullGroupItems && fullGroupItems.length > 0) {
+              setItems((prev) => {
+                const next = [...prev];
+                if (next[idx] && next[idx].post?.id === postId) {
+                  next[idx] = {
+                    ...next[idx],
+                    groupItems: fullGroupItems,
+                  };
+                }
+                return next;
+              });
+            }
+          })
+          .catch((err) => {
+            console.error(
+              `[GalleryPage] Failed to lazily load post media items for post ${postId}:`,
+              err,
+            );
+          });
+      }
+    }
+  }, [selectedIndex, items, setItems]);
 
   // Keep background feed scroll in sync with lightbox active item
   useEffect(() => {
@@ -267,7 +316,7 @@ function GalleryPageContent({
 
   const currentGroup = selectedIndex !== null ? items[selectedIndex] : null;
   const currentItemRow = currentGroup
-    ? currentGroup.groupItems[mediaIndex]
+    ? currentGroup.groupItems[mediaIndex] || currentGroup.groupItems[0]
     : null;
 
   return (
