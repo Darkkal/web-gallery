@@ -321,6 +321,11 @@ export default function ScheduleBuilder({
     setMounted(true);
   }, [initialInterval, initialCron]);
 
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
   // Compute cron/interval whenever inputs change and call onChange
   useEffect(() => {
     if (!mounted) return;
@@ -380,7 +385,7 @@ export default function ScheduleBuilder({
     }
 
     lastEmittedRef.current = { scheduleInterval, scheduleCron };
-    onChange({ scheduleInterval, scheduleCron });
+    onChangeRef.current({ scheduleInterval, scheduleCron });
   }, [
     mounted,
     frequency,
@@ -394,7 +399,6 @@ export default function ScheduleBuilder({
     intervalValue,
     intervalUnit,
     cronPattern,
-    onChange,
   ]);
 
   if (!mounted) {
