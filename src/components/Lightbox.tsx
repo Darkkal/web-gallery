@@ -1448,7 +1448,8 @@ export default function Lightbox({
           )}
         </div>
 
-        {(row.post?.url || (tweet?.tweetId && user)) && (
+        {(row.post?.url ||
+          (twitterDetails && row.platformUser && row.post?.jsonSourceId)) && (
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Source</h3>
             {onRefetch && row.post?.id && (
@@ -1477,16 +1478,19 @@ export default function Lightbox({
                 Open Original Post
               </a>
             )}
-            {tweet?.tweetId && user && (
-              <a
-                href={`https://twitter.com/${user.nick || user.username}/status/${tweet.tweetId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.linkButton}
-              >
-                View Tweet
-              </a>
-            )}
+            {twitterDetails &&
+              row.platformUser &&
+              row.post?.jsonSourceId &&
+              !row.post?.url && (
+                <a
+                  href={`https://twitter.com/${row.platformUser.username}/status/${row.post.jsonSourceId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.linkButton}
+                >
+                  View Tweet
+                </a>
+              )}
           </div>
         )}
       </div>
