@@ -8,13 +8,7 @@ import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 import Lightbox from "@/components/Lightbox";
 import { useLightbox } from "@/hooks/useLightbox";
 import { usePaginatedData } from "@/hooks/usePaginatedData";
-import type { UnifiedUserData } from "@/lib/metadata";
-import {
-  mergeGelbooruv02Metadata,
-  mergePixivMetadata,
-  mergeTwitterMetadata,
-} from "@/lib/metadata";
-import type { GalleryRow } from "@/types/media";
+import type { GalleryRow, PlatformDetails, PlatformUser } from "@/types/media";
 import type { TimelinePost } from "@/types/posts";
 
 export default function TimelinePageClient({
@@ -173,42 +167,52 @@ function TimelinePageContent({
     const post = posts[selectedIndex];
     const media = post.mediaItems[mediaIndex];
 
-    const pixivInput =
-      post.type === "pixiv"
-        ? {
-            id: post.pixivMetadata?.dbId || 0,
-            jsonSourceId: post.pixivMetadata?.illustId?.toString() || null,
-            title: post.title || null,
-            content: post.content || null,
-          }
-        : null;
+    let platformDetails: PlatformDetails | null = null;
+    let platformUser: PlatformUser | null = null;
 
-    const pixivDetails =
-      post.type === "pixiv"
-        ? {
-            totalBookmarks: post.stats?.likes || 0,
-            totalView: post.stats?.views || 0,
-            pageCount: null,
-          }
-        : null;
+    if (post.author) {
+      platformUser = {
+        extractorType: post.type,
+        id: null,
+        name: post.author.name || null,
+        username: post.author.handle || null,
+        profileImage: post.author.avatar || null,
+        data: {},
+      };
+    }
 
-    const twitterInput =
-      post.type === "twitter"
-        ? {
-            jsonSourceId: null,
-            content: post.content || null,
-          }
-        : null;
-
-    const twitterDetails =
-      post.type === "twitter"
-        ? {
-            favoriteCount: post.stats?.likes || 0,
-            retweetCount: post.stats?.retweets || 0,
-            bookmarkCount: post.stats?.bookmarks || 0,
-            viewCount: post.stats?.views || 0,
-          }
-        : null;
+    if (post.type === "twitter") {
+      platformDetails = {
+        extractorType: "twitter",
+        data: {
+          favoriteCount: post.stats?.likes || 0,
+          retweetCount: post.stats?.retweets || 0,
+          bookmarkCount: post.stats?.bookmarks || 0,
+          viewCount: post.stats?.views || 0,
+        },
+      };
+    } else if (post.type === "pixiv") {
+      platformDetails = {
+        extractorType: "pixiv",
+        data: {
+          totalBookmarks: post.stats?.likes || 0,
+          totalView: post.stats?.views || 0,
+          pageCount: null,
+          title: post.title || null,
+          caption: post.content || null,
+        },
+      };
+    } else if (post.type === "other" && post.author?.name === "Gelbooru") {
+      platformDetails = {
+        extractorType: "gelbooruv02",
+        data: {
+          score: post.stats?.likes || 0,
+          rating: null,
+          source: post.sourceUrl || null,
+          tags: post.gelbooruMetadata?.tags || [],
+        },
+      };
+    }
 
     return {
       row: {
@@ -237,46 +241,9 @@ function TimelinePageContent({
           metadataPath: null,
           createdAt: post.date ? new Date(post.date) : new Date(),
         },
+        platformDetails,
+        platformUser,
       } as GalleryRow,
-      tweet:
-        post.type === "twitter"
-          ? mergeTwitterMetadata(twitterInput, twitterDetails)
-          : undefined,
-      user:
-        post.type === "twitter"
-          ? ({
-              name: post.author?.name,
-              nick: post.author?.handle,
-              profileImage: post.author?.avatar,
-            } as UnifiedUserData)
-          : undefined,
-      pixiv:
-        post.type === "pixiv"
-          ? mergePixivMetadata(pixivInput, pixivDetails)
-          : undefined,
-      gelbooru:
-        post.type === "other" && post.author?.name === "Gelbooru"
-          ? mergeGelbooruv02Metadata(
-              {
-                id: post.internalDbId || 0,
-                jsonSourceId: null,
-                url: post.sourceUrl || null,
-              },
-              {
-                score: post.stats?.likes || 0,
-                rating: null,
-                tags: post.gelbooruMetadata?.tags,
-              },
-            )
-          : undefined,
-      pixivUser:
-        post.type === "pixiv"
-          ? ({
-              name: post.author?.name,
-              account: post.author?.handle,
-              profileImage: post.author?.avatar,
-            } as UnifiedUserData)
-          : undefined,
     };
   }, [selectedIndex, mediaIndex, posts]);
 

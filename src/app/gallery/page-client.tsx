@@ -14,8 +14,6 @@ import MasonryGrid from "@/components/MasonryGrid";
 import { useLightbox } from "@/hooks/useLightbox";
 import { usePaginatedData } from "@/hooks/usePaginatedData";
 import { useSelection } from "@/hooks/useSelection";
-import type { UnifiedUserData } from "@/lib/metadata";
-import { mergePixivMetadata, mergeTwitterMetadata } from "@/lib/metadata";
 import type { GalleryGroup } from "@/types/media";
 
 export default function GalleryPageClient({
@@ -369,29 +367,6 @@ function GalleryPageContent({
         <Lightbox
           row={currentItemRow}
           groupItems={currentGroup.groupItems}
-          tweet={
-            currentItemRow.post?.extractorType === "twitter"
-              ? mergeTwitterMetadata(
-                  currentItemRow.post,
-                  currentItemRow.twitter,
-                )
-              : undefined
-          }
-          user={
-            currentItemRow.post?.extractorType === "twitter"
-              ? (currentItemRow.user as UnifiedUserData)
-              : undefined
-          }
-          pixiv={
-            currentItemRow.post?.extractorType === "pixiv"
-              ? mergePixivMetadata(currentItemRow.post, currentItemRow.pixiv)
-              : undefined
-          }
-          pixivUser={
-            currentItemRow.post?.extractorType === "pixiv"
-              ? (currentItemRow.pixivUser as UnifiedUserData)
-              : undefined
-          }
           onClose={closeLightbox}
           onNext={nextLightbox}
           onPrev={prevLightbox}
