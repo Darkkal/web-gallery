@@ -26,24 +26,21 @@ import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import FormattedContent from "@/components/FormattedContent";
 import styles from "@/components/Lightbox.module.css";
 import TagAutocompleteInput from "@/components/TagAutocompleteInput";
-import type {
-  UnifiedGelbooruv02Data,
-  UnifiedPixivData,
-  UnifiedTwitterData,
-  UnifiedUserData,
-} from "@/lib/metadata";
+import { getPlatformDetails } from "@/lib/metadata";
 import { handleKeyActivate } from "@/lib/utils/a11y";
 import { encodeFilePath } from "@/lib/utils/format";
-import type { GalleryRow, TagWithCategory } from "@/types/media";
+import type {
+  EHentaiDetails,
+  GalleryRow,
+  GelbooruDetails,
+  PixivDetails,
+  TagWithCategory,
+  TwitterDetails,
+} from "@/types/media";
 
 interface LightboxProps {
   row: GalleryRow;
   groupItems?: GalleryRow[];
-  tweet?: UnifiedTwitterData;
-  user?: UnifiedUserData;
-  pixiv?: UnifiedPixivData;
-  pixivUser?: UnifiedUserData;
-  gelbooru?: UnifiedGelbooruv02Data;
   onClose: () => void;
   onNext?: () => void;
   onPrev?: () => void;
@@ -64,11 +61,6 @@ interface LightboxProps {
 export default function Lightbox({
   row,
   groupItems = [],
-  tweet,
-  user,
-  pixiv,
-  pixivUser,
-  gelbooru,
   onClose,
   onNext,
   onPrev,
@@ -86,6 +78,13 @@ export default function Lightbox({
   onUserClick,
 }: LightboxProps) {
   const { item } = row;
+  const twitterDetails = getPlatformDetails<TwitterDetails>(row, "twitter");
+  const pixivDetails = getPlatformDetails<PixivDetails>(row, "pixiv");
+  const gelbooruDetails = getPlatformDetails<GelbooruDetails>(
+    row,
+    "gelbooruv02",
+  );
+  const ehentaiDetails = getPlatformDetails<EHentaiDetails>(row, "ehentai");
   const [showInfo, setShowInfo] = useState(true);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isAutoHidden, setIsAutoHidden] = useState(false);
@@ -1032,7 +1031,7 @@ export default function Lightbox({
         </button>
         <div className={styles.sidebarHeader}>
           <h2 className={styles.sidebarTitle}>
-            {tweet ? null : pixiv?.title || row.post?.title || "Untitled"}
+            {twitterDetails ? null : row.post?.title || "Untitled"}
           </h2>
         </div>
 
@@ -1043,20 +1042,24 @@ export default function Lightbox({
           </div>
         )}
 
-        {user && (
+        {row.platformUser && (
           <div className={`${styles.section} ${styles.userCard}`}>
-            {user.profileImage && (
+            {row.platformUser.profileImage && (
               <button
                 type="button"
                 className={styles.userClickableAvatar}
                 onClick={() =>
-                  handleUserClick(user.name || user.nick || user.username || "")
+                  handleUserClick(
+                    row.platformUser?.name || row.platformUser?.username || "",
+                  )
                 }
-                title={`Search gallery for ${user.name || user.nick || user.username}`}
+                title={`Search gallery for ${
+                  row.platformUser.name || row.platformUser.username
+                }`}
               >
                 <Image
-                  src={user.profileImage || ""}
-                  alt={user.name || "User"}
+                  src={row.platformUser.profileImage || ""}
+                  alt={row.platformUser.name || "User"}
                   width={48}
                   height={48}
                   className={styles.avatar}
@@ -1067,48 +1070,22 @@ export default function Lightbox({
               type="button"
               className={`${styles.userInfo} ${styles.userClickableText}`}
               onClick={() =>
-                handleUserClick(user.name || user.nick || user.username || "")
+                handleUserClick(
+                  row.platformUser?.name || row.platformUser?.username || "",
+                )
               }
-              title={`Search gallery for ${user.name || user.nick || user.username}`}
+              title={`Search gallery for ${
+                row.platformUser.name || row.platformUser.username
+              }`}
             >
-              <span className={styles.userName}>{user.name}</span>
-              <span className={styles.userHandle}>
-                @{user.nick || user.username}
-              </span>
-            </button>
-          </div>
-        )}
-
-        {pixivUser && (
-          <div className={`${styles.section} ${styles.userCard}`}>
-            {pixivUser.profileImage && (
-              <button
-                type="button"
-                className={styles.userClickableAvatar}
-                onClick={() =>
-                  handleUserClick(pixivUser.name || pixivUser.account || "")
-                }
-                title={`Search gallery for ${pixivUser.name || pixivUser.account}`}
-              >
-                <Image
-                  src={pixivUser.profileImage || ""}
-                  alt={pixivUser.name || "User"}
-                  width={48}
-                  height={48}
-                  className={styles.avatar}
-                />
-              </button>
-            )}
-            <button
-              type="button"
-              className={`${styles.userInfo} ${styles.userClickableText}`}
-              onClick={() =>
-                handleUserClick(pixivUser.name || pixivUser.account || "")
-              }
-              title={`Search gallery for ${pixivUser.name || pixivUser.account}`}
-            >
-              <span className={styles.userName}>{pixivUser.name}</span>
-              <span className={styles.userHandle}>@{pixivUser.account}</span>
+              {row.platformUser.name && (
+                <span className={styles.userName}>{row.platformUser.name}</span>
+              )}
+              {row.platformUser.username && (
+                <span className={styles.userHandle}>
+                  @{row.platformUser.username}
+                </span>
+              )}
             </button>
           </div>
         )}
@@ -1117,12 +1094,7 @@ export default function Lightbox({
           <h3 className={styles.sectionTitle}>Details</h3>
           <div className={styles.sectionContent}>
             <FormattedContent
-              content={
-                pixiv?.caption ||
-                row.post?.content ||
-                tweet?.content ||
-                "No description available."
-              }
+              content={row.post?.content || "No description available."}
             />
           </div>
         </div>
@@ -1185,28 +1157,38 @@ export default function Lightbox({
           </div>
         </div>
 
-        {tweet && (
+        {twitterDetails && (
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Twitter Stats</h3>
             <div className={styles.statsGrid}>
-              <div className={styles.statItem}>
-                <span className={styles.statValue}>{tweet.favoriteCount}</span>
-                <span className={styles.statLabel}>Likes</span>
-              </div>
-              <div className={styles.statItem}>
-                <span className={styles.statValue}>{tweet.retweetCount}</span>
-                <span className={styles.statLabel}>Retweets</span>
-              </div>
-              {tweet.viewCount && (
+              {twitterDetails.favoriteCount != null && (
                 <div className={styles.statItem}>
-                  <span className={styles.statValue}>{tweet.viewCount}</span>
+                  <span className={styles.statValue}>
+                    {twitterDetails.favoriteCount}
+                  </span>
+                  <span className={styles.statLabel}>Likes</span>
+                </div>
+              )}
+              {twitterDetails.retweetCount != null && (
+                <div className={styles.statItem}>
+                  <span className={styles.statValue}>
+                    {twitterDetails.retweetCount}
+                  </span>
+                  <span className={styles.statLabel}>Retweets</span>
+                </div>
+              )}
+              {twitterDetails.viewCount != null && (
+                <div className={styles.statItem}>
+                  <span className={styles.statValue}>
+                    {twitterDetails.viewCount}
+                  </span>
                   <span className={styles.statLabel}>Views</span>
                 </div>
               )}
-              {tweet.bookmarkCount && (
+              {twitterDetails.bookmarkCount != null && (
                 <div className={styles.statItem}>
                   <span className={styles.statValue}>
-                    {tweet.bookmarkCount}
+                    {twitterDetails.bookmarkCount}
                   </span>
                   <span className={styles.statLabel}>Bookmarks</span>
                 </div>
@@ -1215,22 +1197,30 @@ export default function Lightbox({
           </div>
         )}
 
-        {pixiv && (
+        {pixivDetails && (
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Pixiv Stats</h3>
             <div className={styles.statsGrid}>
-              <div className={styles.statItem}>
-                <span className={styles.statValue}>{pixiv.totalBookmarks}</span>
-                <span className={styles.statLabel}>Bookmarks</span>
-              </div>
-              <div className={styles.statItem}>
-                <span className={styles.statValue}>{pixiv.totalView}</span>
-                <span className={styles.statLabel}>Views</span>
-              </div>
-              {(pixiv.pageCount || 0) > 1 && (
+              {pixivDetails.totalBookmarks != null && (
                 <div className={styles.statItem}>
                   <span className={styles.statValue}>
-                    {pixiv.pageCount || 0}
+                    {pixivDetails.totalBookmarks}
+                  </span>
+                  <span className={styles.statLabel}>Bookmarks</span>
+                </div>
+              )}
+              {pixivDetails.totalView != null && (
+                <div className={styles.statItem}>
+                  <span className={styles.statValue}>
+                    {pixivDetails.totalView}
+                  </span>
+                  <span className={styles.statLabel}>Views</span>
+                </div>
+              )}
+              {(pixivDetails.pageCount || 0) > 1 && (
+                <div className={styles.statItem}>
+                  <span className={styles.statValue}>
+                    {pixivDetails.pageCount || 0}
                   </span>
                   <span className={styles.statLabel}>Pages</span>
                 </div>
@@ -1240,16 +1230,14 @@ export default function Lightbox({
         )}
 
         {/* Gelbooru Info */}
-        {gelbooru && (
+        {gelbooruDetails && (
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Gelbooru Info</h3>
             <div className={styles.statsGrid}>
-              {gelbooru.source && (
+              {gelbooruDetails.source && (
                 <div className={`${styles.statItem} ${styles.statItemFull}`}>
-                  {/* Assuming Link component is available or replace with <a> */}
-                  {/* <Link size={16} /> */}
                   <a
-                    href={gelbooru.source || undefined}
+                    href={gelbooruDetails.source || undefined}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={styles.link}
@@ -1258,15 +1246,50 @@ export default function Lightbox({
                   </a>
                 </div>
               )}
-              <div className={styles.statItem}>
-                {/* Assuming Heart component is available or replace with icon */}
-                {/* <Heart size={16} /> */}
-                <span className={styles.statValue}>{gelbooru.score || 0}</span>
-                <span className={styles.statLabel}>Score</span>
-              </div>
-              {gelbooru.rating && (
+              {gelbooruDetails.score != null && (
                 <div className={styles.statItem}>
-                  <span className={styles.badge}>{gelbooru.rating}</span>
+                  <span className={styles.statValue}>
+                    {gelbooruDetails.score || 0}
+                  </span>
+                  <span className={styles.statLabel}>Score</span>
+                </div>
+              )}
+              {gelbooruDetails.rating && (
+                <div className={styles.statItem}>
+                  <span className={styles.badge}>{gelbooruDetails.rating}</span>
+                  <span className={styles.statLabel}>Rating</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* E-Hentai Info */}
+        {ehentaiDetails && (
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>E-Hentai Info</h3>
+            <div className={styles.statsGrid}>
+              {ehentaiDetails.ehCategory && (
+                <div className={styles.statItem}>
+                  <span className={styles.badge}>
+                    {ehentaiDetails.ehCategory}
+                  </span>
+                  <span className={styles.statLabel}>Category</span>
+                </div>
+              )}
+              {ehentaiDetails.filecount != null && (
+                <div className={styles.statItem}>
+                  <span className={styles.statValue}>
+                    {ehentaiDetails.filecount}
+                  </span>
+                  <span className={styles.statLabel}>Files</span>
+                </div>
+              )}
+              {ehentaiDetails.rating != null && (
+                <div className={styles.statItem}>
+                  <span className={styles.statValue}>
+                    {ehentaiDetails.rating}
+                  </span>
                   <span className={styles.statLabel}>Rating</span>
                 </div>
               )}
@@ -1425,7 +1448,8 @@ export default function Lightbox({
           )}
         </div>
 
-        {(row.post?.url || (tweet?.tweetId && user)) && (
+        {(row.post?.url ||
+          (twitterDetails && row.platformUser && row.post?.jsonSourceId)) && (
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Source</h3>
             {onRefetch && row.post?.id && (
@@ -1454,16 +1478,19 @@ export default function Lightbox({
                 Open Original Post
               </a>
             )}
-            {tweet?.tweetId && user && (
-              <a
-                href={`https://twitter.com/${user.nick || user.username}/status/${tweet.tweetId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.linkButton}
-              >
-                View Tweet
-              </a>
-            )}
+            {twitterDetails &&
+              row.platformUser &&
+              row.post?.jsonSourceId &&
+              !row.post?.url && (
+                <a
+                  href={`https://twitter.com/${row.platformUser.username}/status/${row.post.jsonSourceId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.linkButton}
+                >
+                  View Tweet
+                </a>
+              )}
           </div>
         )}
       </div>
