@@ -1,7 +1,8 @@
 import { and, asc, desc, eq, inArray, like, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { getMediaItems } from "@/lib/db/repositories/media";
 import { mediaItems, playlistItems, playlists } from "@/lib/db/schema";
-import type { PlaylistWithItems } from "@/types/playlist";
+import type { PlaylistItem, PlaylistWithItems } from "@/types/playlist";
 
 export async function getPlaylists(filters?: {
   sortBy?: string;
@@ -15,6 +16,8 @@ export async function getPlaylists(filters?: {
       id: playlists.id,
       name: playlists.name,
       description: playlists.description,
+      type: playlists.type,
+      searchQuery: playlists.searchQuery,
       thumbnail: playlists.thumbnail,
       createdAt: playlists.createdAt,
       updatedAt: playlists.updatedAt,
@@ -63,7 +66,35 @@ export async function getPlaylists(filters?: {
     orderBys.push(desc(playlists.updatedAt));
   }
 
-  return await query.orderBy(...orderBys);
+  const list = await query.orderBy(...orderBys);
+
+  const resolvedList = await Promise.all(
+    list.map(async (p) => {
+      if (p.type === "dynamic") {
+        const searchResult = await getMediaItems({
+          search: p.searchQuery ?? "",
+          limit: 1000,
+        });
+        const count = searchResult.items.length;
+        const thumb =
+          p.thumbnail || searchResult.items[0]?.item?.filePath || undefined;
+        return {
+          ...p,
+          itemCount: count,
+          thumbnailPath: thumb,
+        };
+      }
+      return p;
+    }),
+  );
+
+  if (sortBy === "count-desc") {
+    resolvedList.sort((a, b) => (b.itemCount ?? 0) - (a.itemCount ?? 0));
+  } else if (sortBy === "count-asc") {
+    resolvedList.sort((a, b) => (a.itemCount ?? 0) - (b.itemCount ?? 0));
+  }
+
+  return resolvedList;
 }
 
 export async function getPlaylist(
@@ -74,6 +105,33 @@ export async function getPlaylist(
   });
 
   if (!playlist) return undefined;
+
+  if (playlist.type === "dynamic") {
+    const searchResult = await getMediaItems({
+      search: playlist.searchQuery ?? "",
+      limit: 1000,
+    });
+
+    const items: PlaylistItem[] = searchResult.items.map((row, index) => ({
+      id: -row.item.id,
+      playlistId: id,
+      mediaItemId: row.item.id,
+      position: index,
+      addedAt: row.item.createdAt ?? playlist.createdAt ?? new Date(),
+      mediaItem: row.item,
+    }));
+
+    const count = items.length;
+    const thumbnailPath =
+      playlist.thumbnail || items[0]?.mediaItem?.filePath || undefined;
+
+    return {
+      ...playlist,
+      itemCount: count,
+      thumbnailPath,
+      items,
+    };
+  }
 
   const items = await db
     .select({
@@ -112,13 +170,20 @@ export async function getPlaylistsForMediaItem(mediaItemId: number) {
     .where(eq(playlistItems.mediaItemId, mediaItemId));
 }
 
-export async function createPlaylist(name: string, description?: string) {
+export async function createPlaylist(
+  name: string,
+  description?: string,
+  type: "normal" | "dynamic" = "normal",
+  searchQuery?: string,
+) {
   const now = new Date();
   const result = await db
     .insert(playlists)
     .values({
       name,
       description,
+      type,
+      searchQuery: type === "dynamic" ? (searchQuery ?? "") : null,
       createdAt: now,
       updatedAt: now,
     })
@@ -128,7 +193,13 @@ export async function createPlaylist(name: string, description?: string) {
 
 export async function updatePlaylist(
   id: number,
-  updates: { name?: string; description?: string; thumbnail?: string },
+  updates: {
+    name?: string;
+    description?: string;
+    thumbnail?: string;
+    type?: "normal" | "dynamic";
+    searchQuery?: string | null;
+  },
 ) {
   const now = new Date();
   await db

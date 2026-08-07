@@ -20,6 +20,7 @@ import {
   mediaItems,
   pixivUsers,
   playlistItems,
+  playlists,
   postDetailsEHentai,
   postDetailsGelbooruV02,
   postDetailsPixiv,
@@ -181,8 +182,23 @@ export async function getMediaItems(filters?: {
   playlistId?: number;
 }) {
   const limit = filters?.limit ?? 50;
-  const search = filters?.search ?? "";
+  let search = filters?.search ?? "";
   const sortBy = filters?.sortBy ?? "created-desc";
+
+  let isDynamicPlaylist = false;
+
+  if (filters?.playlistId) {
+    const playlistRecord = await db.query.playlists.findFirst({
+      where: eq(playlists.id, filters.playlistId),
+    });
+    if (playlistRecord?.type === "dynamic") {
+      isDynamicPlaylist = true;
+      const dynamicQuery = playlistRecord.searchQuery ?? "";
+      if (dynamicQuery) {
+        search = search ? `${dynamicQuery} ${search}` : dynamicQuery;
+      }
+    }
+  }
 
   const { cleanQuery, sourceFilter } = parseSearchQuery(search);
   const searchLower = cleanQuery.toLowerCase();
@@ -196,7 +212,7 @@ export async function getMediaItems(filters?: {
     whereConditions.push(eq(posts.extractorType, sourceFilter));
   }
 
-  if (filters?.playlistId) {
+  if (filters?.playlistId && !isDynamicPlaylist) {
     const playlistItemSubquery = db
       .select({ mediaItemId: playlistItems.mediaItemId })
       .from(playlistItems)
@@ -205,7 +221,7 @@ export async function getMediaItems(filters?: {
   }
 
   const subqueryConditions: SQL[] = [ne(mediaItems.mediaType, "text")];
-  if (filters?.playlistId) {
+  if (filters?.playlistId && !isDynamicPlaylist) {
     const playlistItemSubquery = db
       .select({ mediaItemId: playlistItems.mediaItemId })
       .from(playlistItems)
