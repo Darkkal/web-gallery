@@ -3,15 +3,31 @@
 import { revalidatePath } from "next/cache";
 import * as playlistRepo from "@/lib/db/repositories/playlists";
 
-export async function createPlaylist(name: string, description?: string) {
-  const result = await playlistRepo.createPlaylist(name, description);
+export async function createPlaylist(
+  name: string,
+  description?: string,
+  type: "normal" | "dynamic" = "normal",
+  searchQuery?: string,
+) {
+  const result = await playlistRepo.createPlaylist(
+    name,
+    description,
+    type,
+    searchQuery,
+  );
   revalidatePath("/playlists");
   return result;
 }
 
 export async function updatePlaylist(
   id: number,
-  updates: { name?: string; description?: string; thumbnail?: string },
+  updates: {
+    name?: string;
+    description?: string;
+    thumbnail?: string;
+    type?: "normal" | "dynamic";
+    searchQuery?: string | null;
+  },
 ) {
   await playlistRepo.updatePlaylist(id, updates);
   revalidatePath("/playlists");

@@ -7,6 +7,7 @@ import {
   GalleryHorizontal,
   GripVertical,
   Play,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -40,6 +41,8 @@ export default function PlaylistDetailPageClient({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
+  const isDynamic = playlist.type === "dynamic";
+
   async function reloadPlaylist() {
     try {
       const res = await fetch(`/api/playlists/${playlist.id}`);
@@ -51,8 +54,18 @@ export default function PlaylistDetailPageClient({
     }
   }
 
-  async function handleEditPlaylist(name: string, description?: string) {
-    await updatePlaylist(playlist.id, { name, description });
+  async function handleEditPlaylist(
+    name: string,
+    description?: string,
+    type: "normal" | "dynamic" = "normal",
+    searchQuery?: string,
+  ) {
+    await updatePlaylist(playlist.id, {
+      name,
+      description,
+      type,
+      searchQuery: type === "dynamic" ? searchQuery : null,
+    });
     await reloadPlaylist();
   }
 
@@ -69,6 +82,7 @@ export default function PlaylistDetailPageClient({
   }
 
   async function handleRemoveItem(playlistItemId: number) {
+    if (isDynamic) return;
     if (!confirm("Remove this item from the playlist?")) return;
     await removeItemsFromPlaylist(playlist.id, [playlistItemId]);
     await reloadPlaylist();
@@ -78,12 +92,14 @@ export default function PlaylistDetailPageClient({
     playlistItemId: number,
     direction: "up" | "down",
   ) {
+    if (isDynamic) return;
     await movePlaylistItem(playlist.id, playlistItemId, direction);
     await reloadPlaylist();
   }
 
   // HTML5 Drag and Drop handlers
   function handleDragStart(e: React.DragEvent, index: number) {
+    if (isDynamic) return;
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
     // Set a dummy payload for browser compatibility
@@ -92,12 +108,13 @@ export default function PlaylistDetailPageClient({
 
   function handleDragOver(e: React.DragEvent, index: number) {
     e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
+    if (isDynamic || draggedIndex === null || draggedIndex === index) return;
     setDragOverIndex(index);
   }
 
   async function handleDrop(e: React.DragEvent, targetIndex: number) {
     e.preventDefault();
+    if (isDynamic) return;
     const sourceIndex = draggedIndex;
 
     setDraggedIndex(null);
@@ -143,8 +160,24 @@ export default function PlaylistDetailPageClient({
         <div className={styles.headerInfo}>
           <div className={styles.titleWrapper}>
             <h1 className={styles.title}>{playlist.name}</h1>
+            {isDynamic && (
+              <span
+                className={styles.dynamicBadge}
+                title={`Dynamic search query: "${playlist.searchQuery}"`}
+              >
+                <Sparkles size={12} />
+                Dynamic
+              </span>
+            )}
             <span className={styles.badge}>
-              {playlist.itemCount} {playlist.itemCount === 1 ? "item" : "items"}
+              {playlist.itemCount}{" "}
+              {isDynamic
+                ? playlist.itemCount === 1
+                  ? "post"
+                  : "posts"
+                : playlist.itemCount === 1
+                  ? "item"
+                  : "items"}
             </span>
           </div>
           {playlist.description && (
@@ -158,10 +191,22 @@ export default function PlaylistDetailPageClient({
               playlist.updatedAt ?? playlist.createdAt ?? new Date(),
             ).toLocaleDateString()}
           </span>
+
+          {isDynamic && (
+            <div className={styles.queryBanner}>
+              <Sparkles size={16} />
+              <span>
+                Live search query:{" "}
+                <code>{playlist.searchQuery || "(all items)"}</code>
+              </span>
+            </div>
+          )}
         </div>
 
         <div className={styles.headerActions}>
-          {playlist.items.length > 0 && (
+          {(isDynamic
+            ? playlist.posts && playlist.posts.length > 0
+            : playlist.items.length > 0) && (
             <button
               type="button"
               className={`${styles.btn} ${styles.btnPrimary}`}
@@ -198,117 +243,179 @@ export default function PlaylistDetailPageClient({
         </div>
       </div>
 
-      {playlist.items.length > 0 ? (
+      {(
+        isDynamic
+          ? playlist.posts && playlist.posts.length > 0
+          : playlist.items.length > 0
+      ) ? (
         <div className={styles.itemList}>
-          {playlist.items.map((item, index) => {
-            const media = item.mediaItem;
-            if (!media) return null;
-            const isImage = media.mediaType === "image";
-            const filename = media.filePath.split("/").pop() ?? "Untitled";
+          {isDynamic
+            ? playlist.posts?.map((post, index) => {
+                const firstMedia = post.mediaItems[0];
+                if (!firstMedia) return null;
+                const isImage = firstMedia.mediaType === "image";
+                const filename =
+                  firstMedia.filePath.split("/").pop() ?? "Untitled";
 
-            const isDragging = draggedIndex === index;
-            const isDragOver = dragOverIndex === index;
+                return (
+                  <div key={post.postId} className={styles.itemRow}>
+                    <div className={styles.position}>{index + 1}</div>
 
-            return (
-              // biome-ignore lint/a11y/noStaticElementInteractions: Draggable item row trigger
-              <div
-                key={item.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, index)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDrop={(e) => handleDrop(e, index)}
-                onDragEnd={handleDragEnd}
-                className={`${styles.itemRow} ${isDragging ? styles.dragging : ""} ${
-                  isDragOver ? styles.dragOver : ""
-                }`}
-              >
-                {/* Drag Handle */}
-                <div className={styles.dragHandle} title="Drag to reorder">
-                  <GripVertical size={18} />
-                </div>
+                    <div className={styles.thumbWrapper}>
+                      {firstMedia.mediaType === "video" ? (
+                        <video
+                          src={`${firstMedia.filePath}#t=0.1`}
+                          className={styles.thumbVideo}
+                          muted
+                          preload="metadata"
+                        />
+                      ) : (
+                        <Image
+                          src={firstMedia.filePath}
+                          alt=""
+                          fill
+                          className={styles.thumb}
+                          unoptimized
+                        />
+                      )}
+                      {!isImage && (
+                        <div className={styles.videoBadge}>
+                          {firstMedia.mediaType}
+                        </div>
+                      )}
+                    </div>
 
-                {/* Position index */}
-                <div className={styles.position}>{index + 1}</div>
-
-                {/* Thumbnail Preview */}
-                <div className={styles.thumbWrapper}>
-                  {media.mediaType === "video" ? (
-                    <video
-                      src={`${media.filePath}#t=0.1`}
-                      className={styles.thumbVideo}
-                      muted
-                      preload="metadata"
-                    />
-                  ) : (
-                    <Image
-                      src={media.filePath}
-                      alt=""
-                      fill
-                      className={styles.thumb}
-                      unoptimized
-                    />
-                  )}
-                  {!isImage && (
-                    <div className={styles.videoBadge}>{media.mediaType}</div>
-                  )}
-                </div>
-
-                {/* Meta details */}
-                <div className={styles.itemDetails}>
-                  <div className={styles.fileName}>{filename}</div>
-                  <div className={styles.itemMeta}>
-                    <span>
-                      Added{" "}
-                      {new Date(
-                        item.addedAt ?? new Date(),
-                      ).toLocaleDateString()}
-                    </span>
+                    <div className={styles.itemDetails}>
+                      <div className={styles.fileName}>{filename}</div>
+                      <div className={styles.itemMeta}>
+                        <span>
+                          Post #{post.postId} &bull; {post.mediaItems.length}{" "}
+                          {post.mediaItems.length === 1
+                            ? "media item"
+                            : "media items"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                );
+              })
+            : playlist.items.map((item, index) => {
+                const media = item.mediaItem;
+                if (!media) return null;
+                const isImage = media.mediaType === "image";
+                const filename = media.filePath.split("/").pop() ?? "Untitled";
 
-                {/* Move & Remove Controls */}
-                <div className={styles.itemActions}>
-                  <button
-                    type="button"
-                    className={styles.actionBtn}
-                    onClick={() => handleMoveItem(item.id, "up")}
-                    disabled={index === 0}
-                    title="Move item up"
+                const isDragging = draggedIndex === index;
+                const isDragOver = dragOverIndex === index;
+
+                return (
+                  // biome-ignore lint/a11y/noStaticElementInteractions: Draggable item row trigger
+                  <div
+                    key={item.id}
+                    draggable={!isDynamic}
+                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDrop={(e) => handleDrop(e, index)}
+                    onDragEnd={handleDragEnd}
+                    className={`${styles.itemRow} ${isDragging ? styles.dragging : ""} ${
+                      isDragOver ? styles.dragOver : ""
+                    }`}
                   >
-                    <ArrowUp size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.actionBtn}
-                    onClick={() => handleMoveItem(item.id, "down")}
-                    disabled={index === playlist.items.length - 1}
-                    title="Move item down"
-                  >
-                    <ArrowDown size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.actionBtn} ${styles.destructive}`}
-                    onClick={() => handleRemoveItem(item.id)}
-                    title="Remove from playlist"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+                    {!isDynamic && (
+                      <div
+                        className={styles.dragHandle}
+                        title="Drag to reorder"
+                      >
+                        <GripVertical size={18} />
+                      </div>
+                    )}
+
+                    <div className={styles.position}>{index + 1}</div>
+
+                    <div className={styles.thumbWrapper}>
+                      {media.mediaType === "video" ? (
+                        <video
+                          src={`${media.filePath}#t=0.1`}
+                          className={styles.thumbVideo}
+                          muted
+                          preload="metadata"
+                        />
+                      ) : (
+                        <Image
+                          src={media.filePath}
+                          alt=""
+                          fill
+                          className={styles.thumb}
+                          unoptimized
+                        />
+                      )}
+                      {!isImage && (
+                        <div className={styles.videoBadge}>
+                          {media.mediaType}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className={styles.itemDetails}>
+                      <div className={styles.fileName}>{filename}</div>
+                      <div className={styles.itemMeta}>
+                        <span>
+                          Added{" "}
+                          {new Date(
+                            item.addedAt ?? new Date(),
+                          ).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {!isDynamic && (
+                      <div className={styles.itemActions}>
+                        <button
+                          type="button"
+                          className={styles.actionBtn}
+                          onClick={() => handleMoveItem(item.id, "up")}
+                          disabled={index === 0}
+                          title="Move item up"
+                        >
+                          <ArrowUp size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.actionBtn}
+                          onClick={() => handleMoveItem(item.id, "down")}
+                          disabled={index === playlist.items.length - 1}
+                          title="Move item down"
+                        >
+                          <ArrowDown size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.actionBtn} ${styles.destructive}`}
+                          onClick={() => handleRemoveItem(item.id)}
+                          title="Remove from playlist"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
         </div>
       ) : (
         <div className={styles.emptyState}>
-          <p>This playlist has no items yet.</p>
+          <p>
+            {isDynamic
+              ? "No items currently match this dynamic search query."
+              : "This playlist has no items yet."}
+          </p>
           <div className={styles.emptyStateActions}>
             <button
               type="button"
               className={`${styles.btn} ${styles.btnPrimary}`}
               onClick={() => router.push("/gallery")}
             >
-              Browse Gallery to Add Items
+              Browse Gallery
             </button>
           </div>
         </div>
@@ -321,6 +428,8 @@ export default function PlaylistDetailPageClient({
         onSubmit={handleEditPlaylist}
         initialName={playlist.name}
         initialDescription={playlist.description ?? ""}
+        initialType={playlist.type ?? "normal"}
+        initialSearchQuery={playlist.searchQuery ?? ""}
         title="Edit Playlist Details"
       />
     </div>

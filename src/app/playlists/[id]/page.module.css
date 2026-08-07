@@ -314,3 +314,39 @@
     gap: 0.1rem;
   }
 }
+
+.queryBanner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: hsl(var(--color-info) / 0.1);
+  border: 1px solid hsl(var(--color-info) / 0.25);
+  border-radius: var(--radius);
+  color: hsl(var(--foreground));
+  font-size: 0.875rem;
+  margin-top: 0.75rem;
+}
+
+.queryBanner code {
+  background: hsl(var(--background));
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid hsl(var(--border));
+  font-family: monospace;
+  font-weight: 600;
+  color: hsl(var(--color-info));
+}
+
+.dynamicBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: hsl(var(--color-info) / 0.2);
+  color: hsl(var(--color-info));
+  border: 1px solid hsl(var(--color-info) / 0.3);
+}

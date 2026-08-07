@@ -10,6 +10,12 @@ export interface PlaylistItem extends InferSelectModel<typeof playlistItems> {
   mediaItem?: InferSelectModel<typeof mediaItems>;
 }
 
+export interface PlaylistPost {
+  postId: number;
+  mediaItems: InferSelectModel<typeof mediaItems>[];
+}
+
 export interface PlaylistWithItems extends Playlist {
   items: PlaylistItem[];
+  posts?: PlaylistPost[];
 }

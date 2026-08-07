@@ -471,7 +471,7 @@ gallerydl_extractor_types   (id: 'twitter' | 'pixiv' | 'gelbooruv02' | ...)
                                     │
                                     └──< playlist_items (position, addedAt)
                                               │
-                                              └──> playlists (name, description, thumbnail)
+                                              └──> playlists (name, description, thumbnail, type, searchQuery)
 
                  ┌── aliasOfTagId (self-ref FK)
                  ├── parentTagId (self-ref FK)
@@ -491,7 +491,8 @@ statistics_history (standalone: daily snapshots for historical cumulative growth
 **Key relationships**:
 - `posts.internalSourceId → sources.id` (which Source URL produced this post)
 - `media_items.postId → posts.id` (`SET NULL` on delete — media survives post deletion)
-- `playlist_items` is the many-to-many join between `media_items` and `playlists` (maintaining order position)
+- `playlist_items` is the many-to-many join between `media_items` and `playlists` (maintaining order position for normal playlists)
+- `playlists.type` indicates whether a playlist is `"normal"` (manually managed items) or `"dynamic"` (live items generated from `searchQuery`)
 - `post_tags` is the many-to-many join between `posts` and `tags`
 - `tags.categoryId → tag_categories.id` (`SET NULL` on delete — assigns a customizable HSL-colored category to a tag)
 - `tags.aliasOfTagId → tags.id` (self-referencing flat alias relationship; maps a tag to its canonical equivalent)

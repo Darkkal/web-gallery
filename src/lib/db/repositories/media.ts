@@ -20,6 +20,7 @@ import {
   mediaItems,
   pixivUsers,
   playlistItems,
+  playlists,
   postDetailsEHentai,
   postDetailsGelbooruV02,
   postDetailsPixiv,
@@ -30,6 +31,7 @@ import {
 } from "@/lib/db/schema";
 import { parseSearchQuery } from "@/lib/utils/search-parser";
 import type { GalleryRow, PlatformDetails, PlatformUser } from "@/types/media";
+import type { PlaylistPost } from "@/types/playlist";
 import { expandSearchTags } from "./posts";
 
 export function flattenToGalleryRow(row: {
@@ -181,8 +183,23 @@ export async function getMediaItems(filters?: {
   playlistId?: number;
 }) {
   const limit = filters?.limit ?? 50;
-  const search = filters?.search ?? "";
+  let search = filters?.search ?? "";
   const sortBy = filters?.sortBy ?? "created-desc";
+
+  let isDynamicPlaylist = false;
+
+  if (filters?.playlistId) {
+    const playlistRecord = await db.query.playlists.findFirst({
+      where: eq(playlists.id, filters.playlistId),
+    });
+    if (playlistRecord?.type === "dynamic") {
+      isDynamicPlaylist = true;
+      const dynamicQuery = playlistRecord.searchQuery ?? "";
+      if (dynamicQuery) {
+        search = search ? `${dynamicQuery} ${search}` : dynamicQuery;
+      }
+    }
+  }
 
   const { cleanQuery, sourceFilter } = parseSearchQuery(search);
   const searchLower = cleanQuery.toLowerCase();
@@ -196,7 +213,7 @@ export async function getMediaItems(filters?: {
     whereConditions.push(eq(posts.extractorType, sourceFilter));
   }
 
-  if (filters?.playlistId) {
+  if (filters?.playlistId && !isDynamicPlaylist) {
     const playlistItemSubquery = db
       .select({ mediaItemId: playlistItems.mediaItemId })
       .from(playlistItems)
@@ -205,7 +222,24 @@ export async function getMediaItems(filters?: {
   }
 
   const subqueryConditions: SQL[] = [ne(mediaItems.mediaType, "text")];
-  if (filters?.playlistId) {
+
+  if (sourceFilter) {
+    const sourcePostSubquery = db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.extractorType, sourceFilter));
+    subqueryConditions.push(inArray(mediaItems.postId, sourcePostSubquery));
+  }
+
+  if (expandedSearch) {
+    const ftsPostSubquery = db
+      .select({ id: sql<number>`rowid` })
+      .from(sql`posts_fts`)
+      .where(sql`posts_fts MATCH ${expandedSearch}`);
+    subqueryConditions.push(inArray(mediaItems.postId, ftsPostSubquery));
+  }
+
+  if (filters?.playlistId && !isDynamicPlaylist) {
     const playlistItemSubquery = db
       .select({ mediaItemId: playlistItems.mediaItemId })
       .from(playlistItems)
@@ -312,14 +346,6 @@ export async function getMediaItems(filters?: {
   let resultsQuery: any = db
     .select({
       item: mediaItems,
-      post: posts,
-      twitter: postDetailsTwitter,
-      pixiv: postDetailsPixiv,
-      gelbooru: postDetailsGelbooruV02,
-      ehentai: postDetailsEHentai,
-      user: twitterUsers,
-      pixivUser: pixivUsers,
-      source: sources,
       sortVal: sortValOutput, // include sortVal to easily compute the next cursor
       groupCount: groupSubquery.groupCount,
     })
@@ -334,39 +360,18 @@ export async function getMediaItems(filters?: {
     );
   }
 
+  if (sourceFilter) {
+    resultsQuery = resultsQuery.leftJoin(
+      posts,
+      eq(mediaItems.postId, posts.id),
+    );
+  }
+
   const rawResults = (await resultsQuery
-    .leftJoin(posts, eq(mediaItems.postId, posts.id))
-    .leftJoin(postDetailsTwitter, eq(posts.id, postDetailsTwitter.postId))
-    .leftJoin(postDetailsPixiv, eq(posts.id, postDetailsPixiv.postId))
-    .leftJoin(
-      postDetailsGelbooruV02,
-      eq(posts.id, postDetailsGelbooruV02.postId),
-    )
-    .leftJoin(postDetailsEHentai, eq(posts.id, postDetailsEHentai.postId))
-    .leftJoin(
-      twitterUsers,
-      and(
-        eq(posts.extractorType, "twitter"),
-        eq(posts.userId, twitterUsers.id),
-      ),
-    )
-    .leftJoin(
-      pixivUsers,
-      and(eq(posts.extractorType, "pixiv"), eq(posts.userId, pixivUsers.id)),
-    )
-    .leftJoin(sources, eq(posts.internalSourceId, sources.id))
     .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
     .orderBy(...orderBys)
     .limit(limit)) as {
     item: typeof mediaItems.$inferSelect;
-    post: typeof posts.$inferSelect | null;
-    twitter: typeof postDetailsTwitter.$inferSelect | null;
-    pixiv: typeof postDetailsPixiv.$inferSelect | null;
-    gelbooru: typeof postDetailsGelbooruV02.$inferSelect | null;
-    ehentai: typeof postDetailsEHentai.$inferSelect | null;
-    user: typeof twitterUsers.$inferSelect | null;
-    pixivUser: typeof pixivUsers.$inferSelect | null;
-    source: typeof sources.$inferSelect | null;
     sortVal: unknown;
     groupCount: number;
   }[];
@@ -386,12 +391,21 @@ export async function getMediaItems(filters?: {
     );
   }
 
+  const targetIds = rawResults.map((r) => r.item.id);
+  const detailsMap = await getMediaItemsByIds(targetIds);
+
   const items = rawResults.map((r) => {
-    const flattened = flattenToGalleryRow(r);
+    const fullRow = detailsMap[r.item.id] || {
+      item: r.item,
+      post: null,
+      platformDetails: null,
+      platformUser: null,
+      source: null,
+    };
     return {
-      ...flattened,
+      ...fullRow,
       groupCount: Number(r.groupCount || 1),
-      groupItems: [flattened],
+      groupItems: [fullRow],
     };
   });
 
@@ -485,4 +499,390 @@ export async function deleteMediaItems(ids: number[], deleteFiles: boolean) {
   }
 
   return { success: true, count: ids.length };
+}
+
+export async function getMediaItemIds(filters?: {
+  search?: string;
+  sortBy?: string;
+  playlistId?: number;
+}): Promise<{ ids: number[]; totalCount: number }> {
+  let search = filters?.search ?? "";
+  const sortBy = filters?.sortBy ?? "created-desc";
+
+  let isDynamicPlaylist = false;
+  if (filters?.playlistId) {
+    const playlistRecord = await db.query.playlists.findFirst({
+      where: eq(playlists.id, filters.playlistId),
+    });
+    if (playlistRecord?.type === "dynamic") {
+      isDynamicPlaylist = true;
+      const dynamicQuery = playlistRecord.searchQuery ?? "";
+      if (dynamicQuery) {
+        search = search ? `${dynamicQuery} ${search}` : dynamicQuery;
+      }
+    }
+  }
+
+  const { cleanQuery, sourceFilter } = parseSearchQuery(search);
+  const searchLower = cleanQuery.toLowerCase();
+  const expandedSearch = searchLower ? await expandSearchTags(searchLower) : "";
+
+  const whereConditions: SQL[] = [ne(mediaItems.mediaType, "text")];
+
+  if (sourceFilter) {
+    whereConditions.push(eq(posts.extractorType, sourceFilter));
+  }
+
+  if (filters?.playlistId && !isDynamicPlaylist) {
+    const playlistItemSubquery = db
+      .select({ mediaItemId: playlistItems.mediaItemId })
+      .from(playlistItems)
+      .where(eq(playlistItems.playlistId, filters.playlistId));
+    whereConditions.push(inArray(mediaItems.id, playlistItemSubquery));
+  }
+
+  const subqueryConditions: SQL[] = [ne(mediaItems.mediaType, "text")];
+
+  if (sourceFilter) {
+    const sourcePostSubquery = db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.extractorType, sourceFilter));
+    subqueryConditions.push(inArray(mediaItems.postId, sourcePostSubquery));
+  }
+
+  if (expandedSearch) {
+    const ftsPostSubquery = db
+      .select({ id: sql<number>`rowid` })
+      .from(sql`posts_fts`)
+      .where(sql`posts_fts MATCH ${expandedSearch}`);
+    subqueryConditions.push(inArray(mediaItems.postId, ftsPostSubquery));
+  }
+
+  if (filters?.playlistId && !isDynamicPlaylist) {
+    const playlistItemSubquery = db
+      .select({ mediaItemId: playlistItems.mediaItemId })
+      .from(playlistItems)
+      .where(eq(playlistItems.playlistId, filters.playlistId));
+    subqueryConditions.push(inArray(mediaItems.id, playlistItemSubquery));
+  }
+
+  const groupSubquery = db
+    .select({
+      minId: sql<number>`MIN(${mediaItems.id})`.as("min_id"),
+    })
+    .from(mediaItems)
+    .where(and(...subqueryConditions))
+    .groupBy(sql`COALESCE(${mediaItems.postId}, -${mediaItems.id})`)
+    .as("group_subquery");
+
+  const searchSubquery = expandedSearch
+    ? db
+        .select({
+          search_id: sql<number>`rowid`.as("search_id"),
+          rank: sql<number>`bm25(posts_fts, 10.0, 1.0, 5.0, 5.0, 2.0, 1.0)`.as(
+            "rank",
+          ),
+        })
+        .from(sql`posts_fts`)
+        .where(sql`posts_fts MATCH ${expandedSearch}`)
+        .as("search_subquery")
+    : undefined;
+
+  const orderBys: SQL[] = [];
+  let sortField: SQL;
+  if (sortBy.startsWith("captured")) {
+    sortField = sql`COALESCE(${mediaItems.capturedAt}, ${mediaItems.createdAt}, 0)`;
+  } else {
+    sortField = sql`COALESCE(${mediaItems.createdAt}, 0)`;
+  }
+
+  if (sortBy === "relevance" && searchSubquery) {
+    orderBys.push(asc(searchSubquery.rank), asc(mediaItems.id));
+  } else if (sortBy.endsWith("-asc")) {
+    orderBys.push(asc(sortField), asc(mediaItems.id));
+  } else {
+    orderBys.push(desc(sortField), desc(mediaItems.id));
+  }
+
+  // biome-ignore lint/suspicious/noExplicitAny: Dynamic query typing
+  let query: any = db
+    .select({
+      id: mediaItems.id,
+    })
+    .from(mediaItems)
+    .innerJoin(groupSubquery, eq(mediaItems.id, groupSubquery.minId))
+    .$dynamic();
+
+  if (searchSubquery) {
+    query = query.innerJoin(
+      searchSubquery,
+      eq(mediaItems.postId, searchSubquery.search_id),
+    );
+  }
+
+  if (sourceFilter) {
+    query = query.leftJoin(posts, eq(mediaItems.postId, posts.id));
+  }
+
+  const rows = (await query
+    .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
+    .orderBy(...orderBys)) as { id: number }[];
+
+  const ids = rows.map((r) => r.id);
+  return { ids, totalCount: ids.length };
+}
+
+export async function getDynamicPlaylistMeta(
+  searchQuery: string,
+): Promise<{ itemCount: number; thumbnailPath?: string }> {
+  const search = searchQuery ?? "";
+  const { cleanQuery, sourceFilter } = parseSearchQuery(search);
+  const searchLower = cleanQuery.toLowerCase();
+  const expandedSearch = searchLower ? await expandSearchTags(searchLower) : "";
+
+  const subqueryConditions: SQL[] = [ne(mediaItems.mediaType, "text")];
+
+  if (sourceFilter) {
+    const sourcePostSubquery = db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.extractorType, sourceFilter));
+    subqueryConditions.push(inArray(mediaItems.postId, sourcePostSubquery));
+  }
+
+  if (expandedSearch) {
+    const ftsPostSubquery = db
+      .select({ id: sql<number>`rowid` })
+      .from(sql`posts_fts`)
+      .where(sql`posts_fts MATCH ${expandedSearch}`);
+    subqueryConditions.push(inArray(mediaItems.postId, ftsPostSubquery));
+  }
+
+  const countRes = await db
+    .select({
+      count:
+        sql<number>`COUNT(DISTINCT COALESCE(${mediaItems.postId}, -${mediaItems.id}))`.mapWith(
+          Number,
+        ),
+    })
+    .from(mediaItems)
+    .where(and(...subqueryConditions));
+
+  const thumbRes = await db
+    .select({ filePath: mediaItems.filePath })
+    .from(mediaItems)
+    .where(and(...subqueryConditions))
+    .orderBy(desc(mediaItems.id))
+    .limit(1);
+
+  return {
+    itemCount: countRes[0]?.count || 0,
+    thumbnailPath: thumbRes[0]?.filePath || undefined,
+  };
+}
+
+export async function getMediaItemById(
+  id: number,
+): Promise<GalleryRow | undefined> {
+  const results = await db
+    .select({
+      item: mediaItems,
+      post: posts,
+      twitter: postDetailsTwitter,
+      pixiv: postDetailsPixiv,
+      gelbooru: postDetailsGelbooruV02,
+      ehentai: postDetailsEHentai,
+      user: twitterUsers,
+      pixivUser: pixivUsers,
+      source: sources,
+    })
+    .from(mediaItems)
+    .leftJoin(posts, eq(mediaItems.postId, posts.id))
+    .leftJoin(postDetailsTwitter, eq(posts.id, postDetailsTwitter.postId))
+    .leftJoin(postDetailsPixiv, eq(posts.id, postDetailsPixiv.postId))
+    .leftJoin(
+      postDetailsGelbooruV02,
+      eq(posts.id, postDetailsGelbooruV02.postId),
+    )
+    .leftJoin(postDetailsEHentai, eq(posts.id, postDetailsEHentai.postId))
+    .leftJoin(
+      twitterUsers,
+      and(
+        eq(posts.extractorType, "twitter"),
+        eq(posts.userId, twitterUsers.id),
+      ),
+    )
+    .leftJoin(
+      pixivUsers,
+      and(eq(posts.extractorType, "pixiv"), eq(posts.userId, pixivUsers.id)),
+    )
+    .leftJoin(sources, eq(posts.internalSourceId, sources.id))
+    .where(eq(mediaItems.id, id))
+    .limit(1);
+
+  if (results.length === 0) return undefined;
+  return flattenToGalleryRow(results[0]);
+}
+
+export async function getMediaItemsByIds(
+  ids: number[],
+): Promise<Record<number, GalleryRow>> {
+  if (ids.length === 0) return {};
+
+  const results = await db
+    .select({
+      item: mediaItems,
+      post: posts,
+      twitter: postDetailsTwitter,
+      pixiv: postDetailsPixiv,
+      gelbooru: postDetailsGelbooruV02,
+      ehentai: postDetailsEHentai,
+      user: twitterUsers,
+      pixivUser: pixivUsers,
+      source: sources,
+    })
+    .from(mediaItems)
+    .leftJoin(posts, eq(mediaItems.postId, posts.id))
+    .leftJoin(postDetailsTwitter, eq(posts.id, postDetailsTwitter.postId))
+    .leftJoin(postDetailsPixiv, eq(posts.id, postDetailsPixiv.postId))
+    .leftJoin(
+      postDetailsGelbooruV02,
+      eq(posts.id, postDetailsGelbooruV02.postId),
+    )
+    .leftJoin(postDetailsEHentai, eq(posts.id, postDetailsEHentai.postId))
+    .leftJoin(
+      twitterUsers,
+      and(
+        eq(posts.extractorType, "twitter"),
+        eq(posts.userId, twitterUsers.id),
+      ),
+    )
+    .leftJoin(
+      pixivUsers,
+      and(eq(posts.extractorType, "pixiv"), eq(posts.userId, pixivUsers.id)),
+    )
+    .leftJoin(sources, eq(posts.internalSourceId, sources.id))
+    .where(inArray(mediaItems.id, ids));
+
+  const map: Record<number, GalleryRow> = {};
+  for (const row of results) {
+    map[row.item.id] = flattenToGalleryRow(row);
+  }
+  return map;
+}
+
+export async function getDynamicPlaylistPostIds(filters?: {
+  search?: string;
+}): Promise<{ postIds: number[]; totalCount: number }> {
+  const search = filters?.search ?? "";
+  const { cleanQuery, sourceFilter } = parseSearchQuery(search);
+  const searchLower = cleanQuery.toLowerCase();
+  const expandedSearch = searchLower ? await expandSearchTags(searchLower) : "";
+
+  if (expandedSearch && !sourceFilter) {
+    const rows = await db
+      .select({
+        postId: sql<number>`rowid`.mapWith(Number),
+      })
+      .from(sql`posts_fts`)
+      .where(sql`posts_fts MATCH ${expandedSearch}`)
+      .orderBy(desc(sql`rowid`));
+
+    const postIds = rows.map((r) => r.postId);
+    return { postIds, totalCount: postIds.length };
+  }
+
+  const subqueryConditions: SQL[] = [ne(mediaItems.mediaType, "text")];
+
+  if (sourceFilter) {
+    const sourcePostSubquery = db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.extractorType, sourceFilter));
+    subqueryConditions.push(inArray(mediaItems.postId, sourcePostSubquery));
+  }
+
+  if (expandedSearch) {
+    const ftsPostSubquery = db
+      .select({ id: sql<number>`rowid` })
+      .from(sql`posts_fts`)
+      .where(sql`posts_fts MATCH ${expandedSearch}`);
+    subqueryConditions.push(inArray(mediaItems.postId, ftsPostSubquery));
+  }
+
+  const rows = await db
+    .select({
+      postId:
+        sql<number>`COALESCE(${mediaItems.postId}, -${mediaItems.id})`.mapWith(
+          Number,
+        ),
+    })
+    .from(mediaItems)
+    .where(and(...subqueryConditions))
+    .groupBy(sql`COALESCE(${mediaItems.postId}, -${mediaItems.id})`)
+    .orderBy(desc(sql`COALESCE(${mediaItems.postId}, -${mediaItems.id})`));
+
+  const postIds = rows.map((r) => r.postId);
+  return { postIds, totalCount: postIds.length };
+}
+
+export async function getPostsForPlaylist(
+  searchQuery: string,
+  options?: { limit?: number; cursor?: string },
+): Promise<{
+  posts: PlaylistPost[];
+  totalCount: number;
+  nextCursor: string | null;
+}> {
+  const limit = options?.limit ?? 50;
+  const { postIds, totalCount } = await getDynamicPlaylistPostIds({
+    search: searchQuery,
+  });
+
+  let startIndex = 0;
+  if (options?.cursor) {
+    const cursorIdx = parseInt(options.cursor, 10);
+    if (!Number.isNaN(cursorIdx)) {
+      startIndex = cursorIdx;
+    }
+  }
+
+  const pagePostIds = postIds.slice(startIndex, startIndex + limit);
+  const nextCursor =
+    startIndex + limit < totalCount ? String(startIndex + limit) : null;
+
+  if (pagePostIds.length === 0) {
+    return { posts: [], totalCount, nextCursor: null };
+  }
+
+  const items = await db
+    .select()
+    .from(mediaItems)
+    .where(
+      and(
+        inArray(mediaItems.postId, pagePostIds),
+        ne(mediaItems.mediaType, "text"),
+      ),
+    )
+    .orderBy(desc(mediaItems.id));
+
+  const postMap = new Map<number, (typeof mediaItems.$inferSelect)[]>();
+  for (const pid of pagePostIds) {
+    postMap.set(pid, []);
+  }
+  for (const item of items) {
+    if (item.postId && postMap.has(item.postId)) {
+      postMap.get(item.postId)!.push(item);
+    }
+  }
+
+  const postsResult: PlaylistPost[] = pagePostIds
+    .map((pid) => ({
+      postId: pid,
+      mediaItems: postMap.get(pid) || [],
+    }))
+    .filter((p) => p.mediaItems.length > 0);
+
+  return { posts: postsResult, totalCount, nextCursor };
 }

@@ -1,16 +1,25 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
 import styles from "@/app/playlists/page.module.css";
+import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
+import { useSearchAutocomplete } from "@/hooks/useSearchAutocomplete";
 
 interface CreatePlaylistModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (name: string, description?: string) => Promise<void>;
+  onSubmit: (
+    name: string,
+    description?: string,
+    type?: "normal" | "dynamic",
+    searchQuery?: string,
+  ) => Promise<void>;
   initialName?: string;
   initialDescription?: string;
+  initialType?: "normal" | "dynamic";
+  initialSearchQuery?: string;
   title?: string;
 }
 
@@ -20,28 +29,56 @@ export default function CreatePlaylistModal({
   onSubmit,
   initialName = "",
   initialDescription = "",
+  initialType = "normal",
+  initialSearchQuery = "",
   title = "Create Playlist",
 }: CreatePlaylistModalProps) {
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
+  const [type, setType] = useState<"normal" | "dynamic">(initialType);
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [loading, setLoading] = useState(false);
+
+  const {
+    suggestions,
+    selectedIndex,
+    isOpen: isAutocompleteOpen,
+    inputRef: searchQueryInputRef,
+    handleKeyDown: handleAutocompleteKeyDown,
+    acceptSuggestion: acceptAutocompleteSuggestion,
+    isLoading: isAutocompleteLoading,
+  } = useSearchAutocomplete(searchQuery, setSearchQuery);
 
   useEffect(() => {
     if (isOpen) {
       setName(initialName);
       setDescription(initialDescription);
+      setType(initialType);
+      setSearchQuery(initialSearchQuery);
     }
-  }, [isOpen, initialName, initialDescription]);
+  }, [
+    isOpen,
+    initialName,
+    initialDescription,
+    initialType,
+    initialSearchQuery,
+  ]);
 
   if (!isOpen) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
+    if (type === "dynamic" && !searchQuery.trim()) return;
 
     setLoading(true);
     try {
-      await onSubmit(name.trim(), description.trim() || undefined);
+      await onSubmit(
+        name.trim(),
+        description.trim() || undefined,
+        type,
+        type === "dynamic" ? searchQuery.trim() : undefined,
+      );
       onClose();
     } catch (error) {
       console.error("Failed to submit playlist form:", error);
@@ -74,6 +111,32 @@ export default function CreatePlaylistModal({
 
         <form onSubmit={handleSubmit}>
           <div className={styles.formGroup}>
+            <span className={styles.label}>Playlist Type</span>
+            <div className={styles.typeSelector}>
+              <button
+                type="button"
+                className={`${styles.typeOption} ${type === "normal" ? styles.typeOptionActive : ""}`}
+                onClick={() => setType("normal")}
+              >
+                Normal
+              </button>
+              <button
+                type="button"
+                className={`${styles.typeOption} ${type === "dynamic" ? styles.typeOptionActive : ""}`}
+                onClick={() => setType("dynamic")}
+              >
+                <Sparkles size={14} />
+                Dynamic
+              </button>
+            </div>
+            <span className={styles.helperText}>
+              {type === "normal"
+                ? "Normal playlists are manually curated per media item."
+                : "Dynamic playlists are automatically generated from search queries and grouped per post."}
+            </span>
+          </div>
+
+          <div className={styles.formGroup}>
             <label htmlFor="playlist-name" className={styles.label}>
               Name
             </label>
@@ -89,6 +152,54 @@ export default function CreatePlaylistModal({
               autoFocus
             />
           </div>
+
+          {type === "dynamic" && (
+            <div className={styles.formGroup}>
+              <label htmlFor="playlist-query" className={styles.label}>
+                Saved Search Query
+              </label>
+              <div className={styles.autocompleteWrapper}>
+                <input
+                  id="playlist-query"
+                  ref={searchQueryInputRef}
+                  type="text"
+                  className={styles.inputField}
+                  placeholder="e.g., tag:cat source:twitter"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    handleAutocompleteKeyDown(e);
+                  }}
+                  required={type === "dynamic"}
+                  aria-autocomplete="list"
+                  aria-controls={
+                    isAutocompleteOpen
+                      ? "search-autocomplete-listbox"
+                      : undefined
+                  }
+                  aria-expanded={isAutocompleteOpen}
+                  role="combobox"
+                  aria-activedescendant={
+                    isAutocompleteOpen
+                      ? `suggestion-item-${selectedIndex}`
+                      : undefined
+                  }
+                />
+                {isAutocompleteOpen && (
+                  <AutocompleteDropdown
+                    suggestions={suggestions}
+                    selectedIndex={selectedIndex}
+                    onSelect={acceptAutocompleteSuggestion}
+                    isLoading={isAutocompleteLoading}
+                  />
+                )}
+              </div>
+              <span className={styles.helperText}>
+                Dynamic playlists automatically play live search results
+                matching this query.
+              </span>
+            </div>
+          )}
 
           <div className={styles.formGroup}>
             <label htmlFor="playlist-desc" className={styles.label}>
@@ -115,7 +226,11 @@ export default function CreatePlaylistModal({
             <button
               type="submit"
               className={styles.submitBtn}
-              disabled={loading || !name.trim()}
+              disabled={
+                loading ||
+                !name.trim() ||
+                (type === "dynamic" && !searchQuery.trim())
+              }
             >
               {loading ? "Saving..." : "Save"}
             </button>

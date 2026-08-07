@@ -160,6 +160,34 @@
   gap: 0.15rem;
 }
 
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.disabled:hover {
+  background: transparent;
+}
+
+.dynamicBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: hsl(var(--color-info) / 0.2);
+  color: hsl(var(--color-info));
+  border: 1px solid hsl(var(--color-info) / 0.3);
+}
+
 .playlistName {
   font-weight: 600;
   font-size: 0.925rem;

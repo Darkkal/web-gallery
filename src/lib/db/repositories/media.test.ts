@@ -56,7 +56,15 @@ activeDb = testDb;
 // Import modules under test
 import fs from "node:fs/promises";
 import { incrementStatistics } from "@/lib/db/repositories/statistics";
-import { deleteMediaItems, getMediaItems, getPostMediaItems } from "./media";
+import {
+  deleteMediaItems,
+  getDynamicPlaylistMeta,
+  getMediaItemById,
+  getMediaItemIds,
+  getMediaItems,
+  getMediaItemsByIds,
+  getPostMediaItems,
+} from "./media";
 
 describe("Media Repository", () => {
   beforeAll(async () => {
@@ -182,6 +190,47 @@ describe("Media Repository", () => {
         totalMediaItems: -1,
         storageBytes: -1000,
       });
+    });
+  });
+
+  describe("getMediaItemIds & Lightweight Helpers", () => {
+    it("should return lightweight media ID array and totalCount", async () => {
+      const source = await seedSource(testDb);
+      const post1 = await seedPost(testDb, source.id);
+      const post2 = await seedPost(testDb, source.id);
+      const media1 = await seedMediaItem(testDb, post1.id);
+      const media2 = await seedMediaItem(testDb, post2.id);
+
+      const result = await getMediaItemIds();
+      expect(result.totalCount).toBe(2);
+      expect(result.ids).toContain(media1.id);
+      expect(result.ids).toContain(media2.id);
+    });
+
+    it("should return dynamic playlist metadata efficiently", async () => {
+      const source = await seedSource(testDb);
+      const post = await seedPost(testDb, source.id);
+      const _media = await seedMediaItem(testDb, post.id, {
+        filePath: "/downloads/sample.jpg",
+      });
+
+      const meta = await getDynamicPlaylistMeta("");
+      expect(meta.itemCount).toBe(1);
+      expect(meta.thumbnailPath).toBe("/downloads/sample.jpg");
+    });
+
+    it("should fetch media items in batch by IDs", async () => {
+      const source = await seedSource(testDb);
+      const post = await seedPost(testDb, source.id);
+      const media = await seedMediaItem(testDb, post.id);
+
+      const batchMap = await getMediaItemsByIds([media.id]);
+      expect(batchMap[media.id]).toBeDefined();
+      expect(batchMap[media.id].item.id).toBe(media.id);
+
+      const single = await getMediaItemById(media.id);
+      expect(single).toBeDefined();
+      expect(single?.item.id).toBe(media.id);
     });
   });
 });

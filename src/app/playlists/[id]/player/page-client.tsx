@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  ChevronsLeft,
+  ChevronsRight,
   Maximize,
   Pause,
   Play,
@@ -14,6 +16,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "@/app/playlists/[id]/player/page.module.css";
+import type { GalleryRow, MediaItem } from "@/types/media";
 import type { PlaylistWithItems } from "@/types/playlist";
 
 interface PlaylistPlayerPageClientProps {
@@ -25,10 +28,50 @@ export default function PlaylistPlayerPageClient({
 }: PlaylistPlayerPageClientProps) {
   const router = useRouter();
   const playlist = initialPlaylist;
-  const items = playlist.items;
+  const isDynamic = playlist.type === "dynamic";
 
-  // Player State
+  // --- Dynamic Playlist State (Post-Based) ---
+  const [allPostIds, setAllPostIds] = useState<number[]>(() =>
+    playlist.posts ? playlist.posts.map((p) => p.postId) : [],
+  );
+  const [postMediaMap, setPostMediaMap] = useState<Record<number, MediaItem[]>>(
+    () => {
+      const initialMap: Record<number, MediaItem[]> = {};
+      if (playlist.posts) {
+        for (const p of playlist.posts) {
+          initialMap[p.postId] = p.mediaItems;
+        }
+      }
+      return initialMap;
+    },
+  );
+  const [currentPostIndex, setCurrentPostIndex] = useState(0);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+
+  // --- Normal Playlist State (Item-Based) ---
+  const [allItemIds, setAllItemIds] = useState<number[]>(() =>
+    playlist.items.map((it) => it.mediaItemId),
+  );
+  const [mediaCache, setMediaCache] = useState<Record<number, GalleryRow>>(
+    () => {
+      const initialMap: Record<number, GalleryRow> = {};
+      for (const it of playlist.items) {
+        if (it.mediaItem) {
+          initialMap[it.mediaItemId] = {
+            item: it.mediaItem,
+            post: null,
+            platformDetails: null,
+            platformUser: null,
+            source: null,
+          };
+        }
+      }
+      return initialMap;
+    },
+  );
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // --- General Player Controls State ---
   const [isPlaying, setIsPlaying] = useState(true);
   const [repeat, setRepeat] = useState(false);
   const [shuffle, setShuffle] = useState(false);
@@ -36,14 +79,30 @@ export default function PlaylistPlayerPageClient({
   const [shuffleCursor, setShuffleCursor] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [isHoveringControls, setIsHoveringControls] = useState(false);
-  const [_viewMode, _setViewMode] = useState<"single" | "multi">("single"); // Stub for future multiview
+  const [_viewMode, _setViewMode] = useState<"single" | "multi">("single");
   const [progress, setProgress] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const autoplayTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto-hide controls on mouse/touch inactivity
+  // Load post IDs if dynamic
+  useEffect(() => {
+    if (isDynamic) {
+      fetch(`/api/playlists/${playlist.id}/post-ids`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data.postIds) && data.postIds.length > 0) {
+            setAllPostIds(data.postIds);
+          }
+        })
+        .catch((err) =>
+          console.error("Failed to load full dynamic playlist post IDs:", err),
+        );
+    }
+  }, [playlist.id, isDynamic]);
+
+  // Auto-hide controls timeout
   const resetControlsTimeout = useCallback(() => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -67,29 +126,27 @@ export default function PlaylistPlayerPageClient({
     };
   }, [resetControlsTimeout]);
 
-  // Reset controls timeout when hovering state changes
   useEffect(() => {
     resetControlsTimeout();
   }, [resetControlsTimeout]);
 
   // Fisher-Yates Shuffle generator
+  const totalUnits = isDynamic ? allPostIds.length : allItemIds.length;
   const enableShuffle = useCallback(
     (startIndex: number, isLoopTransition = false) => {
-      const indices = Array.from({ length: items.length }, (_, i) => i);
-      // Shuffle
+      if (totalUnits === 0) return;
+      const indices = Array.from({ length: totalUnits }, (_, i) => i);
       for (let i = indices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [indices[i], indices[j]] = [indices[j], indices[i]];
       }
 
       if (isLoopTransition) {
-        // Guarantee that the first item of the new shuffle is NOT the last played item
         if (indices[0] === startIndex && indices.length > 1) {
           const j = Math.floor(Math.random() * (indices.length - 1)) + 1;
           [indices[0], indices[j]] = [indices[j], indices[0]];
         }
       } else {
-        // Put current index at the front so it doesn't change on click
         const currentIdxInShuffled = indices.indexOf(startIndex);
         if (currentIdxInShuffled !== -1) {
           indices.splice(currentIdxInShuffled, 1);
@@ -100,52 +157,243 @@ export default function PlaylistPlayerPageClient({
       setShuffledIndices(indices);
       setShuffleCursor(0);
     },
-    [items.length],
+    [totalUnits],
   );
 
-  // Toggle Shuffle
+  const activeUnitIndex = isDynamic ? currentPostIndex : currentIndex;
   const handleToggleShuffle = useCallback(() => {
     if (!shuffle) {
-      enableShuffle(currentIndex);
+      enableShuffle(activeUnitIndex);
       setShuffle(true);
     } else {
       setShuffle(false);
     }
-  }, [shuffle, enableShuffle, currentIndex]);
+  }, [shuffle, enableShuffle, activeUnitIndex]);
 
-  const currentPlaylistItem =
-    shuffle && shuffledIndices.length === items.length
-      ? items[shuffledIndices[shuffleCursor]]
-      : items[currentIndex];
+  // Active item resolution
+  const activePostIndex =
+    isDynamic && shuffle && shuffledIndices.length === allPostIds.length
+      ? shuffledIndices[shuffleCursor]
+      : currentPostIndex;
 
-  const currentMedia = currentPlaylistItem?.mediaItem;
+  const activePostId = isDynamic ? allPostIds[activePostIndex] : undefined;
+  const currentPostMedia =
+    isDynamic && activePostId !== undefined
+      ? postMediaMap[activePostId] || []
+      : [];
+
+  const activeMediaId =
+    !isDynamic && shuffle && shuffledIndices.length === allItemIds.length
+      ? allItemIds[shuffledIndices[shuffleCursor]]
+      : allItemIds[currentIndex];
+
+  const currentMedia: MediaItem | undefined = isDynamic
+    ? currentPostMedia[currentMediaIndex]
+    : mediaCache[activeMediaId]?.item;
+
   const isVideo = currentMedia?.mediaType === "video";
 
-  const handleNext = useCallback(() => {
-    if (items.length <= 1) return;
+  // Prefetch post media (Dynamic)
+  useEffect(() => {
+    if (!isDynamic || allPostIds.length === 0) return;
 
-    if (shuffle && shuffledIndices.length === items.length) {
+    const targetPostIndices: number[] = [];
+    for (let offset = 0; offset <= 2; offset++) {
+      const idx = (shuffleCursor + offset) % allPostIds.length;
+      targetPostIndices.push(idx);
+    }
+
+    const missingPostIds = targetPostIndices
+      .map((i) => (shuffle ? allPostIds[shuffledIndices[i]] : allPostIds[i]))
+      .filter((id) => id !== undefined && !postMediaMap[id]);
+
+    if (missingPostIds.length > 0) {
+      for (const pid of missingPostIds) {
+        fetch(`/api/posts/${pid}/media`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (Array.isArray(data.mediaItems)) {
+              setPostMediaMap((prev) => ({
+                ...prev,
+                [pid]: data.mediaItems,
+              }));
+            }
+          })
+          .catch((err) =>
+            console.error(`Failed to prefetch media for post ${pid}:`, err),
+          );
+      }
+    }
+  }, [
+    isDynamic,
+    allPostIds,
+    shuffleCursor,
+    shuffle,
+    shuffledIndices,
+    postMediaMap,
+  ]);
+
+  // Prefetch items (Normal)
+  useEffect(() => {
+    if (isDynamic || allItemIds.length === 0) return;
+
+    const activePos =
+      shuffle && shuffledIndices.length === allItemIds.length
+        ? shuffleCursor
+        : currentIndex;
+
+    const targetIndices: number[] = [];
+    for (let offset = 0; offset <= 3; offset++) {
+      const idx = (activePos + offset) % allItemIds.length;
+      targetIndices.push(idx);
+    }
+
+    const missingIds = targetIndices
+      .map((i) => (shuffle ? allItemIds[shuffledIndices[i]] : allItemIds[i]))
+      .filter((id) => id !== undefined && !mediaCache[id]);
+
+    if (missingIds.length > 0) {
+      fetch(`/api/media/batch?ids=${missingIds.join(",")}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.items) {
+            setMediaCache((prev) => ({ ...prev, ...data.items }));
+          }
+        })
+        .catch((err) => console.error("Failed to prefetch media items:", err));
+    }
+  }, [
+    isDynamic,
+    currentIndex,
+    shuffleCursor,
+    shuffle,
+    shuffledIndices,
+    allItemIds,
+    mediaCache,
+  ]);
+
+  // Post Navigation
+  const handleNextPost = useCallback(() => {
+    if (allPostIds.length <= 1) return;
+    setCurrentMediaIndex(0);
+
+    if (shuffle && shuffledIndices.length === allPostIds.length) {
       const nextCursor = shuffleCursor + 1;
-      if (nextCursor < items.length) {
+      if (nextCursor < allPostIds.length) {
         setShuffleCursor(nextCursor);
       } else if (repeat) {
-        // Regenerate new shuffle order on loop
         enableShuffle(shuffledIndices[shuffleCursor], true);
       } else {
         setIsPlaying(false);
       }
     } else {
-      const nextIndex = currentIndex + 1;
-      if (nextIndex < items.length) {
-        setCurrentIndex(nextIndex);
+      const nextIndex = currentPostIndex + 1;
+      if (nextIndex < allPostIds.length) {
+        setCurrentPostIndex(nextIndex);
       } else if (repeat) {
-        setCurrentIndex(0);
+        setCurrentPostIndex(0);
       } else {
         setIsPlaying(false);
       }
     }
   }, [
-    items.length,
+    allPostIds.length,
+    shuffle,
+    shuffledIndices,
+    shuffleCursor,
+    repeat,
+    currentPostIndex,
+    enableShuffle,
+  ]);
+
+  const handlePrevPost = useCallback(
+    (startAtEnd = false) => {
+      if (allPostIds.length <= 1) return;
+
+      const targetPostId =
+        shuffle && shuffledIndices.length === allPostIds.length
+          ? allPostIds[shuffledIndices[shuffleCursor]]
+          : allPostIds[currentPostIndex];
+
+      let targetPostMedia: MediaItem[] = [];
+
+      if (shuffle && shuffledIndices.length === allPostIds.length) {
+        const prevCursor = shuffleCursor - 1;
+        if (prevCursor >= 0) {
+          setShuffleCursor(prevCursor);
+          const prevPostId = allPostIds[shuffledIndices[prevCursor]];
+          targetPostMedia = postMediaMap[prevPostId] || [];
+        } else if (repeat) {
+          const lastCursor = allPostIds.length - 1;
+          setShuffleCursor(lastCursor);
+          const prevPostId = allPostIds[shuffledIndices[lastCursor]];
+          targetPostMedia = postMediaMap[prevPostId] || [];
+        }
+      } else {
+        const prevIndex = currentPostIndex - 1;
+        if (prevIndex >= 0) {
+          setCurrentPostIndex(prevIndex);
+          targetPostMedia = postMediaMap[allPostIds[prevIndex]] || [];
+        } else if (repeat) {
+          const lastIndex = allPostIds.length - 1;
+          setCurrentPostIndex(lastIndex);
+          targetPostMedia = postMediaMap[allPostIds[lastIndex]] || [];
+        }
+      }
+
+      if (startAtEnd && targetPostMedia.length > 0) {
+        setCurrentMediaIndex(targetPostMedia.length - 1);
+      } else {
+        setCurrentMediaIndex(0);
+      }
+    },
+    [
+      allPostIds,
+      shuffle,
+      shuffledIndices,
+      shuffleCursor,
+      repeat,
+      currentPostIndex,
+      postMediaMap,
+    ],
+  );
+
+  // General Next / Prev (Media-level)
+  const handleNext = useCallback(() => {
+    if (isDynamic) {
+      if (currentMediaIndex < currentPostMedia.length - 1) {
+        setCurrentMediaIndex((prev) => prev + 1);
+      } else {
+        handleNextPost();
+      }
+    } else {
+      if (allItemIds.length <= 1) return;
+      if (shuffle && shuffledIndices.length === allItemIds.length) {
+        const nextCursor = shuffleCursor + 1;
+        if (nextCursor < allItemIds.length) {
+          setShuffleCursor(nextCursor);
+        } else if (repeat) {
+          enableShuffle(shuffledIndices[shuffleCursor], true);
+        } else {
+          setIsPlaying(false);
+        }
+      } else {
+        const nextIndex = currentIndex + 1;
+        if (nextIndex < allItemIds.length) {
+          setCurrentIndex(nextIndex);
+        } else if (repeat) {
+          setCurrentIndex(0);
+        } else {
+          setIsPlaying(false);
+        }
+      }
+    }
+  }, [
+    isDynamic,
+    currentMediaIndex,
+    currentPostMedia.length,
+    handleNextPost,
+    allItemIds.length,
     shuffle,
     shuffledIndices,
     shuffleCursor,
@@ -155,25 +403,35 @@ export default function PlaylistPlayerPageClient({
   ]);
 
   const handlePrev = useCallback(() => {
-    if (items.length <= 1) return;
-
-    if (shuffle && shuffledIndices.length === items.length) {
-      const prevCursor = shuffleCursor - 1;
-      if (prevCursor >= 0) {
-        setShuffleCursor(prevCursor);
-      } else if (repeat) {
-        setShuffleCursor(items.length - 1);
+    if (isDynamic) {
+      if (currentMediaIndex > 0) {
+        setCurrentMediaIndex((prev) => prev - 1);
+      } else {
+        handlePrevPost(true);
       }
     } else {
-      const prevIndex = currentIndex - 1;
-      if (prevIndex >= 0) {
-        setCurrentIndex(prevIndex);
-      } else if (repeat) {
-        setCurrentIndex(items.length - 1);
+      if (allItemIds.length <= 1) return;
+      if (shuffle && shuffledIndices.length === allItemIds.length) {
+        const prevCursor = shuffleCursor - 1;
+        if (prevCursor >= 0) {
+          setShuffleCursor(prevCursor);
+        } else if (repeat) {
+          setShuffleCursor(allItemIds.length - 1);
+        }
+      } else {
+        const prevIndex = currentIndex - 1;
+        if (prevIndex >= 0) {
+          setCurrentIndex(prevIndex);
+        } else if (repeat) {
+          setCurrentIndex(allItemIds.length - 1);
+        }
       }
     }
   }, [
-    items.length,
+    isDynamic,
+    currentMediaIndex,
+    handlePrevPost,
+    allItemIds.length,
     shuffle,
     shuffledIndices,
     shuffleCursor,
@@ -181,26 +439,24 @@ export default function PlaylistPlayerPageClient({
     currentIndex,
   ]);
 
-  // Synchronize currentIndex with shuffleCursor when items change
+  // Sync index with shuffle cursor
   useEffect(() => {
-    if (shuffle && shuffledIndices.length === items.length) {
-      setCurrentIndex(shuffledIndices[shuffleCursor]);
+    if (shuffle && shuffledIndices.length === totalUnits) {
+      if (isDynamic) {
+        setCurrentPostIndex(shuffledIndices[shuffleCursor]);
+      } else {
+        setCurrentIndex(shuffledIndices[shuffleCursor]);
+      }
     }
-  }, [shuffle, shuffledIndices, shuffleCursor, items.length]);
+  }, [shuffle, shuffledIndices, shuffleCursor, totalUnits, isDynamic]);
 
-  // Autoplay handler for Mixed Media (images = 5s, videos = wait for end)
+  // Autoplay handler
   useEffect(() => {
     if (autoplayTimerRef.current) clearInterval(autoplayTimerRef.current);
     setProgress(0);
 
-    if (!isPlaying || !currentPlaylistItem?.mediaItem) return;
-
-    const media = currentPlaylistItem.mediaItem;
-
-    if (media.mediaType === "video") {
-      // Videos auto-advance onended trigger (set inside element)
-      return;
-    }
+    if (!isPlaying || !currentMedia) return;
+    if (currentMedia.mediaType === "video") return;
 
     const IMAGE_DURATION = 5000;
     const TICK_RATE = 50;
@@ -220,14 +476,13 @@ export default function PlaylistPlayerPageClient({
     return () => {
       if (autoplayTimerRef.current) clearInterval(autoplayTimerRef.current);
     };
-  }, [isPlaying, currentPlaylistItem, handleNext]);
+  }, [isPlaying, currentMedia, handleNext]);
 
   const isPlayingRef = useRef(isPlaying);
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
-  // Sync HTML5 video play/pause with isPlaying state
   useEffect(() => {
     if (videoRef.current && isVideo) {
       if (isPlaying) {
@@ -240,7 +495,6 @@ export default function PlaylistPlayerPageClient({
     }
   }, [isPlaying, isVideo]);
 
-  // Load video only when the active playlist item changes
   useEffect(() => {
     if (videoRef.current && isVideo && currentMedia) {
       videoRef.current.load();
@@ -262,7 +516,7 @@ export default function PlaylistPlayerPageClient({
     }
   };
 
-  // Key listeners
+  // Keyboard shortcuts
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -282,6 +536,20 @@ export default function PlaylistPlayerPageClient({
         case "ArrowLeft":
           handlePrev();
           break;
+        case "PageDown":
+        case "ArrowDown":
+          if (isDynamic) {
+            e.preventDefault();
+            handleNextPost();
+          }
+          break;
+        case "PageUp":
+        case "ArrowUp":
+          if (isDynamic) {
+            e.preventDefault();
+            handlePrevPost();
+          }
+          break;
         case "r":
         case "R":
           setRepeat((prev) => !prev);
@@ -294,7 +562,16 @@ export default function PlaylistPlayerPageClient({
           break;
       }
     },
-    [handleNext, handlePrev, handleToggleShuffle, playlist.id, router],
+    [
+      handleNext,
+      handlePrev,
+      handleNextPost,
+      handlePrevPost,
+      handleToggleShuffle,
+      isDynamic,
+      playlist.id,
+      router,
+    ],
   );
 
   useEffect(() => {
@@ -304,12 +581,10 @@ export default function PlaylistPlayerPageClient({
 
   if (!currentMedia) return null;
 
-  const displayPosition = shuffle ? shuffleCursor + 1 : currentIndex + 1;
   const shouldShowControlsBar = showControls && !(isVideo && isPlaying);
 
   return (
     <div className={styles.playerContainer}>
-      {/* Close button top-right */}
       <button
         type="button"
         className={`${styles.closeButton} ${!showControls ? styles.hidden : ""}`}
@@ -321,10 +596,9 @@ export default function PlaylistPlayerPageClient({
         <X size={20} />
       </button>
 
-      {/* Main viewport */}
       <div className={styles.mediaWrapper}>
         {isVideo ? (
-          // biome-ignore lint/a11y/useMediaCaption: User generated videos
+          // biome-ignore lint/a11y/useMediaCaption: User content
           <video
             ref={videoRef}
             src={currentMedia.filePath}
@@ -346,7 +620,6 @@ export default function PlaylistPlayerPageClient({
         )}
       </div>
 
-      {/* Controls Bar Overlay */}
       <div
         className={`${styles.controlsBar} ${!shouldShowControlsBar ? styles.hidden : ""}`}
         onMouseEnter={() => setIsHoveringControls(true)}
@@ -354,7 +627,6 @@ export default function PlaylistPlayerPageClient({
         role="toolbar"
         aria-label="Player controls"
       >
-        {/* Sleek horizontal progress loader - images only */}
         {!isVideo && (
           <div
             className={styles.progressBar}
@@ -362,14 +634,27 @@ export default function PlaylistPlayerPageClient({
           />
         )}
 
-        {/* Navigation actions */}
         <div className={styles.controlGroup}>
+          {isDynamic && (
+            <button
+              type="button"
+              className={styles.controlBtn}
+              onClick={() => handlePrevPost()}
+              disabled={allPostIds.length <= 1}
+              title="Previous Post (PageUp / Down Arrow)"
+            >
+              <ChevronsLeft size={18} />
+            </button>
+          )}
+
           <button
             type="button"
             className={styles.controlBtn}
             onClick={handlePrev}
-            disabled={items.length <= 1}
-            title="Previous (Left Arrow)"
+            disabled={
+              isDynamic ? allPostIds.length === 0 : allItemIds.length <= 1
+            }
+            title="Previous Media (Left Arrow)"
           >
             <SkipBack size={18} fill="currentColor" />
           </button>
@@ -396,16 +681,29 @@ export default function PlaylistPlayerPageClient({
             type="button"
             className={styles.controlBtn}
             onClick={handleNext}
-            disabled={items.length <= 1}
-            title="Next (Right Arrow)"
+            disabled={
+              isDynamic ? allPostIds.length === 0 : allItemIds.length <= 1
+            }
+            title="Next Media (Right Arrow)"
           >
             <SkipForward size={18} fill="currentColor" />
           </button>
+
+          {isDynamic && (
+            <button
+              type="button"
+              className={styles.controlBtn}
+              onClick={handleNextPost}
+              disabled={allPostIds.length <= 1}
+              title="Next Post (PageDown / Up Arrow)"
+            >
+              <ChevronsRight size={18} />
+            </button>
+          )}
         </div>
 
         <div className={styles.separator} />
 
-        {/* Playback Settings */}
         <div className={styles.controlGroup}>
           <button
             type="button"
@@ -428,7 +726,7 @@ export default function PlaylistPlayerPageClient({
           <button
             type="button"
             className={styles.controlBtn}
-            disabled // Disabled for follow-up multiview integration
+            disabled
             title="Multiview (Disabled)"
           >
             <Maximize size={18} />
@@ -437,9 +735,10 @@ export default function PlaylistPlayerPageClient({
 
         <div className={styles.separator} />
 
-        {/* Playback Stats */}
         <div className={styles.progressInfo}>
-          {displayPosition} / {items.length}
+          {isDynamic
+            ? `Post ${activePostIndex + 1} / ${allPostIds.length} · Media ${currentMediaIndex + 1} / ${currentPostMedia.length || 1}`
+            : `${shuffle ? shuffleCursor + 1 : currentIndex + 1} / ${allItemIds.length}`}
         </div>
       </div>
     </div>

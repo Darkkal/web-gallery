@@ -95,14 +95,29 @@ export default function PlaylistsPageClient({
     setPlaylists(data);
   }
 
-  async function handleCreatePlaylist(name: string, description?: string) {
-    await createPlaylist(name, description);
+  async function handleCreatePlaylist(
+    name: string,
+    description?: string,
+    type: "normal" | "dynamic" = "normal",
+    searchQuery?: string,
+  ) {
+    await createPlaylist(name, description, type, searchQuery);
     await reloadPlaylists();
   }
 
-  async function handleEditPlaylist(name: string, description?: string) {
+  async function handleEditPlaylist(
+    name: string,
+    description?: string,
+    type: "normal" | "dynamic" = "normal",
+    searchQuery?: string,
+  ) {
     if (!editingPlaylist) return;
-    await updatePlaylist(editingPlaylist.id, { name, description });
+    await updatePlaylist(editingPlaylist.id, {
+      name,
+      description,
+      type,
+      searchQuery: type === "dynamic" ? searchQuery : null,
+    });
     setEditingPlaylist(null);
     await reloadPlaylists();
   }
@@ -235,6 +250,8 @@ export default function PlaylistsPageClient({
         onSubmit={editingPlaylist ? handleEditPlaylist : handleCreatePlaylist}
         initialName={editingPlaylist?.name ?? ""}
         initialDescription={editingPlaylist?.description ?? ""}
+        initialType={editingPlaylist?.type ?? "normal"}
+        initialSearchQuery={editingPlaylist?.searchQuery ?? ""}
         title={editingPlaylist ? "Edit Playlist Details" : "Create Playlist"}
       />
     </div>

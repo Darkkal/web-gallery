@@ -114,7 +114,7 @@ Frontend types are in `src/types/`:
 |------|----------|
 | `media.ts` | `MediaItem`, `GalleryGroup`, `GalleryRow`, `PlatformDetails`, `PlatformUser`, opt-in details types (`TwitterDetails`, `PixivDetails`, `GelbooruDetails`, `EHentaiDetails`) |
 | `autocomplete.ts` | `AutocompleteSuggestion`, `AutocompleteResponse` definitions |
-| `playlist.ts` | `Playlist`, playlist-related types |
+| `playlist.ts` | `Playlist`, `PlaylistWithItems`, `PlaylistItem` definitions (supports normal and dynamic type playlists) |
 | `posts.ts` | `TimelinePost`, post-related types |
 | `settings.ts` | `SystemSettings`, `AppSettings` (including Lightbox fit, zoom, and auto-hide config) definitions |
 | `source.ts` | `Source`, source-related types |

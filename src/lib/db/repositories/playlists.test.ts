@@ -99,6 +99,42 @@ describe("Playlists Repository", () => {
       expect(descList[0].id).toBe(pl1.id);
       expect(descList[1].id).toBe(pl2.id);
     });
+
+    it("should create, fetch, and update dynamic playlists driven by search query", async () => {
+      const source = await seedSource(testDb);
+      const post = await seedPost(testDb, source.id);
+      await seedMediaItem(testDb, post.id);
+
+      // Create dynamic playlist
+      const dynPlaylist = await createPlaylist(
+        "Dynamic Cat Playlist",
+        "Live cat items",
+        "dynamic",
+        "tag:cat",
+      );
+
+      expect(dynPlaylist.id).toBeTypeOf("number");
+      expect(dynPlaylist.type).toBe("dynamic");
+      expect(dynPlaylist.searchQuery).toBe("tag:cat");
+
+      // Fetch single playlist
+      const fetched = await getPlaylist(dynPlaylist.id);
+      expect(fetched).toBeDefined();
+      expect(fetched?.type).toBe("dynamic");
+      expect(fetched?.searchQuery).toBe("tag:cat");
+
+      // Fetch list
+      const list = await getPlaylists({ search: "Dynamic" });
+      expect(list.length).toBe(1);
+      expect(list[0].type).toBe("dynamic");
+
+      // Update dynamic query
+      await updatePlaylist(dynPlaylist.id, {
+        searchQuery: "tag:dog",
+      });
+      const updated = await getPlaylist(dynPlaylist.id);
+      expect(updated?.searchQuery).toBe("tag:dog");
+    });
   });
 
   describe("Playlist Item Management", () => {

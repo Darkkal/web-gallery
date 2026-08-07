@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Search, Sparkles, X } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { addItemsToPlaylist, createPlaylist } from "@/app/actions/playlists";
@@ -47,12 +47,13 @@ export default function AddToPlaylistModal({
     p.name.toLowerCase().includes(search.toLowerCase()),
   );
 
-  async function handleAddToExisting(playlistId: number) {
+  async function handleAddToExisting(playlist: Playlist) {
+    if (playlist.type === "dynamic") return;
     if (loading || mediaItemIds.length === 0) return;
-    setAddingToId(playlistId);
+    setAddingToId(playlist.id);
     setLoading(true);
     try {
-      await addItemsToPlaylist(playlistId, mediaItemIds);
+      await addItemsToPlaylist(playlist.id, mediaItemIds);
       onClose();
     } catch (err) {
       console.error("Failed to add items to playlist:", err);
@@ -141,20 +142,34 @@ export default function AddToPlaylistModal({
 
         <div className={styles.playlistList}>
           {filteredPlaylists.map((playlist) => {
+            const isDynamic = playlist.type === "dynamic";
             const isAdding = addingToId === playlist.id;
             return (
               // biome-ignore lint/a11y/useKeyWithClickEvents: Clickable list item
               // biome-ignore lint/a11y/noStaticElementInteractions: Clickable list item
               <div
                 key={playlist.id}
-                className={`${styles.playlistItem} ${isAdding ? styles.adding : ""}`}
-                onClick={() => handleAddToExisting(playlist.id)}
+                className={`${styles.playlistItem} ${isAdding ? styles.adding : ""} ${isDynamic ? styles.disabled : ""}`}
+                onClick={() => handleAddToExisting(playlist)}
+                title={
+                  isDynamic
+                    ? "Dynamic playlists use saved search queries and cannot have manual items added"
+                    : undefined
+                }
               >
                 <div className={styles.playlistItemInfo}>
-                  <span className={styles.playlistName}>{playlist.name}</span>
+                  <div className={styles.nameRow}>
+                    <span className={styles.playlistName}>{playlist.name}</span>
+                    {isDynamic && (
+                      <span className={styles.dynamicBadge}>
+                        <Sparkles size={11} /> Dynamic
+                      </span>
+                    )}
+                  </div>
                   <span className={styles.playlistCount}>
-                    {playlist.itemCount ?? 0}{" "}
-                    {playlist.itemCount === 1 ? "item" : "items"}
+                    {isDynamic
+                      ? `Query: "${playlist.searchQuery}" (${playlist.itemCount ?? 0} items)`
+                      : `${playlist.itemCount ?? 0} ${playlist.itemCount === 1 ? "item" : "items"}`}
                   </span>
                 </div>
                 {isAdding && (
