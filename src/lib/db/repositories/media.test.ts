@@ -56,7 +56,7 @@ activeDb = testDb;
 // Import modules under test
 import fs from "node:fs/promises";
 import { incrementStatistics } from "@/lib/db/repositories/statistics";
-import { deleteMediaItems, getMediaItems } from "./media";
+import { deleteMediaItems, getMediaItems, getPostMediaItems } from "./media";
 
 describe("Media Repository", () => {
   beforeAll(async () => {
@@ -71,8 +71,8 @@ describe("Media Repository", () => {
     }
   });
 
-  describe("getMediaItems", () => {
-    it("should fetch media items and return grouped by post showing first media item as thumbnail", async () => {
+  describe("getPostMediaItems", () => {
+    it("should fetch all media items for a specific post ordered ascending by ID", async () => {
       const source = await seedSource(testDb);
       const post = await seedPost(testDb, source.id);
       const media1 = await seedMediaItem(testDb, post.id, {
@@ -82,21 +82,40 @@ describe("Media Repository", () => {
         filePath: "/downloads/2.jpg",
       });
 
+      const postMedia = await getPostMediaItems(post.id);
+      expect(postMedia.length).toBe(2);
+      expect(postMedia[0].item.id).toBe(media1.id);
+      expect(postMedia[1].item.id).toBe(media2.id);
+    });
+  });
+
+  describe("getMediaItems", () => {
+    it("should fetch first media item per post as thumbnail with total groupCount", async () => {
+      const source = await seedSource(testDb);
+      const post = await seedPost(testDb, source.id);
+      const media1 = await seedMediaItem(testDb, post.id, {
+        filePath: "/downloads/1.jpg",
+      });
+      const _media2 = await seedMediaItem(testDb, post.id, {
+        filePath: "/downloads/2.jpg",
+      });
+
       const { items } = await getMediaItems();
       expect(items.length).toBe(1); // Grouped by post, so 1 group
       expect(items[0].groupCount).toBe(2);
       expect(items[0].item.id).toBe(media1.id); // Thumbnail is first media item
-      const itemIds = items[0].groupItems.map((gi) => gi.item.id);
-      expect(itemIds).toEqual([media1.id, media2.id]); // Group items ordered ascending
+      expect(items[0].groupItems.length).toBe(1); // Initially contains first media item for lazy loading
+      expect(items[0].groupItems[0].item.id).toBe(media1.id);
     });
 
-    it("should handle cursor pagination correctly", async () => {
+    it("should handle cursor pagination correctly across unique posts", async () => {
       const source = await seedSource(testDb);
-      const post = await seedPost(testDb, source.id);
-      const _media1 = await seedMediaItem(testDb, post.id, {
+      const post1 = await seedPost(testDb, source.id);
+      const post2 = await seedPost(testDb, source.id);
+      const _media1 = await seedMediaItem(testDb, post1.id, {
         createdAt: new Date("2026-01-01"),
       });
-      const _media2 = await seedMediaItem(testDb, post.id, {
+      const _media2 = await seedMediaItem(testDb, post2.id, {
         createdAt: new Date("2026-01-02"),
       });
 
