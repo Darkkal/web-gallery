@@ -4,6 +4,8 @@ import { Sparkles, X } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
 import styles from "@/app/playlists/page.module.css";
+import { AutocompleteDropdown } from "@/components/AutocompleteDropdown";
+import { useSearchAutocomplete } from "@/hooks/useSearchAutocomplete";
 
 interface CreatePlaylistModalProps {
   isOpen: boolean;
@@ -36,6 +38,16 @@ export default function CreatePlaylistModal({
   const [type, setType] = useState<"normal" | "dynamic">(initialType);
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [loading, setLoading] = useState(false);
+
+  const {
+    suggestions,
+    selectedIndex,
+    isOpen: isAutocompleteOpen,
+    inputRef: searchQueryInputRef,
+    handleKeyDown: handleAutocompleteKeyDown,
+    acceptSuggestion: acceptAutocompleteSuggestion,
+    isLoading: isAutocompleteLoading,
+  } = useSearchAutocomplete(searchQuery, setSearchQuery);
 
   useEffect(() => {
     if (isOpen) {
@@ -141,15 +153,42 @@ export default function CreatePlaylistModal({
               <label htmlFor="playlist-query" className={styles.label}>
                 Saved Search Query
               </label>
-              <input
-                id="playlist-query"
-                type="text"
-                className={styles.inputField}
-                placeholder="e.g., tag:cat source:twitter"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                required={type === "dynamic"}
-              />
+              <div className={styles.autocompleteWrapper}>
+                <input
+                  id="playlist-query"
+                  ref={searchQueryInputRef}
+                  type="text"
+                  className={styles.inputField}
+                  placeholder="e.g., tag:cat source:twitter"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    handleAutocompleteKeyDown(e);
+                  }}
+                  required={type === "dynamic"}
+                  aria-autocomplete="list"
+                  aria-controls={
+                    isAutocompleteOpen
+                      ? "search-autocomplete-listbox"
+                      : undefined
+                  }
+                  aria-expanded={isAutocompleteOpen}
+                  role="combobox"
+                  aria-activedescendant={
+                    isAutocompleteOpen
+                      ? `suggestion-item-${selectedIndex}`
+                      : undefined
+                  }
+                />
+                {isAutocompleteOpen && (
+                  <AutocompleteDropdown
+                    suggestions={suggestions}
+                    selectedIndex={selectedIndex}
+                    onSelect={acceptAutocompleteSuggestion}
+                    isLoading={isAutocompleteLoading}
+                  />
+                )}
+              </div>
               <span className={styles.helperText}>
                 Dynamic playlists automatically play live search results
                 matching this query.

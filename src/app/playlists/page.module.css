@@ -732,6 +732,11 @@
   align-items: center;
 }
 
+.autocompleteWrapper {
+  position: relative;
+  width: 100%;
+}
+
 .dynamicBadge {
   display: inline-flex;
   align-items: center;
