@@ -14,6 +14,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "@/app/playlists/[id]/player/page.module.css";
+import type { GalleryRow } from "@/types/media";
 import type { PlaylistWithItems } from "@/types/playlist";
 
 interface PlaylistPlayerPageClientProps {
@@ -25,7 +26,46 @@ export default function PlaylistPlayerPageClient({
 }: PlaylistPlayerPageClientProps) {
   const router = useRouter();
   const playlist = initialPlaylist;
-  const items = playlist.items;
+
+  // Track all item IDs for shuffle & pagination
+  const [allItemIds, setAllItemIds] = useState<number[]>(() =>
+    playlist.items.map((it) => it.mediaItemId),
+  );
+
+  // Local media cache for hydrated items
+  const [mediaCache, setMediaCache] = useState<Record<number, GalleryRow>>(
+    () => {
+      const initialMap: Record<number, GalleryRow> = {};
+      for (const it of playlist.items) {
+        if (it.mediaItem) {
+          initialMap[it.mediaItemId] = {
+            item: it.mediaItem,
+            post: null,
+            platformDetails: null,
+            platformUser: null,
+            source: null,
+          };
+        }
+      }
+      return initialMap;
+    },
+  );
+
+  // Load full ID list for dynamic playlists
+  useEffect(() => {
+    if (playlist.type === "dynamic") {
+      fetch(`/api/media/ids?playlist=${playlist.id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data.ids) && data.ids.length > 0) {
+            setAllItemIds(data.ids);
+          }
+        })
+        .catch((err) =>
+          console.error("Failed to load full dynamic playlist IDs:", err),
+        );
+    }
+  }, [playlist.id, playlist.type]);
 
   // Player State
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -72,10 +112,10 @@ export default function PlaylistPlayerPageClient({
     resetControlsTimeout();
   }, [resetControlsTimeout]);
 
-  // Fisher-Yates Shuffle generator
+  // Fisher-Yates Shuffle generator across all item IDs
   const enableShuffle = useCallback(
     (startIndex: number, isLoopTransition = false) => {
-      const indices = Array.from({ length: items.length }, (_, i) => i);
+      const indices = Array.from({ length: allItemIds.length }, (_, i) => i);
       // Shuffle
       for (let i = indices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -100,7 +140,7 @@ export default function PlaylistPlayerPageClient({
       setShuffledIndices(indices);
       setShuffleCursor(0);
     },
-    [items.length],
+    [allItemIds.length],
   );
 
   // Toggle Shuffle
@@ -113,20 +153,62 @@ export default function PlaylistPlayerPageClient({
     }
   }, [shuffle, enableShuffle, currentIndex]);
 
-  const currentPlaylistItem =
-    shuffle && shuffledIndices.length === items.length
-      ? items[shuffledIndices[shuffleCursor]]
-      : items[currentIndex];
+  const activeMediaId =
+    shuffle && shuffledIndices.length === allItemIds.length
+      ? allItemIds[shuffledIndices[shuffleCursor]]
+      : allItemIds[currentIndex];
 
-  const currentMedia = currentPlaylistItem?.mediaItem;
+  const cachedRow = mediaCache[activeMediaId];
+  const currentMedia = cachedRow?.item;
   const isVideo = currentMedia?.mediaType === "video";
 
-  const handleNext = useCallback(() => {
-    if (items.length <= 1) return;
+  // Prefetch active and next upcoming items into local cache
+  useEffect(() => {
+    if (allItemIds.length === 0) return;
 
-    if (shuffle && shuffledIndices.length === items.length) {
+    const activePos =
+      shuffle && shuffledIndices.length === allItemIds.length
+        ? shuffleCursor
+        : currentIndex;
+
+    const targetIndices: number[] = [];
+    for (let offset = 0; offset <= 3; offset++) {
+      const idx = (activePos + offset) % allItemIds.length;
+      targetIndices.push(idx);
+    }
+
+    const missingIds = targetIndices
+      .map((i) => (shuffle ? allItemIds[shuffledIndices[i]] : allItemIds[i]))
+      .filter((id) => id !== undefined && !mediaCache[id]);
+
+    if (missingIds.length > 0) {
+      fetch(`/api/media/batch?ids=${missingIds.join(",")}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.items) {
+            setMediaCache((prev) => ({
+              ...prev,
+              ...data.items,
+            }));
+          }
+        })
+        .catch((err) => console.error("Failed to prefetch media items:", err));
+    }
+  }, [
+    currentIndex,
+    shuffleCursor,
+    shuffle,
+    shuffledIndices,
+    allItemIds,
+    mediaCache,
+  ]);
+
+  const handleNext = useCallback(() => {
+    if (allItemIds.length <= 1) return;
+
+    if (shuffle && shuffledIndices.length === allItemIds.length) {
       const nextCursor = shuffleCursor + 1;
-      if (nextCursor < items.length) {
+      if (nextCursor < allItemIds.length) {
         setShuffleCursor(nextCursor);
       } else if (repeat) {
         // Regenerate new shuffle order on loop
@@ -136,7 +218,7 @@ export default function PlaylistPlayerPageClient({
       }
     } else {
       const nextIndex = currentIndex + 1;
-      if (nextIndex < items.length) {
+      if (nextIndex < allItemIds.length) {
         setCurrentIndex(nextIndex);
       } else if (repeat) {
         setCurrentIndex(0);
@@ -145,7 +227,7 @@ export default function PlaylistPlayerPageClient({
       }
     }
   }, [
-    items.length,
+    allItemIds.length,
     shuffle,
     shuffledIndices,
     shuffleCursor,
@@ -155,25 +237,25 @@ export default function PlaylistPlayerPageClient({
   ]);
 
   const handlePrev = useCallback(() => {
-    if (items.length <= 1) return;
+    if (allItemIds.length <= 1) return;
 
-    if (shuffle && shuffledIndices.length === items.length) {
+    if (shuffle && shuffledIndices.length === allItemIds.length) {
       const prevCursor = shuffleCursor - 1;
       if (prevCursor >= 0) {
         setShuffleCursor(prevCursor);
       } else if (repeat) {
-        setShuffleCursor(items.length - 1);
+        setShuffleCursor(allItemIds.length - 1);
       }
     } else {
       const prevIndex = currentIndex - 1;
       if (prevIndex >= 0) {
         setCurrentIndex(prevIndex);
       } else if (repeat) {
-        setCurrentIndex(items.length - 1);
+        setCurrentIndex(allItemIds.length - 1);
       }
     }
   }, [
-    items.length,
+    allItemIds.length,
     shuffle,
     shuffledIndices,
     shuffleCursor,
@@ -183,21 +265,19 @@ export default function PlaylistPlayerPageClient({
 
   // Synchronize currentIndex with shuffleCursor when items change
   useEffect(() => {
-    if (shuffle && shuffledIndices.length === items.length) {
+    if (shuffle && shuffledIndices.length === allItemIds.length) {
       setCurrentIndex(shuffledIndices[shuffleCursor]);
     }
-  }, [shuffle, shuffledIndices, shuffleCursor, items.length]);
+  }, [shuffle, shuffledIndices, shuffleCursor, allItemIds.length]);
 
   // Autoplay handler for Mixed Media (images = 5s, videos = wait for end)
   useEffect(() => {
     if (autoplayTimerRef.current) clearInterval(autoplayTimerRef.current);
     setProgress(0);
 
-    if (!isPlaying || !currentPlaylistItem?.mediaItem) return;
+    if (!isPlaying || !currentMedia) return;
 
-    const media = currentPlaylistItem.mediaItem;
-
-    if (media.mediaType === "video") {
+    if (currentMedia.mediaType === "video") {
       // Videos auto-advance onended trigger (set inside element)
       return;
     }
@@ -220,7 +300,7 @@ export default function PlaylistPlayerPageClient({
     return () => {
       if (autoplayTimerRef.current) clearInterval(autoplayTimerRef.current);
     };
-  }, [isPlaying, currentPlaylistItem, handleNext]);
+  }, [isPlaying, currentMedia, handleNext]);
 
   const isPlayingRef = useRef(isPlaying);
   useEffect(() => {
@@ -368,7 +448,7 @@ export default function PlaylistPlayerPageClient({
             type="button"
             className={styles.controlBtn}
             onClick={handlePrev}
-            disabled={items.length <= 1}
+            disabled={allItemIds.length <= 1}
             title="Previous (Left Arrow)"
           >
             <SkipBack size={18} fill="currentColor" />
@@ -396,7 +476,7 @@ export default function PlaylistPlayerPageClient({
             type="button"
             className={styles.controlBtn}
             onClick={handleNext}
-            disabled={items.length <= 1}
+            disabled={allItemIds.length <= 1}
             title="Next (Right Arrow)"
           >
             <SkipForward size={18} fill="currentColor" />
@@ -439,7 +519,7 @@ export default function PlaylistPlayerPageClient({
 
         {/* Playback Stats */}
         <div className={styles.progressInfo}>
-          {displayPosition} / {items.length}
+          {displayPosition} / {allItemIds.length}
         </div>
       </div>
     </div>
