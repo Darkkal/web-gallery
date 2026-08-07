@@ -55,7 +55,7 @@ class TaskScheduler {
       );
 
       for (const task of activeTasks) {
-        this.addSchedule(task);
+        await this.addSchedule(task);
       }
 
       console.log("[TaskScheduler] Scheduler successfully initialized.");
@@ -71,7 +71,7 @@ class TaskScheduler {
   /**
    * Adds or updates a schedule in memory and calculates its next run date.
    */
-  public addSchedule(task: {
+  public async addSchedule(task: {
     id: number;
     scheduleInterval?: number | null;
     scheduleCron?: string | null;
@@ -96,6 +96,7 @@ class TaskScheduler {
           task.id,
           task.scheduleCron,
         );
+        await this.updateNextRunAt(task.id, null);
         return;
       }
     } else if (task.scheduleInterval) {
@@ -125,7 +126,7 @@ class TaskScheduler {
 
         // Update database with the initial next run time
         const nextDate = job.nextRun();
-        this.updateNextRunAt(task.id, nextDate);
+        await this.updateNextRunAt(task.id, nextDate);
       } catch (err) {
         console.error(
           "[TaskScheduler] Failed to schedule task ID %d with pattern %s:",
@@ -133,10 +134,11 @@ class TaskScheduler {
           pattern,
           err,
         );
+        await this.updateNextRunAt(task.id, null);
       }
     } else {
       // Manual task, ensure nextRunAt is cleared
-      this.updateNextRunAt(task.id, null);
+      await this.updateNextRunAt(task.id, null);
     }
   }
 
