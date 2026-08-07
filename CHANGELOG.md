@@ -1,5 +1,49 @@
 # Changelog
 
+## [0.7.0](https://github.com/Darkkal/web-gallery/compare/v0.6.0...v0.7.0) (2026-08-07)
+
+
+### Features
+
+* **api:** add post-ids and post media API routes for dynamic playlists ([4f13fe3](https://github.com/Darkkal/web-gallery/commit/4f13fe37fb5c1387d8c48696a35319fb209d50af))
+* **db:** add getPostMediaItems and update getMediaItems to fetch first item per post ([b7f224b](https://github.com/Darkkal/web-gallery/commit/b7f224bdaa273f80fbdcf9f42bd50962f8e2fbf3))
+* **db:** add type and searchQuery columns to playlists table schema and migration ([4f13fe3](https://github.com/Darkkal/web-gallery/commit/4f13fe37fb5c1387d8c48696a35319fb209d50af))
+* **gallery:** add server action and route handler for fetching post media items ([b7f224b](https://github.com/Darkkal/web-gallery/commit/b7f224bdaa273f80fbdcf9f42bd50962f8e2fbf3))
+* **gallery:** handle dynamic playlist filtering in gallery and AddToPlaylistModal ([4f13fe3](https://github.com/Darkkal/web-gallery/commit/4f13fe37fb5c1387d8c48696a35319fb209d50af))
+* **lightbox:** add user click handler to navigate to gallery with user filter ([ee9433c](https://github.com/Darkkal/web-gallery/commit/ee9433c0eb62aa94cf174418f43dc6bbe0544d9d))
+* **lightbox:** implement fit modes, zoom controls, and mouse/touch drag panning ([c155043](https://github.com/Darkkal/web-gallery/commit/c155043756f8981df6106757a7c9944b509199bc))
+* **lightbox:** implement lazy loading of post media items in gallery lightbox ([b7f224b](https://github.com/Darkkal/web-gallery/commit/b7f224bdaa273f80fbdcf9f42bd50962f8e2fbf3))
+* **lightbox:** implement multi-touch pinch-to-zoom with midpoint anchoring ([c155043](https://github.com/Darkkal/web-gallery/commit/c155043756f8981df6106757a7c9944b509199bc))
+* **lightbox:** implement show/hide controls framework with persistent toggle and auto-hide ([c155043](https://github.com/Darkkal/web-gallery/commit/c155043756f8981df6106757a7c9944b509199bc))
+* **lightbox:** pass auto-hide settings to page client components ([c155043](https://github.com/Darkkal/web-gallery/commit/c155043756f8981df6106757a7c9944b509199bc))
+* **lightbox:** pass fit mode and zoom bounds settings to page components ([c155043](https://github.com/Darkkal/web-gallery/commit/c155043756f8981df6106757a7c9944b509199bc))
+* **lightbox:** replace circular nav buttons with full-height navigation zones ([c155043](https://github.com/Darkkal/web-gallery/commit/c155043756f8981df6106757a7c9944b509199bc))
+* **media:** add post-based query helpers and update dynamic playlists repository ([4f13fe3](https://github.com/Darkkal/web-gallery/commit/4f13fe37fb5c1387d8c48696a35319fb209d50af))
+* **player:** implement two-level post and media navigation model ([4f13fe3](https://github.com/Darkkal/web-gallery/commit/4f13fe37fb5c1387d8c48696a35319fb209d50af))
+* **playlists:** add search autocomplete to saved search query in CreatePlaylistModal ([4f13fe3](https://github.com/Darkkal/web-gallery/commit/4f13fe37fb5c1387d8c48696a35319fb209d50af))
+* **playlists:** clarify normal vs dynamic playlist types in creation modal ([4f13fe3](https://github.com/Darkkal/web-gallery/commit/4f13fe37fb5c1387d8c48696a35319fb209d50af))
+* **playlists:** display post count and post rows for dynamic playlists ([4f13fe3](https://github.com/Darkkal/web-gallery/commit/4f13fe37fb5c1387d8c48696a35319fb209d50af))
+* **playlists:** update CreatePlaylistModal to support dynamic playlist creation and editing ([4f13fe3](https://github.com/Darkkal/web-gallery/commit/4f13fe37fb5c1387d8c48696a35319fb209d50af))
+* **playlists:** update server actions and API routes for dynamic playlists ([4f13fe3](https://github.com/Darkkal/web-gallery/commit/4f13fe37fb5c1387d8c48696a35319fb209d50af))
+* **scrape:** add getScrapeLog server action for reading run logs ([cfc3b8e](https://github.com/Darkkal/web-gallery/commit/cfc3b8eb227a29e5cafd36a31513ae28bd5727f9))
+* **scrape:** create LogViewerModal component with text wrap and auto scroll toggles ([cfc3b8e](https://github.com/Darkkal/web-gallery/commit/cfc3b8eb227a29e5cafd36a31513ae28bd5727f9))
+* **scrape:** integrate log viewer modal into scrape history table ([cfc3b8e](https://github.com/Darkkal/web-gallery/commit/cfc3b8eb227a29e5cafd36a31513ae28bd5727f9))
+* **settings:** add lightbox section and validation to settings UI ([c155043](https://github.com/Darkkal/web-gallery/commit/c155043756f8981df6106757a7c9944b509199bc))
+* **settings:** add lightbox settings types and default configuration ([c155043](https://github.com/Darkkal/web-gallery/commit/c155043756f8981df6106757a7c9944b509199bc))
+* **timeline:** make post author avatar and username clickable to navigate to gallery user search ([8602c06](https://github.com/Darkkal/web-gallery/commit/8602c0636c7a82326dfc558849a887c13c57d901))
+* **types:** add PlaylistPost interface for post-based dynamic playlists ([4f13fe3](https://github.com/Darkkal/web-gallery/commit/4f13fe37fb5c1387d8c48696a35319fb209d50af))
+
+
+### Bug Fixes
+
+* **gallery:** display first media item as post thumbnail in multi-image posts ([cdbd8c1](https://github.com/Darkkal/web-gallery/commit/cdbd8c1c849e4e3473558e2018277e18abc2349f))
+* **scheduler:** make addSchedule async and await updateNextRunAt ([485848d](https://github.com/Darkkal/web-gallery/commit/485848d09944d63918e76c002384fa8ea4437cbc))
+* **scrape:** decouple onChange reference in ScheduleBuilder effect ([485848d](https://github.com/Darkkal/web-gallery/commit/485848d09944d63918e76c002384fa8ea4437cbc))
+* **scrape:** prevent ScheduleBuilder prop re-parsing feedback loop and fix schedule saving ([485848d](https://github.com/Darkkal/web-gallery/commit/485848d09944d63918e76c002384fa8ea4437cbc))
+* **search:** handle colons and unicode in fts search queries ([84a542e](https://github.com/Darkkal/web-gallery/commit/84a542e7b3b5347cae0e7679b7606068e0540d0b))
+* **tags:** maintain loaded tag count and scroll position when editing tags ([34d483c](https://github.com/Darkkal/web-gallery/commit/34d483c92b75a77195892670f17ea321e4e9c2b6))
+* **tags:** prepend tag prefix to search links on tag pages ([7313745](https://github.com/Darkkal/web-gallery/commit/7313745980b66050c06b67acb4595703bb86b986))
+
 ## [0.6.0](https://github.com/Darkkal/web-gallery/compare/v0.5.0...v0.6.0) (2026-07-15)
 
 
