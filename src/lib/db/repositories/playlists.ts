@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, like, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   getDynamicPlaylistMeta,
+  getMediaItemIds,
   getMediaItems,
 } from "@/lib/db/repositories/media";
 import { mediaItems, playlistItems, playlists } from "@/lib/db/schema";
@@ -111,7 +112,9 @@ export async function getPlaylist(
       limit,
       cursor: options?.cursor,
     });
-    const meta = await getDynamicPlaylistMeta(playlist.searchQuery ?? "");
+    const { totalCount } = await getMediaItemIds({
+      search: playlist.searchQuery ?? "",
+    });
 
     const items: PlaylistItem[] = searchResult.items.map((row, index) => ({
       id: -row.item.id,
@@ -122,11 +125,14 @@ export async function getPlaylist(
       mediaItem: row.item,
     }));
 
-    const thumbnailPath = playlist.thumbnail || meta.thumbnailPath || undefined;
+    const thumbnailPath =
+      playlist.thumbnail ||
+      searchResult.items[0]?.mediaItem?.filePath ||
+      undefined;
 
     return {
       ...playlist,
-      itemCount: meta.itemCount,
+      itemCount: totalCount,
       thumbnailPath,
       items,
     };

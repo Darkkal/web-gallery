@@ -345,14 +345,6 @@ export async function getMediaItems(filters?: {
   let resultsQuery: any = db
     .select({
       item: mediaItems,
-      post: posts,
-      twitter: postDetailsTwitter,
-      pixiv: postDetailsPixiv,
-      gelbooru: postDetailsGelbooruV02,
-      ehentai: postDetailsEHentai,
-      user: twitterUsers,
-      pixivUser: pixivUsers,
-      source: sources,
       sortVal: sortValOutput, // include sortVal to easily compute the next cursor
       groupCount: groupSubquery.groupCount,
     })
@@ -367,39 +359,18 @@ export async function getMediaItems(filters?: {
     );
   }
 
+  if (sourceFilter) {
+    resultsQuery = resultsQuery.leftJoin(
+      posts,
+      eq(mediaItems.postId, posts.id),
+    );
+  }
+
   const rawResults = (await resultsQuery
-    .leftJoin(posts, eq(mediaItems.postId, posts.id))
-    .leftJoin(postDetailsTwitter, eq(posts.id, postDetailsTwitter.postId))
-    .leftJoin(postDetailsPixiv, eq(posts.id, postDetailsPixiv.postId))
-    .leftJoin(
-      postDetailsGelbooruV02,
-      eq(posts.id, postDetailsGelbooruV02.postId),
-    )
-    .leftJoin(postDetailsEHentai, eq(posts.id, postDetailsEHentai.postId))
-    .leftJoin(
-      twitterUsers,
-      and(
-        eq(posts.extractorType, "twitter"),
-        eq(posts.userId, twitterUsers.id),
-      ),
-    )
-    .leftJoin(
-      pixivUsers,
-      and(eq(posts.extractorType, "pixiv"), eq(posts.userId, pixivUsers.id)),
-    )
-    .leftJoin(sources, eq(posts.internalSourceId, sources.id))
     .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
     .orderBy(...orderBys)
     .limit(limit)) as {
     item: typeof mediaItems.$inferSelect;
-    post: typeof posts.$inferSelect | null;
-    twitter: typeof postDetailsTwitter.$inferSelect | null;
-    pixiv: typeof postDetailsPixiv.$inferSelect | null;
-    gelbooru: typeof postDetailsGelbooruV02.$inferSelect | null;
-    ehentai: typeof postDetailsEHentai.$inferSelect | null;
-    user: typeof twitterUsers.$inferSelect | null;
-    pixivUser: typeof pixivUsers.$inferSelect | null;
-    source: typeof sources.$inferSelect | null;
     sortVal: unknown;
     groupCount: number;
   }[];
@@ -419,12 +390,21 @@ export async function getMediaItems(filters?: {
     );
   }
 
+  const targetIds = rawResults.map((r) => r.item.id);
+  const detailsMap = await getMediaItemsByIds(targetIds);
+
   const items = rawResults.map((r) => {
-    const flattened = flattenToGalleryRow(r);
+    const fullRow = detailsMap[r.item.id] || {
+      item: r.item,
+      post: null,
+      platformDetails: null,
+      platformUser: null,
+      source: null,
+    };
     return {
-      ...flattened,
+      ...fullRow,
       groupCount: Number(r.groupCount || 1),
-      groupItems: [flattened],
+      groupItems: [fullRow],
     };
   });
 
