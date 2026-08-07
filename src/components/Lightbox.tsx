@@ -1031,9 +1031,7 @@ export default function Lightbox({
         </button>
         <div className={styles.sidebarHeader}>
           <h2 className={styles.sidebarTitle}>
-            {twitterDetails
-              ? null
-              : pixivDetails?.title || row.post?.title || "Untitled"}
+            {twitterDetails ? null : row.post?.title || "Untitled"}
           </h2>
         </div>
 
@@ -1096,11 +1094,7 @@ export default function Lightbox({
           <h3 className={styles.sectionTitle}>Details</h3>
           <div className={styles.sectionContent}>
             <FormattedContent
-              content={
-                (pixivDetails as unknown as { caption?: string })?.caption ||
-                row.post?.content ||
-                "No description available."
-              }
+              content={row.post?.content || "No description available."}
             />
           </div>
         </div>
