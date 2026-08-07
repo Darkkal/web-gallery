@@ -20,6 +20,7 @@ import {
   mediaItems,
   pixivUsers,
   playlistItems,
+  postDetailsEHentai,
   postDetailsGelbooruV02,
   postDetailsPixiv,
   postDetailsTwitter,
@@ -28,7 +29,109 @@ import {
   twitterUsers,
 } from "@/lib/db/schema";
 import { parseSearchQuery } from "@/lib/utils/search-parser";
+import type { GalleryRow, PlatformDetails, PlatformUser } from "@/types/media";
 import { expandSearchTags } from "./posts";
+
+export function flattenToGalleryRow(row: {
+  item: typeof mediaItems.$inferSelect;
+  post?: typeof posts.$inferSelect | null;
+  twitter?: typeof postDetailsTwitter.$inferSelect | null;
+  pixiv?: typeof postDetailsPixiv.$inferSelect | null;
+  gelbooru?: typeof postDetailsGelbooruV02.$inferSelect | null;
+  ehentai?: typeof postDetailsEHentai.$inferSelect | null;
+  user?: typeof twitterUsers.$inferSelect | null;
+  pixivUser?: typeof pixivUsers.$inferSelect | null;
+  source?: typeof sources.$inferSelect | null;
+  platformDetails?: PlatformDetails | null;
+  platformUser?: PlatformUser | null;
+}): GalleryRow {
+  if (row.platformDetails !== undefined) {
+    return {
+      item: row.item,
+      post: row.post,
+      platformDetails: row.platformDetails,
+      platformUser: row.platformUser,
+      source: row.source,
+    };
+  }
+
+  let platformDetails: PlatformDetails | null = null;
+  let platformUser: PlatformUser | null = null;
+
+  const extractorType = row.post?.extractorType;
+
+  if (extractorType === "twitter") {
+    if (row.twitter) {
+      platformDetails = {
+        extractorType: "twitter",
+        data: row.twitter as unknown as Record<string, unknown>,
+      };
+    }
+    if (row.user) {
+      platformUser = {
+        extractorType: "twitter",
+        id: row.user.id,
+        name: row.user.name ?? null,
+        username: row.user.nick ?? null,
+        profileImage: row.user.id
+          ? `/api/avatar/twitter/${row.user.id}`
+          : (row.user.profileImage ?? null),
+        data: row.user as unknown as Record<string, unknown>,
+      };
+    }
+  } else if (extractorType === "pixiv") {
+    if (row.pixiv) {
+      platformDetails = {
+        extractorType: "pixiv",
+        data: row.pixiv as unknown as Record<string, unknown>,
+      };
+    }
+    if (row.pixivUser) {
+      platformUser = {
+        extractorType: "pixiv",
+        id: row.pixivUser.id,
+        name: row.pixivUser.name ?? null,
+        username: row.pixivUser.account ?? null,
+        profileImage: row.pixivUser.id
+          ? `/api/avatar/pixiv/${row.pixivUser.id}`
+          : (row.pixivUser.profileImage ?? null),
+        data: row.pixivUser as unknown as Record<string, unknown>,
+      };
+    }
+  } else if (extractorType === "gelbooruv02" || extractorType === "gelbooru") {
+    if (row.gelbooru) {
+      platformDetails = {
+        extractorType: extractorType,
+        data: row.gelbooru as unknown as Record<string, unknown>,
+      };
+    }
+  } else if (extractorType === "ehentai") {
+    if (row.ehentai) {
+      platformDetails = {
+        extractorType: "ehentai",
+        data: row.ehentai as unknown as Record<string, unknown>,
+      };
+      if (row.ehentai.uploader) {
+        platformUser = {
+          extractorType: "ehentai",
+          id: null,
+          name: row.ehentai.uploader,
+          username: row.ehentai.uploader,
+          profileImage: null,
+          data: {},
+        };
+      }
+    }
+  }
+
+  return {
+    item: row.item,
+    post: row.post,
+    platformDetails,
+    platformUser,
+    source: row.source,
+  };
+}
 
 export async function getMediaItems(filters?: {
   search?: string;
@@ -154,6 +257,7 @@ export async function getMediaItems(filters?: {
       twitter: postDetailsTwitter,
       pixiv: postDetailsPixiv,
       gelbooru: postDetailsGelbooruV02,
+      ehentai: postDetailsEHentai,
       user: twitterUsers,
       pixivUser: pixivUsers,
       source: sources,
@@ -169,7 +273,7 @@ export async function getMediaItems(filters?: {
     );
   }
 
-  const results = (await resultsQuery
+  const rawResults = (await resultsQuery
     .leftJoin(posts, eq(mediaItems.postId, posts.id))
     .leftJoin(postDetailsTwitter, eq(posts.id, postDetailsTwitter.postId))
     .leftJoin(postDetailsPixiv, eq(posts.id, postDetailsPixiv.postId))
@@ -177,6 +281,7 @@ export async function getMediaItems(filters?: {
       postDetailsGelbooruV02,
       eq(posts.id, postDetailsGelbooruV02.postId),
     )
+    .leftJoin(postDetailsEHentai, eq(posts.id, postDetailsEHentai.postId))
     .leftJoin(
       twitterUsers,
       and(
@@ -197,20 +302,17 @@ export async function getMediaItems(filters?: {
     twitter: typeof postDetailsTwitter.$inferSelect | null;
     pixiv: typeof postDetailsPixiv.$inferSelect | null;
     gelbooru: typeof postDetailsGelbooruV02.$inferSelect | null;
+    ehentai: typeof postDetailsEHentai.$inferSelect | null;
     user: typeof twitterUsers.$inferSelect | null;
     pixivUser: typeof pixivUsers.$inferSelect | null;
     source: typeof sources.$inferSelect | null;
     sortVal: unknown;
   }[];
 
-  results.forEach((row) => {
-    if (row.user?.id) {
-      row.user.profileImage = `/api/avatar/twitter/${row.user.id}`;
-    }
-    if (row.pixivUser?.id) {
-      row.pixivUser.profileImage = `/api/avatar/pixiv/${row.pixivUser.id}`;
-    }
-  });
+  const results = rawResults.map((r) => ({
+    ...flattenToGalleryRow(r),
+    sortVal: r.sortVal,
+  }));
 
   type GroupedResult = (typeof results)[number] & {
     groupItems: (typeof results)[number][];
