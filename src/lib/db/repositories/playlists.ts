@@ -2,8 +2,7 @@ import { and, asc, desc, eq, inArray, like, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   getDynamicPlaylistMeta,
-  getMediaItemIds,
-  getMediaItems,
+  getPostsForPlaylist,
 } from "@/lib/db/repositories/media";
 import { mediaItems, playlistItems, playlists } from "@/lib/db/schema";
 import type { PlaylistItem, PlaylistWithItems } from "@/types/playlist";
@@ -106,33 +105,22 @@ export async function getPlaylist(
   if (!playlist) return undefined;
 
   if (playlist.type === "dynamic") {
-    const limit = options?.limit ?? 100;
-    const searchResult = await getMediaItems({
-      search: playlist.searchQuery ?? "",
-      limit,
-      cursor: options?.cursor,
-    });
-    const { totalCount } = await getMediaItemIds({
-      search: playlist.searchQuery ?? "",
-    });
+    const limit = options?.limit ?? 50;
+    const { posts, totalCount } = await getPostsForPlaylist(
+      playlist.searchQuery ?? "",
+      { limit, cursor: options?.cursor },
+    );
 
-    const items: PlaylistItem[] = searchResult.items.map((row, index) => ({
-      id: -row.item.id,
-      playlistId: id,
-      mediaItemId: row.item.id,
-      position: index,
-      addedAt: row.item.createdAt ?? playlist.createdAt ?? new Date(),
-      mediaItem: row.item,
-    }));
-
+    const firstMedia = posts[0]?.mediaItems[0];
     const thumbnailPath =
-      playlist.thumbnail || searchResult.items[0]?.item?.filePath || undefined;
+      playlist.thumbnail || firstMedia?.filePath || undefined;
 
     return {
       ...playlist,
       itemCount: totalCount,
       thumbnailPath,
-      items,
+      items: [],
+      posts,
     };
   }
 

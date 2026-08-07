@@ -31,6 +31,7 @@ import {
 } from "@/lib/db/schema";
 import { parseSearchQuery } from "@/lib/utils/search-parser";
 import type { GalleryRow, PlatformDetails, PlatformUser } from "@/types/media";
+import type { PlaylistPost } from "@/types/playlist";
 import { expandSearchTags } from "./posts";
 
 export function flattenToGalleryRow(row: {
@@ -769,4 +770,106 @@ export async function getMediaItemsByIds(
     map[row.item.id] = flattenToGalleryRow(row);
   }
   return map;
+}
+
+export async function getDynamicPlaylistPostIds(filters?: {
+  search?: string;
+}): Promise<{ postIds: number[]; totalCount: number }> {
+  const search = filters?.search ?? "";
+  const { cleanQuery, sourceFilter } = parseSearchQuery(search);
+  const searchLower = cleanQuery.toLowerCase();
+  const expandedSearch = searchLower ? await expandSearchTags(searchLower) : "";
+
+  const subqueryConditions: SQL[] = [ne(mediaItems.mediaType, "text")];
+
+  if (sourceFilter) {
+    const sourcePostSubquery = db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.extractorType, sourceFilter));
+    subqueryConditions.push(inArray(mediaItems.postId, sourcePostSubquery));
+  }
+
+  if (expandedSearch) {
+    const ftsPostSubquery = db
+      .select({ id: sql<number>`rowid` })
+      .from(sql`posts_fts`)
+      .where(sql`posts_fts MATCH ${expandedSearch}`);
+    subqueryConditions.push(inArray(mediaItems.postId, ftsPostSubquery));
+  }
+
+  const rows = await db
+    .select({
+      postId:
+        sql<number>`COALESCE(${mediaItems.postId}, -${mediaItems.id})`.mapWith(
+          Number,
+        ),
+    })
+    .from(mediaItems)
+    .where(and(...subqueryConditions))
+    .groupBy(sql`COALESCE(${mediaItems.postId}, -${mediaItems.id})`)
+    .orderBy(desc(sql`COALESCE(${mediaItems.postId}, -${mediaItems.id})`));
+
+  const postIds = rows.map((r) => r.postId);
+  return { postIds, totalCount: postIds.length };
+}
+
+export async function getPostsForPlaylist(
+  searchQuery: string,
+  options?: { limit?: number; cursor?: string },
+): Promise<{
+  posts: PlaylistPost[];
+  totalCount: number;
+  nextCursor: string | null;
+}> {
+  const limit = options?.limit ?? 50;
+  const { postIds, totalCount } = await getDynamicPlaylistPostIds({
+    search: searchQuery,
+  });
+
+  let startIndex = 0;
+  if (options?.cursor) {
+    const cursorIdx = parseInt(options.cursor, 10);
+    if (!Number.isNaN(cursorIdx)) {
+      startIndex = cursorIdx;
+    }
+  }
+
+  const pagePostIds = postIds.slice(startIndex, startIndex + limit);
+  const nextCursor =
+    startIndex + limit < totalCount ? String(startIndex + limit) : null;
+
+  if (pagePostIds.length === 0) {
+    return { posts: [], totalCount, nextCursor: null };
+  }
+
+  const items = await db
+    .select()
+    .from(mediaItems)
+    .where(
+      and(
+        inArray(mediaItems.postId, pagePostIds),
+        ne(mediaItems.mediaType, "text"),
+      ),
+    )
+    .orderBy(desc(mediaItems.id));
+
+  const postMap = new Map<number, (typeof mediaItems.$inferSelect)[]>();
+  for (const pid of pagePostIds) {
+    postMap.set(pid, []);
+  }
+  for (const item of items) {
+    if (item.postId && postMap.has(item.postId)) {
+      postMap.get(item.postId)!.push(item);
+    }
+  }
+
+  const postsResult: PlaylistPost[] = pagePostIds
+    .map((pid) => ({
+      postId: pid,
+      mediaItems: postMap.get(pid) || [],
+    }))
+    .filter((p) => p.mediaItems.length > 0);
+
+  return { posts: postsResult, totalCount, nextCursor };
 }
