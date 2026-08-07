@@ -635,16 +635,49 @@ export async function getMediaItemIds(filters?: {
 export async function getDynamicPlaylistMeta(
   searchQuery: string,
 ): Promise<{ itemCount: number; thumbnailPath?: string }> {
-  const result = await getMediaItems({
-    search: searchQuery,
-    limit: 1,
-  });
+  const search = searchQuery ?? "";
+  const { cleanQuery, sourceFilter } = parseSearchQuery(search);
+  const searchLower = cleanQuery.toLowerCase();
+  const expandedSearch = searchLower ? await expandSearchTags(searchLower) : "";
 
-  const totalIds = await getMediaItemIds({ search: searchQuery });
+  const subqueryConditions: SQL[] = [ne(mediaItems.mediaType, "text")];
+
+  if (sourceFilter) {
+    const sourcePostSubquery = db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.extractorType, sourceFilter));
+    subqueryConditions.push(inArray(mediaItems.postId, sourcePostSubquery));
+  }
+
+  if (expandedSearch) {
+    const ftsPostSubquery = db
+      .select({ id: sql<number>`rowid` })
+      .from(sql`posts_fts`)
+      .where(sql`posts_fts MATCH ${expandedSearch}`);
+    subqueryConditions.push(inArray(mediaItems.postId, ftsPostSubquery));
+  }
+
+  const countRes = await db
+    .select({
+      count:
+        sql<number>`COUNT(DISTINCT COALESCE(${mediaItems.postId}, -${mediaItems.id}))`.mapWith(
+          Number,
+        ),
+    })
+    .from(mediaItems)
+    .where(and(...subqueryConditions));
+
+  const thumbRes = await db
+    .select({ filePath: mediaItems.filePath })
+    .from(mediaItems)
+    .where(and(...subqueryConditions))
+    .orderBy(desc(mediaItems.id))
+    .limit(1);
 
   return {
-    itemCount: totalIds.totalCount,
-    thumbnailPath: result.items[0]?.item?.filePath || undefined,
+    itemCount: countRes[0]?.count || 0,
+    thumbnailPath: thumbRes[0]?.filePath || undefined,
   };
 }
 
