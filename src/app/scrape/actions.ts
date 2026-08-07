@@ -61,7 +61,7 @@ export async function createScrapeTask(data: {
   if (insertedId && (data.enabled ?? true)) {
     try {
       const { taskScheduler } = await import("@/lib/scheduler/scheduler");
-      taskScheduler.addSchedule({
+      await taskScheduler.addSchedule({
         id: insertedId,
         scheduleInterval: data.scheduleInterval,
         scheduleCron: data.scheduleCron,
@@ -78,12 +78,12 @@ export async function createScrapeTask(data: {
 export async function updateScrapeTask(
   id: number,
   data: {
-    name?: string;
+    name?: string | null;
     downloadOptions?: {
       stopAfterCompleted?: number;
       stopAfterSkipped?: number;
       stopAfterPosts?: number;
-    };
+    } | null;
     scheduleInterval?: number | null;
     scheduleCron?: string | null;
     enabled?: boolean;
@@ -98,7 +98,7 @@ export async function updateScrapeTask(
   if (updated) {
     try {
       const { taskScheduler } = await import("@/lib/scheduler/scheduler");
-      taskScheduler.addSchedule({
+      await taskScheduler.addSchedule({
         id: updated.id,
         scheduleInterval: updated.scheduleInterval,
         scheduleCron: updated.scheduleCron,
@@ -139,7 +139,7 @@ export async function toggleTaskSchedule(id: number, enabled: boolean) {
     try {
       const { taskScheduler } = await import("@/lib/scheduler/scheduler");
       if (enabled) {
-        taskScheduler.addSchedule({
+        await taskScheduler.addSchedule({
           id: updated.id,
           scheduleInterval: updated.scheduleInterval,
           scheduleCron: updated.scheduleCron,

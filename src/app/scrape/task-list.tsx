@@ -116,19 +116,26 @@ export default function ScrapeTaskList({
   const handleSaveEdit = async (id: number) => {
     setSavingId(id);
     try {
+      const stopAfterCompleted = editValues.stopAfterCompleted
+        ? parseInt(editValues.stopAfterCompleted, 10)
+        : undefined;
+      const stopAfterSkipped = editValues.stopAfterSkipped
+        ? parseInt(editValues.stopAfterSkipped, 10)
+        : undefined;
+      const stopAfterPosts = editValues.stopAfterPosts
+        ? parseInt(editValues.stopAfterPosts, 10)
+        : undefined;
+
+      const hasLimits =
+        stopAfterCompleted !== undefined ||
+        stopAfterSkipped !== undefined ||
+        stopAfterPosts !== undefined;
+
       await updateScrapeTask(id, {
-        name: editValues.name || undefined,
-        downloadOptions: {
-          stopAfterCompleted: editValues.stopAfterCompleted
-            ? parseInt(editValues.stopAfterCompleted, 10)
-            : undefined,
-          stopAfterSkipped: editValues.stopAfterSkipped
-            ? parseInt(editValues.stopAfterSkipped, 10)
-            : undefined,
-          stopAfterPosts: editValues.stopAfterPosts
-            ? parseInt(editValues.stopAfterPosts, 10)
-            : undefined,
-        },
+        name: editValues.name.trim() || null,
+        downloadOptions: hasLimits
+          ? { stopAfterCompleted, stopAfterSkipped, stopAfterPosts }
+          : null,
         enabled: editValues.enabled,
         scheduleInterval: editValues.scheduleInterval,
         scheduleCron: editValues.scheduleCron,

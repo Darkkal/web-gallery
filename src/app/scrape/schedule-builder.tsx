@@ -1,6 +1,4 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { describeSchedule } from "@/lib/utils/schedule-utils";
 import styles from "./page.module.css";
 
@@ -28,7 +26,15 @@ function parseInitialState(
   initialCron: string | null | undefined,
 ) {
   if (initialCron) {
-    const parts = initialCron.trim().split(/\s+/);
+    const rawParts = initialCron.trim().split(/\s+/);
+    let parts = rawParts;
+    if (
+      rawParts.length === 6 &&
+      (rawParts[0] === "0" || rawParts[0] === "00")
+    ) {
+      parts = rawParts.slice(1);
+    }
+
     if (parts.length === 5) {
       const [min, hour, dom, month, dow] = parts;
 
@@ -70,6 +76,8 @@ function parseInitialState(
           intervalValue: 5,
           intervalUnit: "minutes" as const,
           cronPattern: initialCron,
+          monthlyOption: "first" as const,
+          monthlyDay: 1,
         };
       }
 
@@ -251,6 +259,12 @@ export default function ScheduleBuilder({
 }: ScheduleBuilderProps) {
   const [mounted, setMounted] = useState(false);
 
+  // Track values emitted by onChange to break prop update re-parse loop
+  const lastEmittedRef = useRef<{
+    scheduleInterval: number | null;
+    scheduleCron: string | null;
+  } | null>(null);
+
   // Initialize state once parsed from initial values
   const [frequency, setFrequency] = useState<
     | "manual"
@@ -277,8 +291,16 @@ export default function ScheduleBuilder({
   const [cronPattern, setCronPattern] = useState("0 0 * * *");
   const [showAdvancedEscape, setShowAdvancedEscape] = useState(false);
 
-  // Load and parse initial values once on mount
+  // Load and parse initial values once on mount or when props change externally
   useEffect(() => {
+    if (
+      lastEmittedRef.current &&
+      lastEmittedRef.current.scheduleInterval === initialInterval &&
+      lastEmittedRef.current.scheduleCron === initialCron
+    ) {
+      return;
+    }
+
     const initialState = parseInitialState(initialInterval, initialCron);
     setFrequency(initialState.frequency);
     setHourInterval(initialState.hourInterval);
@@ -298,6 +320,11 @@ export default function ScheduleBuilder({
 
     setMounted(true);
   }, [initialInterval, initialCron]);
+
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   // Compute cron/interval whenever inputs change and call onChange
   useEffect(() => {
@@ -357,7 +384,8 @@ export default function ScheduleBuilder({
         break;
     }
 
-    onChange({ scheduleInterval, scheduleCron });
+    lastEmittedRef.current = { scheduleInterval, scheduleCron };
+    onChangeRef.current({ scheduleInterval, scheduleCron });
   }, [
     mounted,
     frequency,
@@ -371,7 +399,6 @@ export default function ScheduleBuilder({
     intervalValue,
     intervalUnit,
     cronPattern,
-    onChange,
   ]);
 
   if (!mounted) {
