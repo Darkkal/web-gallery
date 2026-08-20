@@ -230,6 +230,34 @@ This project supports compiling a dependency-free standalone binary using `@yao-
 
 ---
 
+### 1.17 CI/CD — Forgejo Actions is canonical, GitHub is a mirror
+
+CI/CD is split into two intentionally parallel pipelines (issue #143):
+
+- **`.forgejo/workflows/` — canonical (runs on the external Forgejo instance's `ubuntu-latest` runner).**
+  - `biome.yml`, `unit-tests.yml`, `playwright.yml` — same checks as GitHub.
+  - `security.yml` — Semgrep CE (`semgrep scan --config auto`) + `npm audit` replaces GitHub CodeQL.
+  - `release.yml` — the only pipeline that creates versions. Runs Cocogitto (`cog bump --auto`),
+    bumps `package.json`/`package-lock.json`, regenerates `CHANGELOG.md`, creates the `vX.Y.Z` tag and
+    release commit, publishes binary assets and the Docker image to the Forgejo container registry.
+  - Forgejo workflows pin Node 22 and resolve actions through the `data.forgejo.org` mirror.
+- **`.github/workflows/` — GitHub mirror (runs on github.com).** Kept for the public GitHub mirror.
+  `release.yml` is now **tag-driven** (`v*`): it packages the mirror-propagated tag and pushes to
+  GitHub Releases + GHCR. It never computes versions (no `release-please`). The other workflows are unchanged.
+
+**Forgejo is the single release authority** — only `.forgejo/workflows/release.yml` bumps versions.
+This prevents Forgejo and GitHub from creating competing version bumps.
+
+**Required Forgejo credentials / runner prerequisites:**
+
+- A Forgejo PAT with `write:repository` + registry (package) scope, stored in the
+  repo secret `FORGEJO_RELEASE_TOKEN`. If unset the workflow falls back to the automatic action `GITHUB_TOKEN`.
+- The Forgejo runner must provide an `ubuntu-latest` label and be able to reach the
+  Forgejo instance (its registry and git endpoints) from its job containers
+  (e.g. expose a job-visible Podman/Docker socket for image builds).
+
+---
+
 ## 2. General Coding Guidelines
 
 1. **Keep it typed**: Use strict TypeScript interfaces. Import shared types from `@/types/`. Avoid `any` — if a type is unknown, use `unknown` and narrow it.
@@ -239,7 +267,7 @@ This project supports compiling a dependency-free standalone binary using `@yao-
 5. **Async by default**: All database operations are async. The `@libsql/client` driver does not support synchronous calls.
 6. **Utility deduplication**: Shared utility functions (e.g., `parseSizeToBytes`, `formatBytes`) live in `src/lib/utils/`. Do not duplicate them across files.
 7. **Per-page metadata**: Each route should export its own `metadata` object for proper tab titles.
-8. **Conventional Commit Messages**: This project uses `release-please` to manage version releases and auto-populate `CHANGELOG.md` in CI/CD. All commit messages must follow the [Conventional Commits specification](https://www.conventionalcommits.org/) (e.g., `feat(playlists): ...`, `fix(config): ...`, `chore(biome): ...`).
+8. **Conventional Commit Messages**: This project uses **Cocogitto** (see [1.17](#117-cicd--forgejo-actions-is-canonical-github-is-a-mirror)) to manage version releases and auto-populate `CHANGELOG.md` in Forgejo CI. All commit messages must follow the [Conventional Commits specification](https://www.conventionalcommits.org/) (e.g., `feat(playlists): ...`, `fix(config): ...`, `chore(biome): ...`) — Cocogitto derives the next SemVer bump directly from these types (`feat`→minor, `fix`→patch, `!`/`BREAKING CHANGE`→major).
 9. **Keep Documentation in Sync**: When implementing new features, modifications to subsystems, or introducing new architectural patterns, you MUST update both `ARCHITECTURE.md` and `CONTRIBUTING.md` to reflect these changes. Keeping documentation co-located and synchronized with code changes ensures future contributors (both human and AI) maintain complete context.
 
 ---

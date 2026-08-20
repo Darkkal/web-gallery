@@ -1,0 +1,31 @@
+# Cocogitto configuration — automatic SemVer releases (Web Gallery, issue #143).
+#
+# Forgejo Actions runs `cog bump --auto` on `master` (see
+# .forgejo/workflows/release.yml). Cocogitto computes the next version from
+# conventional commits since the last tag, regenerates CHANGELOG.md, bumps
+# package.json / package-lock.json, and creates the tagged vX.Y.Z release
+# commit. The GitHub mirror only packages the resulting tag; Forgejo is the
+# single release authority so the two sides never compute competing versions.
+
+# Existing release tags are v-prefixed (v0.7.0, ...).
+tag_prefix = "v"
+
+# Only consider commits since the latest semantic-version tag for the bump.
+from_latest_tag = true
+
+# Before the version commit is created, sync the new version into both package
+# manifests. `--no-git-tag-version` avoids nested tag handling, `--no-commit-hooks`
+# keeps the repo's husky hooks out of the automated commit, `--ignore-scripts`
+# blocks package lifecycle hooks, and the `{version}` placeholder is substituted
+# by Cocogitto. The resulting package.json / package-lock.json changes are
+# included in the version commit Cocogitto creates.
+pre_bump_hooks = [
+    "npm version --no-git-tag-version --no-commit-hooks --ignore-scripts {version}",
+]
+
+# After the version commit + tag are created, push both back to Forgejo. The
+# workflow pre-configures the authenticated origin, so the hook can use it
+# directly. `--follow-tags` also pushes the new vX.Y.Z tag.
+post_bump_hooks = [
+    "git push origin master --follow-tags",
+]

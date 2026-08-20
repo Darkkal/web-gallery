@@ -629,6 +629,6 @@ Testing in Web Gallery is split into two primary layers: **E2E Tests** (via Play
 - **Dynamic Schema Generation**: At setup, the test helper reads `drizzle/meta/_journal.json` to identify all migration files and dynamically executes the generated SQL script-by-script to build the database schema in memory.
 - **Drizzle Interception**: Tests leverage a live getter mock binding for `@/lib/db` to intercept Drizzle calls at import time and redirect them to the active test database.
 - **Mocking and Spying**: Built-in NodeJS ESM modules (such as `node:fs` and `node:fs/promises` for statistics and media deletions) are mocked using `vi.mock` wrappers with actual fallbacks (`vi.importActual`) to intercept specific target directories without breaking the migration SQL reader.
-- **CI/CD Integration**: The unit test suite is run automatically on every push and pull request via a GitHub Action (`.github/workflows/unit-tests.yml`).
+- **CI/CD Integration**: The unit test suite is run automatically on every push and pull request. **Forgejo Actions is the canonical pipeline** (`.forgejo/workflows/`, on the external Forgejo instance's `ubuntu-latest` runner); the GitHub mirror runs the equivalent `.github/workflows/`. The Forgejo pipeline is the single release authority — Cocogitto (`cog.toml`, `cog bump --auto`) derives versions from conventional commits, regenerates `CHANGELOG.md`, and creates the `vX.Y.Z` tags the GitHub mirror consumes. See `CONTRIBUTING.md` §1.17 for the full CI/CD and release split.
 
 
