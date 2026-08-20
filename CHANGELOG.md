@@ -1,5 +1,10 @@
 # Changelog
 
+All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
+
+- - -
+
+
 ## [0.7.0](https://github.com/Darkkal/web-gallery/compare/v0.6.0...v0.7.0) (2026-08-07)
 
 

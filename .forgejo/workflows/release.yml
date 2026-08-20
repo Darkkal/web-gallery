@@ -10,6 +10,10 @@ name: Release (Forgejo)
 on:
   push:
     branches: [master]
+  # Manual trigger for troubleshooting without merging: dispatches on any
+  # branch and runs the build/publish path for the selected ref's current
+  # version WITHOUT bumping versions or pushing to master.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -67,8 +71,11 @@ jobs:
           install -Dm755 "/tmp/${COG_BIN}" /usr/local/bin/cog
           cog --version
 
+      # Only the push-to-master path computes a version and pushes a release
+      # commit/tag back. Manual (workflow_dispatch) runs must NOT bump versions
+      # or touch master.
       - name: Configure git and authenticated remote
-        if: ${{ steps.version-guard.outputs.skip != 'true' }}
+        if: ${{ github.event_name == 'push' && steps.version-guard.outputs.skip != 'true' }}
         env:
           RELEASE_TOKEN: ${{ secrets.FORGEJO_RELEASE_TOKEN || github.token }}
         run: |
@@ -86,7 +93,7 @@ jobs:
           git remote set-url origin "${SCHEME}://x-access-token:${RELEASE_TOKEN}@${HOST}/darkkal/web-gallery.git"
 
       - name: Automatic version bump
-        if: ${{ steps.version-guard.outputs.skip != 'true' }}
+        if: ${{ github.event_name == 'push' && steps.version-guard.outputs.skip != 'true' }}
         run: |
           set -euo pipefail
           # Computes the next version, bumps package files, regenerates
