@@ -406,6 +406,29 @@ export async function getPostTags(postId: number) {
   }));
 }
 
+/**
+ * Load a single post by its database id with all platform-specific detail
+ * rows (twitter/pixiv/gelbooru/e-hentai) and its source, plus the post tags.
+ * Media items are intentionally NOT included here (see getPostMediaItems in
+ * the media repository, which returns the flattened GalleryRow[] used by the
+ * gallery/lightbox).
+ */
+export async function getPostById(id: number) {
+  const post = await db.query.posts.findFirst({
+    where: eq(posts.id, id),
+    with: {
+      source: true,
+      twitterDetails: true,
+      pixivDetails: true,
+      gelbooruDetails: true,
+      ehentaiDetails: true,
+    },
+  });
+  if (!post) return null;
+  const tags = await getPostTags(id);
+  return { post, tags };
+}
+
 async function getEquivalentTags(tagName: string): Promise<string[]> {
   const lowerName = tagName.toLowerCase();
 

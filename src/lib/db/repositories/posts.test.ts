@@ -35,8 +35,9 @@ const testDb = testDbHelper.db;
 activeDb = testDb;
 
 import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
 import { postTags, tags } from "../schema";
-import { getPostTags, getTimelinePosts } from "./posts";
+import { getPostById, getPostTags, getTimelinePosts } from "./posts";
 
 describe("Posts Repository", () => {
   beforeAll(async () => {
@@ -288,6 +289,37 @@ describe("Posts Repository", () => {
       const resDisabled = await getTimelinePosts({ search: "tag:animal" });
       expect(resDisabled.posts.length).toBe(1);
       expect(resDisabled.posts[0].internalDbId).toBe(postAnimal.id);
+    });
+  });
+
+  describe("getPostById", () => {
+    it("returns the post with its source and tags", async () => {
+      const source = await seedSource(testDb);
+      const post = await seedPost(testDb, source.id, {
+        title: "Full Post Title",
+        content: "Body content",
+      });
+
+      const cat = await seedTagCategory(testDb, "Art", {
+        colorHue: 40,
+        colorSaturation: 100,
+        colorLightness: 30,
+      });
+      const tag = await seedTag(testDb, "anime", cat.id);
+      await db.insert(postTags).values({ tagId: tag.id, postId: post.id });
+
+      const result = await getPostById(post.id);
+      expect(result).not.toBeNull();
+      expect(result!.post.id).toBe(post.id);
+      expect(result!.post.title).toBe("Full Post Title");
+      expect(result!.post.source?.id).toBe(source.id);
+      expect(result!.tags).toHaveLength(1);
+      expect(result!.tags[0].name).toBe("anime");
+    });
+
+    it("returns null for a missing post", async () => {
+      const result = await getPostById(999999);
+      expect(result).toBeNull();
     });
   });
 });

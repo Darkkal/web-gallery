@@ -91,3 +91,7 @@ export async function movePlaylistItem(
 export async function getPlaylistsForMediaItem(mediaItemId: number) {
   return await playlistRepo.getPlaylistsForMediaItem(mediaItemId);
 }
+
+export async function getPlaylistsForPost(postId: number) {
+  return await playlistRepo.getPlaylistsForPost(postId);
+}

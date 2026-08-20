@@ -34,6 +34,7 @@ import {
   getPlaylist,
   getPlaylists,
   getPlaylistsForMediaItem,
+  getPlaylistsForPost,
   movePlaylistItem,
   removeItemsFromPlaylist,
   reorderPlaylistItems,
@@ -275,6 +276,28 @@ describe("Playlists Repository", () => {
 
       const notContaining = await getPlaylistsForMediaItem(mediaId2);
       expect(notContaining.length).toBe(0);
+    });
+  });
+
+  describe("getPlaylistsForPost", () => {
+    it("returns distinct playlists containing the post's media items", async () => {
+      const source = await seedSource(testDb);
+      const postA = await seedPost(testDb, source.id);
+      const postB = await seedPost(testDb, source.id);
+      const mediaA1 = await seedMediaItem(testDb, postA.id);
+      const mediaA2 = await seedMediaItem(testDb, postA.id);
+      await seedMediaItem(testDb, postB.id);
+
+      const pl1 = await createPlaylist("Playlist One");
+      const pl2 = await createPlaylist("Playlist Two");
+      await addItemsToPlaylist(pl1.id, [mediaA1.id]);
+      await addItemsToPlaylist(pl2.id, [mediaA2.id]);
+
+      const result = await getPlaylistsForPost(postA.id);
+      expect(result.map((p) => p.id).sort()).toEqual([pl1.id, pl2.id].sort());
+
+      const none = await getPlaylistsForPost(999999);
+      expect(none.length).toBe(0);
     });
   });
 });
