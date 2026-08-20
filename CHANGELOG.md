@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.7.1 - 2026-08-20
+#### Bug Fixes
+- (**ci**) use {{version}} DSL in cog pre-bump hook (#153) - (2241303) - piclaw, *piclaw*
+- (**ci**) migrate CHANGELOG to cocogitto format + add workflow_dispatch (#152) - (fd24574) - piclaw, *piclaw*
+- (**ci**) resolve Cocogitto binary path from tarball (#151) - (c5ef6c4) - piclaw, *piclaw*
+
+- - -
+
 
 
 ## [0.7.0](https://github.com/Darkkal/web-gallery/compare/v0.6.0...v0.7.0) (2026-08-07)
