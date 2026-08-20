@@ -16,11 +16,11 @@ from_latest_tag = true
 # Before the version commit is created, sync the new version into both package
 # manifests. `--no-git-tag-version` avoids nested tag handling, `--no-commit-hooks`
 # keeps the repo's husky hooks out of the automated commit, `--ignore-scripts`
-# blocks package lifecycle hooks, and the `{version}` placeholder is substituted
+# blocks package lifecycle hooks, and the `{{version}}` placeholder is substituted
 # by Cocogitto. The resulting package.json / package-lock.json changes are
 # included in the version commit Cocogitto creates.
 pre_bump_hooks = [
-    "npm version --no-git-tag-version --no-commit-hooks --ignore-scripts {version}",
+    "npm version --no-git-tag-version --no-commit-hooks --ignore-scripts {{version}}",
 ]
 
 # After the version commit + tag are created, push both back to Forgejo. The
