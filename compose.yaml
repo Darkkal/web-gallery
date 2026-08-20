@@ -11,7 +11,7 @@ services:
       MEDIA_DIR: /media
       TZ: ${TZ:-UTC}
     ports:
-      - 3000:3000
+      - ${WEBGALLERY_PORT:-3000}:3000
     volumes:
       # Fast storage: database, scraper state (small files, frequent I/O)
       # Set WEBGALLERY_DATA_DIR in .env to control where this lives on the host
