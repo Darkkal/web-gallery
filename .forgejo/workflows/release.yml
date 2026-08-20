@@ -1,18 +1,18 @@
 name: Release (Forgejo)
 
 # Forgejo is the release authority. Pushing to `master` runs Cocogitto
-# (`cog bump --auto`), which computes the next SemVer from conventional
-# commits, bumps package.json / package-lock.json, regenerates CHANGELOG.md,
-# and creates the vX.Y.Z tag + release commit. Cocogitto's commit message starts
-# with `chore(version):`, so a guard step below skips re-triggered runs on the
-# version commit itself (avoids a release loop). The GitHub mirror only packages
-# the resulting tag (see .github/workflows).
+# (`cog bump --auto`), which computes the next SemVer from conventional commits,
+# bumps package.json / package-lock.json, regenerates CHANGELOG.md and creates
+# the vX.Y.Z tag + release commit. Because `master` is branch-protected, the
+# release commit + tag are delivered via a **release PR** (release-please style)
+# instead of a direct push to master; binary assets and the registry image are
+# published against the tag.
+
 on:
   push:
     branches: [master]
-  # Manual trigger for troubleshooting without merging: dispatches on any
-  # branch and runs the build/publish path for the selected ref's current
-  # version WITHOUT bumping versions or pushing to master.
+  # Manual trigger for troubleshooting: dispatches the build/publish path for
+  # the selected ref's current version without creating a release branch/PR.
   workflow_dispatch:
 
 permissions:
@@ -20,93 +20,136 @@ permissions:
   packages: write
 
 jobs:
-  release:
+  # Decide whether a release is needed and what the next version is.
+  plan:
     runs-on: ubuntu-latest
+    outputs:
+      next_version: ${{ steps.next.outputs.next_version }}
     steps:
-      - name: Checkout (with full history for Cocogitto)
+      - name: Checkout (full history for Cocogitto)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Skip release on the version commit
-        id: version-guard
-        run: |
-          set -euo pipefail
-          MSG="$(git log -1 --format=%s HEAD)"
-          case "$MSG" in
-            "chore(version):"*)
-              echo "release triggered by the Cocogitto version commit — skipping"
-              echo "skip=true" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "skip=false" >> "$GITHUB_OUTPUT"
-              ;;
-          esac
-
-      - name: Set up Node.js
-        if: ${{ steps.version-guard.outputs.skip != 'true' }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        if: ${{ steps.version-guard.outputs.skip != 'true' }}
-        run: npm ci
-
       - name: Install Cocogitto
-        if: ${{ steps.version-guard.outputs.skip != 'true' }}
         run: |
           set -euo pipefail
           COG_VERSION=7.0.0
           curl -fsSL \
             "https://github.com/cocogitto/cocogitto/releases/download/${COG_VERSION}/cocogitto-${COG_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
             -o /tmp/cog.tar.gz
-          # The release tarball wraps the binary in an arch triple dir (e.g.
-          # x86_64-unknown-linux-musl/cog), so resolve its path from the archive
-          # instead of assuming a fixed /tmp/cocogitto.
+          # The tarball nests the binary under its arch triple dir.
           COG_BIN="$(tar -tzf /tmp/cog.tar.gz | grep -E '(^|/)cog$' | head -1)"
           tar -xzf /tmp/cog.tar.gz -C /tmp
           install -Dm755 "/tmp/${COG_BIN}" /usr/local/bin/cog
-          cog --version
 
-      # Only the push-to-master path computes a version and pushes a release
-      # commit/tag back. Manual (workflow_dispatch) runs must NOT bump versions
-      # or touch master.
-      - name: Configure git and authenticated remote
-        if: ${{ github.event_name == 'push' && steps.version-guard.outputs.skip != 'true' }}
+      - name: Compute next version
+        id: next
+        run: |
+          set -euo pipefail
+          NEXT="$(cog bump --dry-run --auto 2>/dev/null || true)"
+          NEXT="${NEXT%%[[:space:]]*}"
+          CURRENT="$(git describe --tags --match 'v*' --abbrev=0 2>/dev/null | sed 's/^v//')"
+          echo "next=${NEXT} current=${CURRENT}"
+          if [ -z "${NEXT}" ] || [ "${NEXT}" = "${CURRENT}" ]; then
+            echo "No release needed"
+            echo "next_version=" >> "$GITHUB_OUTPUT"
+          else
+            echo "next_version=${NEXT}" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: plan
+    if: ${{ needs.plan.outputs.next_version != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for Cocogitto)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Cocogitto
+        run: |
+          set -euo pipefail
+          COG_VERSION=7.0.0
+          curl -fsSL \
+            "https://github.com/cocogitto/cocogitto/releases/download/${COG_VERSION}/cocogitto-${COG_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+            -o /tmp/cog.tar.gz
+          COG_BIN="$(tar -tzf /tmp/cog.tar.gz | grep -E '(^|/)cog$' | head -1)"
+          tar -xzf /tmp/cog.tar.gz -C /tmp
+          install -Dm755 "/tmp/${COG_BIN}" /usr/local/bin/cog
+
+      # Only the push-to-master path creates a release branch/PR. Manual
+      # (workflow_dispatch) runs skip branching/bumping and only build/publish
+      # the selected ref's current version.
+      - name: Configure git
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          set -euo pipefail
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.forgejo.org"
+
+      - name: Create release branch, version commit and tag
+        if: ${{ github.event_name == 'push' }}
         env:
+          NEXT_VERSION: ${{ needs.plan.outputs.next_version }}
+        run: |
+          set -euo pipefail
+          BRANCH="release/v${NEXT_VERSION}"
+          git checkout -b "${BRANCH}"
+          # Computes the version, bumps package files, regenerates CHANGELOG.md,
+          # creates the vX.Y.Z tag + version commit on this branch.
+          cog bump --auto
+          echo "release_branch=${BRANCH}" >> "$GITHUB_ENV"
+          echo "NEW_VERSION_TAG=v${NEXT_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Push release branch + tag
+        if: ${{ github.event_name == 'push' }}
+        env:
+          NEXT_VERSION: ${{ needs.plan.outputs.next_version }}
           RELEASE_TOKEN: ${{ secrets.FORGEJO_RELEASE_TOKEN || github.token }}
         run: |
           set -euo pipefail
-          # Resolve the Forgejo instance from the runner-provided context so no
-          # specific host is hardcoded in the repo. \`GITHUB_SERVER_URL\` is set by
-          # Forgejo/Actions and points at the instance jobs can reach.
           SCHEME="${GITHUB_SERVER_URL%%://*}"
-          HOST="${GITHUB_SERVER_URL#*://}"
-          HOST="${HOST%/}"
+          HOST="${GITHUB_SERVER_URL#*://}"; HOST="${HOST%/}"
           echo "FORGEJO_HOST=${HOST}" >> "$GITHUB_ENV"
-          echo "FORGEJO_SERVER_URL=${GITHUB_SERVER_URL%/}" >> "$GITHUB_ENV"
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor }}@users.noreply.forgejo.org"
-          git remote set-url origin "${SCHEME}://x-access-token:${RELEASE_TOKEN}@${HOST}/darkkal/web-gallery.git"
+          git remote set-url origin \
+            "${SCHEME}://x-access-token:${RELEASE_TOKEN}@${HOST}/darkkal/web-gallery.git"
+          # New branch (allowed) + the vX.Y.Z tag (not branch-protected). The
+          # version commit reaches master only when the release PR merges.
+          git push origin "HEAD:release/v${NEXT_VERSION}"
+          git push origin "v${NEXT_VERSION}"
 
-      - name: Automatic version bump
-        if: ${{ github.event_name == 'push' && steps.version-guard.outputs.skip != 'true' }}
+      - name: Open release PR
+        if: ${{ github.event_name == 'push' }}
+        env:
+          NEXT_VERSION: ${{ needs.plan.outputs.next_version }}
+          RELEASE_TOKEN: ${{ secrets.FORGEJO_RELEASE_TOKEN || github.token }}
         run: |
           set -euo pipefail
-          # Computes the next version, bumps package files, regenerates
-          # CHANGELOG.md, creates the vX.Y.Z tag + release commit, then pushes
-          # them back to master (post_bump_hook in cog.toml).
-          cog bump --auto
+          BODY="Automatic release PR created by the Forgejo release workflow. Merge to land v${NEXT_VERSION} (commit + tag already pushed)."
+          PAYLOAD=$(python3 -c 'import json,sys;print(json.dumps({"title":sys.argv[1],"head":sys.argv[2],"base":"master","body":sys.argv[3]}))' \
+            "chore(release): v${NEXT_VERSION}" "release/v${NEXT_VERSION}" "${BODY}")
+          curl -fsS -X POST \
+            "${GITHUB_SERVER_URL}/api/v1/repos/${{ github.repository }}/pulls" \
+            -H "Authorization: token ${RELEASE_TOKEN}" -H 'Content-Type: application/json' \
+            -d "${PAYLOAD}"
 
       - name: Build standalone binaries
-        if: ${{ steps.version-guard.outputs.skip != 'true' }}
         run: npm run build:release
 
       - name: Create release archives
-        if: ${{ steps.version-guard.outputs.skip != 'true' }}
         run: |
           set -euo pipefail
           VERSION=$(node -p "require('./package.json').version")
@@ -117,7 +160,6 @@ jobs:
           zip -j "dist/release/web-gallery-v${VERSION}-windows-x64.zip" "dist/web-gallery-v${VERSION}-win.exe" "dist/setup-deps.ps1"
 
       - name: Publish release + assets
-        if: ${{ steps.version-guard.outputs.skip != 'true' }}
         uses: https://code.forgejo.org/actions/forgejo-release@v2
         with:
           url: ${{ github.server_url }}
@@ -128,7 +170,6 @@ jobs:
           override: true
 
       - name: Publish Docker image to Forgejo registry
-        if: ${{ steps.version-guard.outputs.skip != 'true' }}
         env:
           RELEASE_TOKEN: ${{ secrets.FORGEJO_RELEASE_TOKEN || github.token }}
         run: |

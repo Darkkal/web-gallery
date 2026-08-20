@@ -23,9 +23,8 @@ pre_bump_hooks = [
     "npm version --no-git-tag-version --no-commit-hooks --ignore-scripts {{version}}",
 ]
 
-# After the version commit + tag are created, push both back to Forgejo. The
-# workflow pre-configures the authenticated origin, so the hook can use it
-# directly. `--follow-tags` also pushes the new vX.Y.Z tag.
-post_bump_hooks = [
-    "git push origin master --follow-tags",
-]
+# After the version commit + tag are created on the release branch, the
+# workflow pushes that branch + the vX.Y.Z tag and opens a release PR to master
+# (master is branch-protected, so the version commit is delivered via PR, not a
+# direct push). No post-bump hook is configured here to avoid pushing to master.
+post_bump_hooks = []
