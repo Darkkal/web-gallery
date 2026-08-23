@@ -1491,6 +1491,11 @@ export default function Lightbox({
                   View Tweet
                 </a>
               )}
+            {row.post?.id && (
+              <Link href={`/post/${row.post.id}`} className={styles.linkButton}>
+                View Full Post
+              </Link>
+            )}
           </div>
         )}
       </div>

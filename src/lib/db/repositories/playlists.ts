@@ -161,6 +161,22 @@ export async function getPlaylistsForMediaItem(mediaItemId: number) {
     .where(eq(playlistItems.mediaItemId, mediaItemId));
 }
 
+/**
+ * Playlists that contain at least one media item belonging to the given post.
+ * (Posts link to playlists only through their media items.)
+ */
+export async function getPlaylistsForPost(postId: number) {
+  return await db
+    .selectDistinct({
+      id: playlists.id,
+      name: playlists.name,
+    })
+    .from(playlists)
+    .innerJoin(playlistItems, eq(playlistItems.playlistId, playlists.id))
+    .innerJoin(mediaItems, eq(mediaItems.id, playlistItems.mediaItemId))
+    .where(eq(mediaItems.postId, postId));
+}
+
 export async function createPlaylist(
   name: string,
   description?: string,

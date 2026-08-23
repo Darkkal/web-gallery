@@ -2,6 +2,7 @@ export interface AppSettings {
   colorTheme: "dark" | "light" | "system";
   galleryPageSize: number;
   timelinePageSize: number;
+  postViewMediaPageSize: number;
   scrollMode: "infinite" | "button";
   scrapeLogRetentionDays: number;
   enableProductionDestructiveOps: boolean;
@@ -50,6 +51,7 @@ export const DEFAULT_SETTINGS: SystemSettings = {
     colorTheme: "dark",
     galleryPageSize: 50,
     timelinePageSize: 20,
+    postViewMediaPageSize: 50,
     scrollMode: "infinite",
     scrapeLogRetentionDays: 30,
     enableProductionDestructiveOps: false,

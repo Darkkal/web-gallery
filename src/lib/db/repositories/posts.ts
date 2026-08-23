@@ -406,6 +406,48 @@ export async function getPostTags(postId: number) {
   }));
 }
 
+/**
+ * Load a single post by its database id with all platform-specific detail
+ * rows (twitter/pixiv/gelbooru/e-hentai) and its source, plus the post tags.
+ * Media items are intentionally NOT included here (see getPostMediaItems in
+ * the media repository, which returns the flattened GalleryRow[] used by the
+ * gallery/lightbox).
+ */
+export async function getPostById(id: number) {
+  const post = await db.query.posts.findFirst({
+    where: eq(posts.id, id),
+    with: {
+      source: true,
+      twitterDetails: true,
+      pixivDetails: true,
+      gelbooruDetails: true,
+      ehentaiDetails: true,
+    },
+  });
+  if (!post) return null;
+  const tags = await getPostTags(id);
+  // Platform user for text-only posts (PR #155 review): with no media rows
+  // the client cannot join the author, so resolve it from the post directly.
+  let twitterUser: typeof twitterUsers.$inferSelect | null = null;
+  let pixivUser: typeof pixivUsers.$inferSelect | null = null;
+  if (post.extractorType === "twitter" && post.userId) {
+    const rows = await db
+      .select()
+      .from(twitterUsers)
+      .where(eq(twitterUsers.id, post.userId))
+      .limit(1);
+    twitterUser = rows[0] ?? null;
+  } else if (post.extractorType === "pixiv" && post.userId) {
+    const rows = await db
+      .select()
+      .from(pixivUsers)
+      .where(eq(pixivUsers.id, post.userId))
+      .limit(1);
+    pixivUser = rows[0] ?? null;
+  }
+  return { post, tags, twitterUser, pixivUser };
+}
+
 async function getEquivalentTags(tagName: string): Promise<string[]> {
   const lowerName = tagName.toLowerCase();
 

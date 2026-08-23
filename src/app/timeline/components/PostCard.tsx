@@ -60,6 +60,30 @@ export default function PostCard({
     }
   };
 
+  /**
+   * Clicking empty space anywhere inside the post container opens the full
+   * post view (PR #155 review). Interactive controls (links, buttons, media
+   * lightbox, video controls) and the post text body keep their own behavior.
+   */
+  const handleContainerClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest(
+        "a, button, [role='button'], video, input, textarea, select",
+      )
+    ) {
+      return;
+    }
+    // The post body keeps its own interactions (selection, links).
+    if (contentRef.current?.contains(target)) return;
+    // Ignore the trailing click of a drag-selection over the card.
+    const selection = window.getSelection();
+    if (selection && selection.type === "Range") return;
+    // internalDbId is the database ID the /post/[id] route parses; post.id is
+    // only the display key (e.g. "twitter-123").
+    router.push(`/post/${post.internalDbId ?? post.id}`);
+  };
+
   useEffect(() => {
     if (!condensePostText) {
       setHasOverflow(false);
@@ -85,7 +109,8 @@ export default function PostCard({
   }, [condensePostText]);
 
   return (
-    <article id={id} className={styles.postCard}>
+    // biome-ignore lint/a11y/useKeyWithClickEvents: pointer convenience only; keyboard users already have explicit controls inside the card
+    <article id={id} className={styles.postCard} onClick={handleContainerClick}>
       {/* Header: Avatar, Name, Date */}
       <div className={styles.postHeader}>
         {hasAuthor ? (
