@@ -239,7 +239,9 @@ This project supports compiling a dependency-free standalone binary using `@yao-
 5. **Async by default**: All database operations are async. The `@libsql/client` driver does not support synchronous calls.
 6. **Utility deduplication**: Shared utility functions (e.g., `parseSizeToBytes`, `formatBytes`) live in `src/lib/utils/`. Do not duplicate them across files.
 7. **Per-page metadata**: Each route should export its own `metadata` object for proper tab titles.
-8. **Conventional Commit Messages**: This project uses `release-please` to manage version releases and auto-populate `CHANGELOG.md` in CI/CD. All commit messages must follow the [Conventional Commits specification](https://www.conventionalcommits.org/) (e.g., `feat(playlists): ...`, `fix(config): ...`, `chore(biome): ...`).
+8. **Conventional Commit Messages**: Releases are managed by [Cocogitto](https://docs.cocogitto.io/) in Forgejo Actions: every push to `master` derives the next SemVer and the CHANGELOG entry from commit subjects (`cog bump --auto`). Every commit on `master` must follow the [Conventional Commits specification](https://www.conventionalcommits.org/) (e.g., `feat(playlists): ...`, `fix(config): ...`, `ci(release): ...`) — `cog check` rejects anything else.
+
+   PR titles stay issue-style (`<number>-<name>`); they never become commits. Inside a PR keep **one short conventional commit**, amending it until review passes; for an intentionally multi-commit PR, clean up locally with autosquash before pushing. PRs merge with **Rebase then fast-forward** so the branch's reviewed commits land verbatim: merge commits and squash subjects (the PR title) would break `cog check` on `master`.
 9. **Keep Documentation in Sync**: When implementing new features, modifications to subsystems, or introducing new architectural patterns, you MUST update both `ARCHITECTURE.md` and `CONTRIBUTING.md` to reflect these changes. Keeping documentation co-located and synchronized with code changes ensures future contributors (both human and AI) maintain complete context.
 
 ---
