@@ -1,72 +1,68 @@
 name: Release and Package
 
+# GitHub mirror release: forked pipeline, triggered by the `v*` tag that the
+# canonical Forgejo pipeline (Cocogitto, .forgejo/workflows/release.yml) creates
+# and the mirror propagates. This workflow only packages that same tag for
+# GitHub/GHCR so the two sides never compute competing versions.
 on:
   push:
-    branches:
-      - main
-      - master
+    tags:
+      - "v*"
 
 permissions:
   contents: write
   packages: write
-  pull-requests: write
 
 jobs:
-  release-please:
+  release:
     runs-on: ubuntu-latest
     steps:
-      - name: Run Release Please
-        id: release
-        uses: googleapis/release-please-action@v4
-        with:
-          release-type: node
-
-      # The following steps run ONLY when a new release has been created (i.e. the release PR was merged)
       - name: Checkout code
-        if: ${{ steps.release.outputs.release_created }}
         uses: actions/checkout@v5
 
       - name: Set up Node.js
-        if: ${{ steps.release.outputs.release_created }}
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
       - name: Install dependencies
-        if: ${{ steps.release.outputs.release_created }}
         run: npm ci
 
       - name: Build standalone binaries
-        if: ${{ steps.release.outputs.release_created }}
         run: npm run build:release
 
       - name: Create release archives
-        if: ${{ steps.release.outputs.release_created }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
           tar -czf "web-gallery-v${VERSION}-linux-x64.tar.gz" -C dist "web-gallery-v${VERSION}-linux" setup-deps.sh
           tar -czf "web-gallery-v${VERSION}-macos-x64.tar.gz" -C dist "web-gallery-v${VERSION}-macos" setup-deps.sh
           zip -j "web-gallery-v${VERSION}-windows-x64.zip" "dist/web-gallery-v${VERSION}-win.exe" "dist/setup-deps.ps1"
 
-      - name: Upload release assets
-        if: ${{ steps.release.outputs.release_created }}
+      - name: Publish GitHub release with assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          gh release upload ${{ steps.release.outputs.tag_name }} "web-gallery-v${VERSION}-linux-x64.tar.gz" "web-gallery-v${VERSION}-macos-x64.tar.gz" "web-gallery-v${VERSION}-windows-x64.zip"
+          TAG="${{ github.ref_name }}"
+          gh release create "$TAG" \
+            "web-gallery-v${VERSION}-linux-x64.tar.gz" \
+            "web-gallery-v${VERSION}-macos-x64.tar.gz" \
+            "web-gallery-v${VERSION}-windows-x64.zip" \
+            --title "$TAG" --generate-notes \
+          || gh release upload "$TAG" \
+            "web-gallery-v${VERSION}-linux-x64.tar.gz" \
+            "web-gallery-v${VERSION}-macos-x64.tar.gz" \
+            "web-gallery-v${VERSION}-windows-x64.zip" \
+            --clobber
 
       - name: Set up QEMU
-        if: ${{ steps.release.outputs.release_created }}
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        if: ${{ steps.release.outputs.release_created }}
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry (GHCR)
-        if: ${{ steps.release.outputs.release_created }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -74,20 +70,18 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract Docker metadata
-        if: ${{ steps.release.outputs.release_created }}
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}},value=${{ steps.release.outputs.tag_name }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ steps.release.outputs.tag_name }}
-            type=semver,pattern={{major}},value=${{ steps.release.outputs.tag_name }}
-            type=raw,value=${{ steps.release.outputs.tag_name }}
+            type=semver,pattern={{version}},value=${{ github.ref_name }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ github.ref_name }}
+            type=semver,pattern={{major}},value=${{ github.ref_name }}
+            type=raw,value=${{ github.ref_name }}
             type=raw,value=latest
 
       - name: Build and push Docker image
-        if: ${{ steps.release.outputs.release_created }}
         uses: docker/build-push-action@v6
         with:
           context: .
