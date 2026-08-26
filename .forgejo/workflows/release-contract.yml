@@ -1,0 +1,84 @@
+name: Release Contract (Forgejo)
+
+# Issue #160 gate: a live producer→consumer contract that runs on the actual
+# Forgejo runner and proves the Actions wiring the static tests cannot see.
+#
+# The repeated failures after adopting Cocogitto were our own wrapper defects,
+# and the latest one (#1631) was pure YAML refactor: the plan step was renamed
+# to emit `next_tag`, its job `outputs:` map was not, so `needs.plan.outputs.next_tag`
+# was undefined and the release job silently skipped. No static shell/string
+# test can observe that interface.
+#
+# This workflow mirrors the exact output wiring used by release.yml and proves
+# on the runner that:
+#   - a planned `v0.8.0` propagates producer step output → job output →
+#     `needs.<producer>.outputs.next_tag` and the release predicate opens;
+#   - an empty plan keeps that predicate closed.
+#
+# It never attempts a real release; it only exercises the boundary.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Mirrors release.yml's plan job output wiring exactly.
+  producer:
+    runs-on: ubuntu-latest
+    outputs:
+      next_tag: ${{ steps.next.outputs.next_tag }}
+    steps:
+      - id: next
+        run: echo "next_tag=v0.8.0" >> "$GITHUB_OUTPUT"
+
+  producer_empty:
+    runs-on: ubuntu-latest
+    outputs:
+      next_tag: ${{ steps.next.outputs.next_tag }}
+    steps:
+      - id: next
+        run: echo "next_tag=" >> "$GITHUB_OUTPUT"
+
+  # Sentinel: this job runs ONLY if the gate did NOT open for a planned tag.
+  # If the wiring is broken (the #1631 shape), `needs.producer.outputs.next_tag`
+  # is empty → the predicate `next_tag == ''` is true → the job runs and fails.
+  release_gate_open:
+    needs: producer
+    if: ${{ needs.producer.outputs.next_tag == '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: release gate did not open for a planned tag
+        run: |
+          echo "::error::release gate CLOSED for planned tag '${{ needs.producer.outputs.next_tag }}'"
+          exit 1
+
+  # Sentinel: this job runs ONLY if the gate opened for an empty plan, which
+  # must never happen.
+  release_gate_closed:
+    needs: producer_empty
+    if: ${{ needs.producer_empty.outputs.next_tag != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: release gate opened for an empty plan
+        run: |
+          echo "::error::release gate OPENED for empty plan '${{ needs.producer_empty.outputs.next_tag }}'"
+          exit 1
+
+  # Always runs and asserts the propagated value is exactly what the plan
+  # emitted, so a broken output map cannot pass silently.
+  assert_value:
+    needs: producer
+    runs-on: ubuntu-latest
+    steps:
+      - name: planned tag propagated verbatim through job output
+        env:
+          NEXT_TAG: ${{ needs.producer.outputs.next_tag }}
+        run: |
+          echo "received next_tag=${NEXT_TAG}"
+          test "${NEXT_TAG}" = "v0.8.0"
+          echo "OK: needs.producer.outputs.next_tag propagated verbatim"

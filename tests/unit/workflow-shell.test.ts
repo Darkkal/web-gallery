@@ -9,6 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import YAML from "yaml";
 
 // Regression (issue #150): a stray quote in a workflow `run:` block shipped to
 // master and failed the release plan job with
@@ -148,6 +149,96 @@ describe("cocogitto planned-tag contract (#160)", () => {
   const release = join(process.cwd(), ".forgejo", "workflows", "release.yml");
   const yaml = readFileSync(release, "utf8");
   const blocksYaml = extractRunBlocks(yaml).join("\n");
+
+  it("declares the plan job output next_tag wired to the step output", () => {
+    // Regression (#1631): PR #164 renamed the step to emit `next_tag` but left
+    // the plan job `outputs:` map as stale `next_version`. Parse the workflow
+    // so we assert the real Actions data shape, not a string pattern.
+    const parsed = YAML.parse(yaml) as {
+      jobs: { plan: { outputs: Record<string, string> } };
+    };
+    expect(parsed.jobs.plan.outputs).toEqual({
+      next_tag: "${{ steps.next.outputs.next_tag }}",
+    });
+    // No stale bare-version output map anywhere in the file.
+    expect(yaml).not.toMatch(/outputs:\s+next_version/);
+    expect(yaml).not.toContain("steps.next.outputs.next_version");
+  });
+
+  it("release job condition consumes the planned tag job output", () => {
+    const parsed = YAML.parse(yaml) as {
+      jobs: { release: { if: string } };
+    };
+    // The gate must read needs.<plan>.outputs.next_tag, and only in one shape.
+    expect(parsed.jobs.release.if).toContain(
+      "needs.plan.outputs.next_tag != ''",
+    );
+    expect(parsed.jobs.release.if).not.toContain("outputs.next_version");
+  });
+
+  it("atomic push carries the planned tag verbatim (no double v prefix)", () => {
+    const parsed = YAML.parse(yaml) as {
+      jobs: {
+        release: {
+          steps: Array<{
+            name?: string;
+            run?: string;
+            env?: Record<string, string>;
+          }>;
+        };
+      };
+    };
+    const step = parsed.jobs.release.steps.find(
+      (s) => s.name === "Create atomic version commit + tag on master",
+    );
+    expect(step).toBeDefined();
+    expect(step?.env).toEqual({
+      NEXT_TAG: "${{ needs.plan.outputs.next_tag }}",
+    });
+    expect(step?.run).toContain(
+      'git push --atomic origin "HEAD:refs/heads/master" "${NEXT_TAG}"',
+    );
+    // The double-prefix bug shape must be impossible.
+    expect(step?.run).not.toContain("v${NEXT_TAG}");
+    expect(step?.run).not.toContain("vv");
+  });
+
+  it("the live contract probe mirrors the producer→job-output→needs wiring", () => {
+    // Layer-3 guard (#1639): the disposable-clone + structural tests cannot
+    // observe the Actions step-output → job-output → needs → predicate
+    // boundary that actually broke. The contract workflow must exist and use
+    // the same output wiring shape as release.yml so it proves the boundary
+    // on Forgejo's real runner.
+    const contract = join(
+      process.cwd(),
+      ".forgejo",
+      "workflows",
+      "release-contract.yml",
+    );
+    const cYaml = readFileSync(contract, "utf8");
+    const parsed = YAML.parse(cYaml) as {
+      jobs: {
+        producer: { outputs: Record<string, string> };
+        producer_empty: { outputs: Record<string, string> };
+        release_gate_open: { if: string };
+        release_gate_closed: { if: string };
+      };
+    };
+    expect(parsed.jobs.producer.outputs).toEqual({
+      next_tag: "${{ steps.next.outputs.next_tag }}",
+    });
+    expect(parsed.jobs.producer_empty.outputs).toEqual({
+      next_tag: "${{ steps.next.outputs.next_tag }}",
+    });
+    // Positive: the gate closes only when there is NO planned tag.
+    expect(parsed.jobs.release_gate_open.if).toContain(
+      "needs.producer.outputs.next_tag == ''",
+    );
+    // Negative: an empty plan must never open the gate.
+    expect(parsed.jobs.release_gate_closed.if).toContain(
+      "needs.producer_empty.outputs.next_tag != ''",
+    );
+  });
 
   it("uses a next_tag plan output, not a bare version", () => {
     expect(yaml).toContain("next_tag");

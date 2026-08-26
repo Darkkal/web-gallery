@@ -33,12 +33,13 @@ env:
   COG_SHA256: "e03938ff2c4c86d71c00c0f3284dbbe95c5ca76fe34a51f33e945c23010d59bb"
 
 jobs:
-  # Decide whether a release is needed; an empty next_version skips the
-  # entire release job (#161 review).
+  # Decide whether a release is needed; an empty next_tag skips the
+  # entire release job (#161 review). The plan output MUST be named
+  # next_tag to match the step's emitted output map.
   plan:
     runs-on: ubuntu-latest
     outputs:
-      next_version: ${{ steps.next.outputs.next_version }}
+      next_tag: ${{ steps.next.outputs.next_tag }}
     steps:
       - name: Checkout (full history for Cocogitto)
         uses: actions/checkout@v4
