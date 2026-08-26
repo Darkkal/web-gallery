@@ -114,13 +114,41 @@ jobs:
           tar -xzf /tmp/cog.tar.gz -C /tmp
           install -Dm755 "/tmp/${COG_BIN}" /usr/local/bin/cog
 
+      # Fail fast with a clear message when release credentials are missing
+      # instead of dying later inside git/docker with opaque auth errors.
+      - name: Verify release credentials are configured
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          RELEASE_USER: ${{ secrets.RELEASE_USER }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_TOKEN}" ]; then
+            echo "::error::secret 'RELEASE_TOKEN' is not set or empty; the release push cannot authenticate"
+            exit 1
+          fi
+          if [ -z "${RELEASE_USER}" ]; then
+            echo "::error::secret 'RELEASE_USER' is not set or empty; required for the release identity and registry login"
+            exit 1
+          fi
+
       - name: Configure authenticated remote (dedicated release identity)
         env:
-          RELEASE_TOKEN: ${{ secrets.FORGEJO_RELEASE_TOKEN }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          RELEASE_USER: ${{ secrets.RELEASE_USER }}
         run: |
           set -euo pipefail
           git remote set-url origin \
-            "${FORGEJO_SCHEME}://x-access-token:${RELEASE_TOKEN}@${FORGEJO_HOST%/}/${{ github.repository }}.git"
+            "${FORGEJO_SCHEME}://${RELEASE_USER}:${RELEASE_TOKEN}@${FORGEJO_HOST%/}/${{ github.repository }}.git"
+
+      - name: Configure deterministic release identity
+        env:
+          RELEASE_USER: ${{ secrets.RELEASE_USER }}
+        run: |
+          set -euo pipefail
+          # The version commit must be authored by the dedicated release
+          # account, not by whatever actor dispatched the workflow.
+          git config user.name "${RELEASE_USER}"
+          git config user.email "${RELEASE_USER}@users.noreply.${FORGEJO_HOST%/}"
 
       - name: Create atomic version commit + tag on master
         env:
@@ -160,19 +188,20 @@ jobs:
         with:
           url: ${{ github.server_url }}
           tag: ${{ env.NEW_VERSION_TAG }}
-          token: ${{ secrets.FORGEJO_RELEASE_TOKEN }}
+          token: ${{ secrets.RELEASE_TOKEN }}
           direction: upload
           release-dir: dist/release
           override: true
 
       - name: Publish Docker image to Forgejo registry
         env:
-          RELEASE_TOKEN: ${{ secrets.FORGEJO_RELEASE_TOKEN }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          RELEASE_USER: ${{ secrets.RELEASE_USER }}
         run: |
           set -euo pipefail
           VERSION=$(node -p "require('./package.json').version")
           REGISTRY="${FORGEJO_HOST%/}/${{ github.repository }}"
-          echo "${RELEASE_TOKEN}" | docker login "${FORGEJO_HOST}" -u "${{ github.actor }}" --password-stdin
+          echo "${RELEASE_TOKEN}" | docker login "${FORGEJO_HOST}" -u "${RELEASE_USER}" --password-stdin
           docker build -t "${REGISTRY}:${VERSION}" .
           docker tag "${REGISTRY}:${VERSION}" "${REGISTRY}:latest"
           docker push "${REGISTRY}:${VERSION}"

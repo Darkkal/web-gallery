@@ -1,5 +1,7 @@
 # Changelog
 
+- - -
+
 ## [0.7.0](https://github.com/Darkkal/web-gallery/compare/v0.6.0...v0.7.0) (2026-08-07)
 
 

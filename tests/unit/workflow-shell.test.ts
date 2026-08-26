@@ -238,3 +238,58 @@ describe("pinned Cocogitto archive digest (#160)", () => {
     }
   });
 });
+
+describe("release credential preflight (#160)", () => {
+  const release = join(process.cwd(), ".forgejo", "workflows", "release.yml");
+  const yaml = readFileSync(release, "utf8");
+
+  it("uses only the RELEASE_TOKEN/RELEASE_USER secrets (Forgejo forbids FORGEJO_* names)", () => {
+    expect(yaml).not.toContain("FORGEJO_RELEASE_");
+    expect(
+      yaml.match(/secrets\.RELEASE_TOKEN/g)?.length,
+    ).toBeGreaterThanOrEqual(3);
+    expect(yaml).toContain("secrets.RELEASE_USER");
+  });
+
+  it("docker login authenticates as the release user, not the dispatching actor", () => {
+    expect(yaml).toContain('"${RELEASE_USER}"');
+    expect(yaml).not.toContain("github.actor");
+  });
+
+  it("fails fast with clear errors before any authenticated step", () => {
+    const checkIdx = yaml.indexOf("Verify release credentials are configured");
+    expect(checkIdx).toBeGreaterThan(-1);
+    for (const marker of [
+      "secret 'RELEASE_TOKEN' is not set or empty",
+      "secret 'RELEASE_USER' is not set or empty",
+    ]) {
+      expect(yaml).toContain(marker);
+    }
+    // Preflight must precede remote configuration, version-commit creation,
+    // the forgejo-release upload and the Docker login.
+    for (const later of [
+      "Configure authenticated remote",
+      "Create atomic version commit + tag on master",
+      "Publish release + assets",
+      "Publish Docker image to Forgejo registry",
+    ]) {
+      const idx = yaml.indexOf(later);
+      expect(idx, `${later} missing`).toBeGreaterThan(-1);
+      expect(idx).toBeGreaterThan(checkIdx);
+    }
+  });
+
+  it("authors the version commit with a deterministic release identity", () => {
+    expect(yaml).toContain('git config user.name "${RELEASE_USER}"');
+    expect(yaml).toContain(
+      'git config user.email "${RELEASE_USER}@users.noreply.${FORGEJO_HOST%/}"',
+    );
+    const identityIdx = yaml.indexOf(
+      "Configure deterministic release identity",
+    );
+    // Use the run-line occurrence, not earlier header-comment mentions.
+    const bumpIdx = yaml.lastIndexOf("cog bump --auto");
+    expect(identityIdx).toBeGreaterThan(-1);
+    expect(bumpIdx).toBeGreaterThan(identityIdx);
+  });
+});
