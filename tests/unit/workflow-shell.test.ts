@@ -108,7 +108,7 @@ describe("clean/no-op push skips publishing entirely (#161 review)", () => {
     expect(jobStart).toBeGreaterThan(-1);
     const releaseSection = fileYaml.slice(jobStart);
     // The job-level gate must appear BEFORE any publish-facing step.
-    const gateEnd = releaseSection.indexOf("next_version != ''");
+    const gateEnd = releaseSection.indexOf("next_tag != ''");
     expect(gateEnd).toBeGreaterThan(-1);
     for (const stepName of [
       "Create atomic version commit + tag on master",
@@ -140,7 +140,56 @@ describe("release gate cutover policy (#161 review)", () => {
   });
 
   it("push-triggered releases also require a planned next version", () => {
-    expect(yaml).toContain("needs.plan.outputs.next_version != ''");
+    expect(yaml).toContain("needs.plan.outputs.next_tag != ''");
+  });
+});
+
+describe("cocogitto planned-tag contract (#160)", () => {
+  const release = join(process.cwd(), ".forgejo", "workflows", "release.yml");
+  const yaml = readFileSync(release, "utf8");
+  const blocksYaml = extractRunBlocks(yaml).join("\n");
+
+  it("uses a next_tag plan output, not a bare version", () => {
+    expect(yaml).toContain("next_tag");
+    expect(yaml).toMatch(/echo "next_tag=\$/);
+    // No legacy bare-version plumbing remains.
+    expect(blocksYaml).not.toContain("next_version");
+    expect(blocksYaml).not.toContain("NEXT_VERSION");
+    expect(blocksYaml).not.toMatch(/v\$\{NEXT_VERSION\}/);
+  });
+
+  it("validates the planned tag as v<semver>, rejecting malformed output", () => {
+    expect(yaml).toContain("^v[0-9]+\\.[0-9]+\\.[0-9]+$");
+    expect(yaml).toContain("expected a 'v<semver>' tag");
+  });
+
+  it("uses NEXT_TAG verbatim and never fabricates a double v prefix", () => {
+    // The bug: v${NEXT_VERSION} -> vv0.8.0. Both must be impossible.
+    expect(blocksYaml).not.toMatch(/v\$\{NEXT_TAG\}/);
+    expect(blocksYaml).not.toMatch(/vv0\./);
+    // Verbatim usages for lookup, checkout and push.
+    expect(blocksYaml).toContain("refs/tags/${NEXT_TAG}");
+    expect(blocksYaml).toContain('git checkout "${NEXT_TAG}"');
+    expect(blocksYaml).toContain(
+      'git push --atomic origin "HEAD:refs/heads/master" "${NEXT_TAG}"',
+    );
+    expect(blocksYaml).toContain("NEW_VERSION_TAG=${NEXT_TAG}");
+  });
+
+  it("asserts the tag cog created at HEAD matches the planned tag before pushing", () => {
+    expect(blocksYaml).toContain("git tag --points-at HEAD");
+    expect(blocksYaml).toContain('"${ACTUAL_TAG}" != "${NEXT_TAG}"');
+    expect(blocksYaml).toContain("produced tag");
+  });
+
+  it("gates manual dispatch on a non-empty planned tag", () => {
+    const jobStart = yaml.indexOf("  release:");
+    const releaseSection = yaml.slice(jobStart);
+    const gateEnd = releaseSection.indexOf("next_tag != ''");
+    expect(gateEnd).toBeGreaterThan(-1);
+    expect(releaseSection.indexOf("workflow_dispatch")).toBeGreaterThan(
+      gateEnd,
+    );
   });
 });
 

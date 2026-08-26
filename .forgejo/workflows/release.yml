@@ -61,23 +61,31 @@ jobs:
       - name: Validate commit history
         run: cog check --from-latest-tag
 
-      - name: Compute next version
+      - name: Compute next release tag
         id: next
         run: |
           set -euo pipefail
-          NEXT="$(cog bump --dry-run --auto 2>/dev/null | head -1 || true)"
-          NEXT="${NEXT%%[[:space:]]*}"
-          echo "next=${NEXT}"
-          echo "next_version=${NEXT}" >> "$GITHUB_OUTPUT"
+          # `cog bump --dry-run --auto` prints the planned version TAG
+          # (e.g. `v0.8.0`); it is empty when nothing is releasable.
+          NEXT_TAG="$(cog bump --dry-run --auto 2>/dev/null | head -1 || true)"
+          NEXT_TAG="${NEXT_TAG%%[[:space:]]*}"
+          if [ -n "${NEXT_TAG}" ] && ! printf '%s\n' "${NEXT_TAG}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::unexpected Cocogitto plan output '${NEXT_TAG}'; expected a 'v<semver>' tag"
+            exit 1
+          fi
+          echo "next_tag=${NEXT_TAG}"
+          echo "next_tag=${NEXT_TAG}" >> "$GITHUB_OUTPUT"
 
   release:
     needs: plan
-    # Manual dispatch always runs; push-triggered releases stay disabled until
-    # the owner enables them after v0.8.0 (issue #160 cutover policy).
+    # Never release without a planned tag: manual dispatch on an already-
+    # tagged clean tree would otherwise attempt an empty / double-prefixed
+    # release. Push-triggered releases additionally require the cutover flag.
     if: >-
       ${{
-        github.event_name == 'workflow_dispatch' ||
-        (vars.RELEASES_ENABLED == 'true' && needs.plan.outputs.next_version != '')
+        needs.plan.outputs.next_tag != '' &&
+        (github.event_name == 'workflow_dispatch' ||
+         vars.RELEASES_ENABLED == 'true')
       }}
     runs-on: ubuntu-latest
     steps:
@@ -152,24 +160,37 @@ jobs:
 
       - name: Create atomic version commit + tag on master
         env:
-          NEXT_VERSION: ${{ needs.plan.outputs.next_version }}
+          # The planned tag, e.g. `v0.8.0`. Use it verbatim — it already
+          # carries the `v` prefix; never prepend another one (#160).
+          NEXT_TAG: ${{ needs.plan.outputs.next_tag }}
         run: |
           set -euo pipefail
           # Idempotency: an existing remote tag means a previous run already
           # released this version; only artefact republish remains.
-          if git ls-remote --tags origin "refs/tags/v${NEXT_VERSION}" | grep -q .; then
-            echo "Tag v${NEXT_VERSION} already exists; checking out its revision."
-            git checkout "v${NEXT_VERSION}"
-            echo "NEW_VERSION_TAG=v${NEXT_VERSION}" >> "$GITHUB_ENV"
+          if git ls-remote --tags origin "refs/tags/${NEXT_TAG}" | grep -q .; then
+            echo "Tag ${NEXT_TAG} already exists; checking out its revision."
+            git checkout "${NEXT_TAG}"
+            echo "NEW_VERSION_TAG=${NEXT_TAG}" >> "$GITHUB_ENV"
             exit 0
           fi
           # Cocogitto bumps manifests, regenerates CHANGELOG.md, creates the
           # version commit and the vX.Y.Z tag on the current master head.
           cog bump --auto
+          # Assert the tag Cog created at HEAD is exactly the planned tag
+          # before pushing, so a malformed/double-prefixed ref is caught.
+          ACTUAL_TAG="$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)"
+          if [ -z "${ACTUAL_TAG}" ]; then
+            echo "::error::cog bump --auto produced no version tag at HEAD"
+            exit 1
+          fi
+          if [ "${ACTUAL_TAG}" != "${NEXT_TAG}" ]; then
+            echo "::error::cog bump --auto produced tag '${ACTUAL_TAG}' but the plan expected '${NEXT_TAG}'"
+            exit 1
+          fi
           # Atomic delivery (#160): version commit and tag land together or
           # not at all, via the dedicated release identity.
-          git push --atomic origin "HEAD:refs/heads/master" "v${NEXT_VERSION}"
-          echo "NEW_VERSION_TAG=v${NEXT_VERSION}" >> "$GITHUB_ENV"
+          git push --atomic origin "HEAD:refs/heads/master" "${NEXT_TAG}"
+          echo "NEW_VERSION_TAG=${NEXT_TAG}" >> "$GITHUB_ENV"
 
       - name: Build standalone binaries
         run: npm run build:release
