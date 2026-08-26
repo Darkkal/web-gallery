@@ -1,6 +1,21 @@
 # Changelog
 
 - - -
+## v0.8.0 - 2026-08-26
+#### Features
+- (**post**) add full post view - (a07504a) - piclaw
+#### Bug Fixes
+- (**release**) wire plan-job next_tag end-to-end and add runner contract - (c5b06e9) - piclaw
+- (**release**) use Cocogitto tag output verbatim - (86afed4) - piclaw
+- (**release**) complete native release preflight - (f37684a) - piclaw
+#### Documentation
+- document Cocogitto contribution workflow - (565600d) - piclaw
+#### Continuous Integration
+- (**release**) adopt Cocogitto-native releases - (30bf521) - piclaw
+- restore Forgejo checks and infrastructure - (e1eee39) - piclaw
+
+- - -
+
 
 ## [0.7.0](https://github.com/Darkkal/web-gallery/compare/v0.6.0...v0.7.0) (2026-08-07)
 
