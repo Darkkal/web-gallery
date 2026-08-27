@@ -1,0 +1,207 @@
+name: Version with Cocogitto
+
+# Manual, owner-triggered Cocogitto versioning (issue #167).
+#
+# This workflow ONLY versions: it validates conventional history, runs the real
+# `cog bump --auto`, verifies the resulting Git state, and atomically pushes the
+# generated version commit + vX.Y.Z tag to protected master. It never builds,
+# never publishes a Forgejo Release, never touches OCI/containers, and never
+# runs on an ordinary push. Publication is the responsibility of the GitHub
+# tag-only workflow (`.github/workflows/release.yml`) after the one-way mirror
+# propagates the tag.
+#
+# Ordinary Forgejo pushes to master never version or publish here.
+#
+# Retry boundary:
+#   - Failure BEFORE the atomic push: no remote state changed; fix and dispatch
+#     again.
+#   - Atomic version commit/tag landed: versioning is COMPLETE even if a later
+#     publication step fails. Never dispatch Cocogitto again for the same source.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  # Pinned Cocogitto version + expected sha256 digest (verified after download).
+  COG_VERSION: "7.0.0"
+  COG_SHA256: "e03938ff2c4c86d71c00c0f3284dbbe95c5ca76fe34a51f33e945c23010d59bb"
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail fast on missing release credentials
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          RELEASE_USER: ${{ secrets.RELEASE_USER }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_TOKEN}" ]; then
+            echo "::error::secret 'RELEASE_TOKEN' is not set or empty; the atomic version push cannot authenticate"
+            exit 1
+          fi
+          if [ -z "${RELEASE_USER}" ]; then
+            echo "::error::secret 'RELEASE_USER' is not set or empty; required for the release identity"
+            exit 1
+          fi
+          echo "release credentials present"
+
+      - name: Checkout (full history, no persisted credentials)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify checked-out ref is master
+        run: |
+          set -euo pipefail
+          REF="${{ github.ref }}"
+          # Manual dispatch must target master; never version/push a feature
+          # branch's unmerged commits into protected master (#167 review).
+          if [ "${REF}" != "refs/heads/master" ]; then
+            echo "::error::Version with Cocogitto must be dispatched on 'master', got '${REF}'"
+            exit 1
+          fi
+          ACTUAL_HEAD="$(git rev-parse HEAD)"
+          REMOTE_MASTER="$(git ls-remote origin refs/heads/master | head -1 | cut -f1 || true)"
+          if [ -n "${REMOTE_MASTER}" ] && [ "${ACTUAL_HEAD}" != "${REMOTE_MASTER}" ]; then
+            echo "::error::current checkout HEAD ${ACTUAL_HEAD} is not remote master ${REMOTE_MASTER}; refusing to version an unpushed or non-master ref"
+            exit 1
+          fi
+          echo "OK: dispatching on master (${ACTUAL_HEAD})"
+
+      - name: Resolve runner-reachable Forgejo host
+        run: |
+          set -euo pipefail
+          SCHEME="${GITHUB_SERVER_URL%%://*}"
+          HOST="${GITHUB_SERVER_URL#*://}"; HOST="${HOST%/}"
+          echo "FORGEJO_SCHEME=${SCHEME}" >> "$GITHUB_ENV"
+          echo "FORGEJO_HOST=${HOST}" >> "$GITHUB_ENV"
+
+      - name: Install pinned Cocogitto (digest-verified)
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/cocogitto/cocogitto/releases/download/${COG_VERSION}"
+          curl -fsSL "${BASE}/cocogitto-${COG_VERSION}-x86_64-unknown-linux-musl.tar.gz" -o /tmp/cog.tar.gz
+          printf '%s  %s\n' "${COG_SHA256}" /tmp/cog.tar.gz | sha256sum --check --strict -
+          COG_BIN="$(tar -tzf /tmp/cog.tar.gz | grep -E '(^|/)cog$' | head -1)"
+          tar -xzf /tmp/cog.tar.gz -C /tmp
+          install -Dm755 "/tmp/${COG_BIN}" /usr/local/bin/cog
+
+      - name: Validate conventional commit history
+        run: cog check --from-latest-tag
+
+      - name: Record pre-bump Git state
+        id: before
+        run: |
+          set -euo pipefail
+          echo "HEAD=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "TAGS=$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | paste -sd, -)" >> "$GITHUB_OUTPUT"
+          echo "STATUS=$(git status --porcelain | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+
+      - name: Configure deterministic release identity
+        env:
+          RELEASE_USER: ${{ secrets.RELEASE_USER }}
+        run: |
+          set -euo pipefail
+          git config user.name "${RELEASE_USER}"
+          git config user.email "${RELEASE_USER}@users.noreply.${FORGEJO_HOST%/}"
+
+      - name: Bump (fail-closed)
+        id: bump
+        run: |
+          set -euo pipefail
+          # A real `cog bump --auto` runs under fail-closed settings; a non-zero
+          # exit aborts the job before any push. Clean no-op detection is done
+          # purely from unchanged Git state (below), never from stdout parsing.
+          cog bump --auto
+
+      - name: Classify result and verify produced state
+        id: verify
+        env:
+          BEFORE_HEAD: ${{ steps.before.outputs.HEAD }}
+          BEFORE_TAGS: ${{ steps.before.outputs.TAGS }}
+        run: |
+          set -euo pipefail
+          NEW_HEAD="$(git rev-parse HEAD)"
+          NEW_TAGS="$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | paste -sd, -)"
+          STATUS="$(git status --porcelain | tr '\n' ' ')"
+          if [ "${BEFORE_HEAD}" = "${NEW_HEAD}" ] && [ "${BEFORE_TAGS}" = "${NEW_TAGS}" ] && [ -z "${STATUS}" ]; then
+            echo "No version changes produced (clean no-op); nothing to push."
+            echo "RELEASE_REQUIRED=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -z "${NEW_TAGS}" ]; then
+            echo "::error::cog bump --auto changed Git state but produced no vX.Y.Z tag at HEAD"
+            exit 1
+          fi
+          if [ -n "${STATUS}" ]; then
+            echo "::error::unclean worktree after bump: ${STATUS}"
+            exit 1
+          fi
+          echo "RELEASE_REQUIRED=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release contract (one commit, one tag, aligned version)
+        if: steps.verify.outputs.RELEASE_REQUIRED == 'true'
+        run: |
+          set -euo pipefail
+          # Exactly one new version commit at HEAD, whose subject matches a
+          # vX.Y.Z tag at HEAD, and the manifest/changelog agree.
+          LAST="$(git log -1 --format='%s')"
+          TAG="$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)"
+          [ -z "${TAG}" ] && { echo "::error::no v<semver> tag at HEAD"; exit 1; }
+          VERSION="${TAG#v}"
+          echo "tag=${TAG} version=${VERSION}"
+          echo "${LAST}" | grep -Eq "^chore\(version\): v${VERSION}$" || {
+            echo "::error::HEAD subject '${LAST}' is not 'chore(version): v${VERSION}'"
+            exit 1
+          }
+          # Manifest + lockfile version agreement.
+          MANIFEST="$(node -p "require('./package.json').version")"
+          [ "${MANIFEST}" = "${VERSION}" ] || { echo "::error::package.json version '${MANIFEST}' != '${VERSION}'"; exit 1; }
+          if [ -f package-lock.json ]; then
+            LOCK="$(node -p "require('./package-lock.json').version")"
+            [ "${LOCK}" = "${VERSION}" ] || { echo "::error::package-lock version '${LOCK}' != '${VERSION}'"; exit 1; }
+          fi
+          grep -q "^## v${VERSION}" CHANGELOG.md || { echo "::error::CHANGELOG.md lacks '## v${VERSION}' section"; exit 1; }
+          echo "release contract verified (${TAG})"
+
+      - name: Reject conflicting remote tag/branch state
+        if: steps.verify.outputs.RELEASE_REQUIRED == 'true'
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          REMOTE="http://x-access-token:${RELEASE_TOKEN}@${FORGEJO_HOST%/}/${{ github.repository }}.git"
+          TAG="$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)"
+          if git ls-remote --tags "${REMOTE}" "refs/tags/${TAG}" | grep -q .; then
+            echo "::error::remote tag ${TAG} already exists; refusing to push a conflicting version"
+            exit 1
+          fi
+          # Also refuse if master is not a fast-forward of the current HEAD.
+          REMOTE_MASTER="$(git ls-remote "${REMOTE}" refs/heads/master | head -1 | cut -f1)"
+          if [ -n "${REMOTE_MASTER}" ] && [ "${REMOTE_MASTER}" != "$(git rev-parse HEAD)" ] && ! git merge-base --is-ancestor "${REMOTE_MASTER}" HEAD; then
+            echo "::error::remote master ${REMOTE_MASTER} is not an ancestor of local HEAD; refusing atomic push"
+            exit 1
+          fi
+          echo "remote state consistent"
+
+      - name: Atomic push version commit + tag
+        if: steps.verify.outputs.RELEASE_REQUIRED == 'true'
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          RELEASE_USER: ${{ secrets.RELEASE_USER }}
+        run: |
+          set -euo pipefail
+          REMOTE="http://${RELEASE_USER}:${RELEASE_TOKEN}@${FORGEJO_HOST%/}/${{ github.repository }}.git"
+          TAG="$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)"
+          git push --atomic "${REMOTE}" "HEAD:refs/heads/master" "refs/tags/${TAG}"
+          echo "pushed ${TAG} atomically to master"
+
+      - name: No-op outcome
+        if: steps.verify.outputs.RELEASE_REQUIRED != 'true'
+        run: |
+          echo "clean no-op: no version commit/tag produced; nothing pushed."

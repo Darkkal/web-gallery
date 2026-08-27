@@ -1,9 +1,11 @@
 name: Release and Package
 
-# GitHub mirror release: forked pipeline, triggered by the `v*` tag that the
-# canonical Forgejo pipeline (Cocogitto, .forgejo/workflows/release.yml) creates
-# and the mirror propagates. This workflow only packages that same tag for
-# GitHub/GHCR so the two sides never compute competing versions.
+# GitHub mirror release: triggered by the `v*` tag that the maintainer-
+# dispatched Cocogitto versioning workflow (.forgejo/workflows/version.yml)
+# creates on Forgejo master and the one-way mirror propagates to GitHub. This
+# workflow ONLY packages that same immutable tag for GitHub/GHCR so the two
+# sides never compute competing versions. Never dispatch it manually for a
+# version that has not been created by Cocogitto first.
 on:
   push:
     tags:
