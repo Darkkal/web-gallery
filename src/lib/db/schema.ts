@@ -311,6 +311,13 @@ export const mediaItems = sqliteTable(
   },
   (table) => ({
     postIdIdx: index("idx_media_items_post_id").on(table.postId),
+    // Gallery read-path (#156): the one-thumbnail-per-post query groups by
+    // COALESCE(post_id, -id). A plain post_id index cannot serve that
+    // expression, forcing a full scan + temp b-tree per page. An expression
+    // index on the exact group key removes the GROUP BY temp b-tree.
+    galleryGroupIdx: index("idx_media_items_gallery_group").on(
+      sql`COALESCE(${table.postId}, -${table.id})`,
+    ),
   }),
 );
 

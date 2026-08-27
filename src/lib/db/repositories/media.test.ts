@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { setupTestDb } from "../../../../tests/unit/helpers/db";
 import {
@@ -231,6 +232,43 @@ describe("Media Repository", () => {
       const single = await getMediaItemById(media.id);
       expect(single).toBeDefined();
       expect(single?.item.id).toBe(media.id);
+    });
+  });
+
+  describe("gallery query index (#156)", () => {
+    it("uses the expression index on the gallery group key (no temp b-tree for GROUP BY)", async () => {
+      const source = await seedSource(testDb);
+      const post = await seedPost(testDb, source.id);
+      await seedMediaItem(testDb, post.id);
+      await seedMediaItem(testDb, post.id);
+      const standalone = await seedPost(testDb, source.id);
+      await seedMediaItem(testDb, standalone.id);
+
+      // The gallery read path groups media items by COALESCE(post_id, -id)
+      // (#141). A bare post_id index cannot serve that expression; this test
+      // pins that the schema ships an expression index on the exact group key
+      // so the plan avoids a full-scan + temp b-tree per page (#156).
+      const plans = await testDb.all(
+        sql`EXPLAIN QUERY PLAN SELECT media_items.id, g.group_count
+          FROM media_items
+          INNER JOIN (SELECT MIN(media_items.id) AS min_id, COUNT(*) AS group_count
+                      FROM media_items
+                      WHERE media_items.media_type != 'text'
+                      GROUP BY COALESCE(media_items.post_id, -media_items.id)) AS g
+            ON media_items.id = g.min_id
+          WHERE media_items.media_type != 'text'
+          ORDER BY COALESCE(media_items.captured_at, media_items.created_at, 0) DESC, media_items.id DESC
+          LIMIT 50`,
+      );
+      const details = (plans as Array<{ detail: string }>).map((p) => p.detail);
+      expect(
+        details.some((d) =>
+          d.includes("USING INDEX idx_media_items_gallery_group"),
+        ),
+      ).toBe(true);
+      expect(
+        details.some((d) => d.includes("USE TEMP B-TREE FOR GROUP BY")),
+      ).toBe(false);
     });
   });
 });

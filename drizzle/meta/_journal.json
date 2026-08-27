@@ -127,6 +127,14 @@
       "when": 1786176000000,
       "tag": "0017_dynamic_playlists",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1787874906560,
+      "tag": "0018_media_gallery_group_index",
+      "breakpoints": true,
+      "path": "0018_media_gallery_group_index.sql"
     }
   ]
 }
