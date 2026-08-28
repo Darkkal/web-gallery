@@ -99,6 +99,25 @@ describe("Media Repository", () => {
   });
 
   describe("getMediaItems", () => {
+    it("filters through FTS before grouping and preserves groupCount", async () => {
+      const source = await seedSource(testDb);
+      const matchingPost = await seedPost(testDb, source.id, {
+        title: "gallery-filter-needle",
+      });
+      await seedMediaItem(testDb, matchingPost.id);
+      await seedMediaItem(testDb, matchingPost.id);
+      const nonMatchingPost = await seedPost(testDb, source.id, {
+        title: "unrelated-gallery-post",
+      });
+      await seedMediaItem(testDb, nonMatchingPost.id);
+
+      const { items } = await getMediaItems({ search: "needle" });
+
+      expect(items).toHaveLength(1);
+      expect(items[0].item.postId).toBe(matchingPost.id);
+      expect(items[0].groupCount).toBe(2);
+    });
+
     it("should fetch first media item per post as thumbnail with total groupCount", async () => {
       const source = await seedSource(testDb);
       const post = await seedPost(testDb, source.id);
