@@ -239,9 +239,18 @@ This project supports compiling a dependency-free standalone binary using `@yao-
 5. **Async by default**: All database operations are async. The `@libsql/client` driver does not support synchronous calls.
 6. **Utility deduplication**: Shared utility functions (e.g., `parseSizeToBytes`, `formatBytes`) live in `src/lib/utils/`. Do not duplicate them across files.
 7. **Per-page metadata**: Each route should export its own `metadata` object for proper tab titles.
-8. **Conventional Commit Messages**: Releases are managed by [Cocogitto](https://docs.cocogitto.io/) in Forgejo Actions: every push to `master` derives the next SemVer and the CHANGELOG entry from commit subjects (`cog bump --auto`). Every commit on `master` must follow the [Conventional Commits specification](https://www.conventionalcommits.org/) (e.g., `feat(playlists): ...`, `fix(config): ...`, `ci(release): ...`) — `cog check` rejects anything else.
+8. **Conventional Commit Messages & Manual Cocogitto Versioning**: Releases follow the [Conventional Commits](https://www.conventionalcommits.org/) specification (e.g., `feat(playlists): ...`, `fix(config): ...`, `ci(release): ...`) — `cog check` rejects anything else. Versioning is **manual and owner-dispatched** via the Forgejo workflow `.forgejo/workflows/version.yml` (`Version with Cocogitto`): it runs a real `cog bump --auto`, then atomically pushes the version commit + `vX.Y.Z` tag to protected `master`. Ordinary pushes to `master` **never** version or publish.
 
-   PR titles stay issue-style (`<number>-<name>`); they never become commits. Inside a PR keep **one short conventional commit**, amending it until review passes; for an intentionally multi-commit PR, clean up locally with autosquash before pushing. PRs merge with **Rebase then fast-forward** so the branch's reviewed commits land verbatim: merge commits and squash subjects (the PR title) would break `cog check` on `master`.
+   **Owner release procedure:**
+   1. Merge release-worthy Conventional Commits into `master`; wait for Forgejo CI to pass.
+   2. Manually dispatch **Version with Cocogitto** on `master` when ready to release.
+   3. If Cocogitto fails **before** the atomic push: no remote state changed — fix and dispatch again.
+   4. If the version commit + tag landed but GitHub publication later fails: **never** dispatch Cocogitto again for that source. Instead rerun the immutable-tag GitHub workflow (`.github/workflows/release.yml`); do not move/reuse the tag or create another version.
+   5. A **no-op** dispatch is normal and expected (when there is nothing new to release after the latest tag): it produces no push and leaves `master`/tags unchanged.
+
+   **Commit message rules:** PR titles stay issue-style (`<number>-<name>`); they never become commits. Inside a PR keep **one short conventional commit**, amending it until review passes; for an intentionally multi-commit PR, clean up locally with autosquash before pushing. PRs merge with **Rebase then fast-forward** so the branch's reviewed commits land verbatim — merge commits and squash subjects (the PR title) would break `cog check` on `master` because they are not conventional.
+
+   **Tags are immutable:** once `vX.Y.Z` is pushed, it is never moved or re-used. Verify the GitHub Release assets and GHCR image digest after the mirror publishes, then confirm the tag checksum. Requires a dedicated release credential (`RELEASE_TOKEN` / `RELEASE_USER`) that can authenticate the atomic push; see `.forgejo/workflows/version.yml`.
 9. **Keep Documentation in Sync**: When implementing new features, modifications to subsystems, or introducing new architectural patterns, you MUST update both `ARCHITECTURE.md` and `CONTRIBUTING.md` to reflect these changes. Keeping documentation co-located and synchronized with code changes ensures future contributors (both human and AI) maintain complete context.
 
 ---
