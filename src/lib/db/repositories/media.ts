@@ -231,14 +231,6 @@ export async function getMediaItems(filters?: {
     subqueryConditions.push(inArray(mediaItems.postId, sourcePostSubquery));
   }
 
-  if (expandedSearch) {
-    const ftsPostSubquery = db
-      .select({ id: sql<number>`rowid` })
-      .from(sql`posts_fts`)
-      .where(sql`posts_fts MATCH ${expandedSearch}`);
-    subqueryConditions.push(inArray(mediaItems.postId, ftsPostSubquery));
-  }
-
   if (filters?.playlistId && !isDynamicPlaylist) {
     const playlistItemSubquery = db
       .select({ mediaItemId: playlistItems.mediaItemId })
@@ -246,16 +238,6 @@ export async function getMediaItems(filters?: {
       .where(eq(playlistItems.playlistId, filters.playlistId));
     subqueryConditions.push(inArray(mediaItems.id, playlistItemSubquery));
   }
-
-  const groupSubquery = db
-    .select({
-      minId: sql<number>`MIN(${mediaItems.id})`.as("min_id"),
-      groupCount: sql<number>`COUNT(*)`.as("group_count"),
-    })
-    .from(mediaItems)
-    .where(and(...subqueryConditions))
-    .groupBy(sql`COALESCE(${mediaItems.postId}, -${mediaItems.id})`)
-    .as("group_subquery");
 
   const searchSubquery = expandedSearch
     ? db
@@ -269,6 +251,25 @@ export async function getMediaItems(filters?: {
         .where(sql`posts_fts MATCH ${expandedSearch}`)
         .as("search_subquery")
     : undefined;
+
+  let groupQuery = db
+    .select({
+      minId: sql<number>`MIN(${mediaItems.id})`.as("min_id"),
+      groupCount: sql<number>`COUNT(*)`.as("group_count"),
+    })
+    .from(mediaItems);
+
+  if (searchSubquery) {
+    groupQuery = groupQuery.innerJoin(
+      searchSubquery,
+      eq(mediaItems.postId, searchSubquery.search_id),
+    ) as unknown as typeof groupQuery;
+  }
+
+  const groupSubquery = groupQuery
+    .where(and(...subqueryConditions))
+    .groupBy(sql`COALESCE(${mediaItems.postId}, -${mediaItems.id})`)
+    .as("group_subquery");
 
   const rankCol = searchSubquery?.rank;
 
@@ -353,7 +354,9 @@ export async function getMediaItems(filters?: {
     .innerJoin(groupSubquery, eq(mediaItems.id, groupSubquery.minId))
     .$dynamic();
 
-  if (searchSubquery) {
+  // The grouping subquery already restricts rows to the FTS relation. Join
+  // it again only for relevance sorting, where the rank column is required.
+  if (searchSubquery && sortBy === "relevance") {
     resultsQuery = resultsQuery.innerJoin(
       searchSubquery,
       eq(mediaItems.postId, searchSubquery.search_id),
