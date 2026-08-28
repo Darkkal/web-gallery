@@ -6,8 +6,9 @@ import { db } from "@/lib/db";
 import { scrapeHistory, scraperDownloadLogs } from "@/lib/db/schema";
 import { queueIncrementalScan } from "@/lib/library/scanner";
 import { type ScrapeLimits, ScraperRunner } from "@/lib/scrapers/runner";
+import { getScrapeHistoryMetrics } from "@/lib/scrapers/status";
 import type { BaseScraperStrategy } from "@/lib/scrapers/strategies/base";
-import type { ScrapeProgress } from "@/lib/scrapers/types";
+import type { ScrapeProgress, ScrapeResult } from "@/lib/scrapers/types";
 import { parseSizeToBytes } from "@/lib/utils/format";
 
 export interface ScrapingStatus extends ScrapeProgress {
@@ -21,6 +22,14 @@ export interface ScrapingStatus extends ScrapeProgress {
   lastDbUpdate?: number;
   resumeCursor?: string;
   status?: "running" | "completed" | "stopped" | "failed";
+}
+
+interface ScrapeStartOptions {
+  mode?: "full" | "quick";
+  taskId?: number;
+  limits?: ScrapeLimits;
+  cursor?: string;
+  background?: boolean;
 }
 
 class ScraperManager {
@@ -76,12 +85,21 @@ class ScraperManager {
     type: "gallery-dl" | "yt-dlp",
     url: string,
     downloadDir: string,
-    options: {
-      mode?: "full" | "quick";
-      taskId?: number;
-      limits?: ScrapeLimits;
-      cursor?: string;
-    } = {},
+    options: ScrapeStartOptions & { background: true },
+  ): Promise<{ historyId: number } | undefined>;
+  async startScrape(
+    sourceId: number,
+    type: "gallery-dl" | "yt-dlp",
+    url: string,
+    downloadDir: string,
+    options?: ScrapeStartOptions & { background?: false },
+  ): Promise<ScrapeResult | undefined>;
+  async startScrape(
+    sourceId: number,
+    type: "gallery-dl" | "yt-dlp",
+    url: string,
+    downloadDir: string,
+    options: ScrapeStartOptions = {},
   ) {
     console.log(
       `[ScraperManager] STARTING scrape for source ID: ${sourceId} (${type}) - URL: ${url}`,
@@ -166,45 +184,41 @@ class ScraperManager {
         cursor: options.cursor,
         onProgress: (p) => {
           const current = this.activeScrapes.get(sourceId);
-          if (current) {
-            current.status = { ...current.status, ...p };
+          if (!current || current.status.historyId !== historyId) return;
 
-            // Throttle database updates to every 5 seconds
-            const now = Date.now();
-            if (
-              !current.status.lastDbUpdate ||
-              now - current.status.lastDbUpdate > 5000
-            ) {
-              current.status.lastDbUpdate = now;
+          // Keep one run-local status object so finalization still has the
+          // latest counters after a stop releases the source slot.
+          Object.assign(status, p);
 
-              const durationSeconds =
-                (now - current.status.startTime.getTime()) / 1000;
-              const bytesDownloaded = this.parseSizeToBytes(
-                current.status.totalSize,
+          // Throttle database updates to every 5 seconds
+          const now = Date.now();
+          if (!status.lastDbUpdate || now - status.lastDbUpdate > 5000) {
+            status.lastDbUpdate = now;
+
+            const durationSeconds = (now - status.startTime.getTime()) / 1000;
+            const bytesDownloaded = this.parseSizeToBytes(status.totalSize);
+            const averageSpeed =
+              durationSeconds > 0
+                ? Math.floor(bytesDownloaded / durationSeconds)
+                : 0;
+
+            db.update(scrapeHistory)
+              .set({
+                filesDownloaded: status.downloadedCount,
+                bytesDownloaded,
+                errorCount: status.errorCount,
+                skippedCount: status.skippedCount,
+                postsProcessed: status.postsProcessed,
+                averageSpeed,
+              })
+              .where(eq(scrapeHistory.id, historyId))
+              .execute()
+              .catch((err) =>
+                console.error(
+                  `[ScraperManager] Failed to update progress for history ${historyId}`,
+                  err,
+                ),
               );
-              const averageSpeed =
-                durationSeconds > 0
-                  ? Math.floor(bytesDownloaded / durationSeconds)
-                  : 0;
-
-              db.update(scrapeHistory)
-                .set({
-                  filesDownloaded: current.status.downloadedCount,
-                  bytesDownloaded,
-                  errorCount: current.status.errorCount,
-                  skippedCount: current.status.skippedCount,
-                  postsProcessed: current.status.postsProcessed,
-                  averageSpeed,
-                })
-                .where(eq(scrapeHistory.id, current.status.historyId))
-                .execute()
-                .catch((err) =>
-                  console.error(
-                    `[ScraperManager] Failed to update progress for history ${current.status.historyId}`,
-                    err,
-                  ),
-                );
-            }
           }
         },
       },
@@ -213,7 +227,7 @@ class ScraperManager {
 
     this.activeScrapes.set(sourceId, { process: child, status, strategy });
 
-    return promise
+    const completion = promise
       .then(async (result) => {
         let logMsg = result.error || result.output || "";
         if (logMsg.length > 200) {
@@ -254,57 +268,48 @@ class ScraperManager {
         }
 
         const current = this.activeScrapes.get(sourceId);
-        if (current) {
-          current.status.isFinished = true;
-          const finalStatus = current.strategy.manualStop
-            ? "stopped"
-            : result.success
-              ? "completed"
-              : "failed";
-          current.status.status = finalStatus;
+        // A stopped run can be replaced before its child exits. In that case
+        // the map points at the replacement, so use the run-local status and
+        // never mutate the replacement's history row.
+        const runStatus =
+          current?.status.historyId === historyId ? current.status : status;
+        runStatus.isFinished = true;
+        const finalStatus = strategy.manualStop
+          ? "stopped"
+          : result.success
+            ? "completed"
+            : "failed";
+        runStatus.status = finalStatus;
 
-          // Update history record with final metrics
-          const endTime = new Date();
-          const durationSeconds =
-            (endTime.getTime() - startTime.getTime()) / 1000;
-          const bytesDownloaded = this.parseSizeToBytes(
-            current.status.totalSize,
-          );
-          const averageSpeed =
-            durationSeconds > 0
-              ? Math.floor(bytesDownloaded / durationSeconds)
-              : 0;
+        await db
+          .update(scrapeHistory)
+          .set({
+            ...getScrapeHistoryMetrics(runStatus, new Date()),
+            status: finalStatus,
+            lastError: result.error || (result.success ? null : result.output),
+            cursor: result.cursor || runStatus.cursor || null,
+          })
+          .where(eq(scrapeHistory.id, historyId));
 
-          await db
-            .update(scrapeHistory)
-            .set({
-              endTime,
-              status: finalStatus,
-              filesDownloaded: current.status.downloadedCount,
-              bytesDownloaded,
-              errorCount: current.status.errorCount,
-              skippedCount: current.status.skippedCount,
-              postsProcessed: current.status.postsProcessed,
-              averageSpeed,
-              lastError:
-                result.error || (result.success ? null : result.output),
-              cursor: result.cursor || current.status.cursor || null,
-            })
-            .where(eq(scrapeHistory.id, historyId));
+        console.log(
+          `[ScraperManager] Updated history record ${historyId} with final metrics`,
+        );
 
-          console.log(
-            `[ScraperManager] Updated history record ${historyId} with final metrics`,
-          );
+        // Queue incremental scan for only the downloaded files
+        console.log(
+          `[ScraperManager] Queuing incremental scan for ${result.items?.length ?? 0} downloaded files...`,
+        );
+        queueIncrementalScan(result.items ?? []);
 
-          // Queue incremental scan for only the downloaded files
-          console.log(
-            `[ScraperManager] Queuing incremental scan for ${result.items?.length ?? 0} downloaded files...`,
-          );
-          queueIncrementalScan(result.items ?? []);
-
-          // Keep it in the map for a bit so the UI can see "Finished"
+        // Keep the current run in the map for a bit so the UI can see
+        // "Finished", but never remove a replacement run.
+        if (current?.status.historyId === historyId) {
           setTimeout(() => {
-            this.activeScrapes.delete(sourceId);
+            if (
+              this.activeScrapes.get(sourceId)?.status.historyId === historyId
+            ) {
+              this.activeScrapes.delete(sourceId);
+            }
           }, 30000); // 30 seconds
         }
 
@@ -323,7 +328,9 @@ class ScraperManager {
           })
           .where(eq(scrapeHistory.id, historyId));
 
-        this.activeScrapes.delete(sourceId);
+        if (this.activeScrapes.get(sourceId)?.status.historyId === historyId) {
+          this.activeScrapes.delete(sourceId);
+        }
 
         // No result.items available on promise rejection — log and let user manually full-scan if needed
         console.log(
@@ -332,6 +339,18 @@ class ScraperManager {
 
         throw err;
       });
+
+    if (options.background) {
+      void completion.catch((err) =>
+        console.error(
+          `[ScraperManager] Background scrape failed for source ${sourceId}:`,
+          err,
+        ),
+      );
+      return { historyId };
+    }
+
+    return completion;
   }
 
   getStatus(sourceId: number): ScrapingStatus | undefined {
@@ -354,6 +373,21 @@ class ScraperManager {
       active.strategy.intentionalStop = true;
       active.strategy.manualStop = true;
       active.status.status = "stopped";
+
+      // Persist the stop immediately so the History tab does not depend on
+      // the child process exiting before it can display the new state.
+      await db
+        .update(scrapeHistory)
+        .set({
+          ...getScrapeHistoryMetrics(active.status, new Date()),
+          status: "stopped",
+        })
+        .where(eq(scrapeHistory.id, active.status.historyId));
+
+      // Release the source slot immediately. The child process may take a
+      // moment to exit after SIGINT, but a subsequent manual run must create
+      // its own history row instead of being rejected as the old run.
+      this.activeScrapes.delete(sourceId);
 
       if (pid) {
         if (process.platform === "win32") {

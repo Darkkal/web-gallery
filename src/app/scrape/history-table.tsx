@@ -2,30 +2,19 @@
 
 import { formatDistanceToNow } from "date-fns";
 import { FileText, RotateCcw } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getActiveScrapeStatuses,
   getScrapeHistory,
   resumeFromHistory,
 } from "@/app/scrape/actions";
 import LogViewerModal from "@/app/scrape/components/log-viewer-modal";
+import {
+  mergeHistoryWithActiveStatuses,
+  type ScrapeHistoryRecord,
+} from "@/app/scrape/history-state";
 import styles from "@/app/scrape/page.module.css";
 import { formatDuration } from "@/lib/utils/format";
-
-interface HistoryItem {
-  id: number;
-  startTime: Date;
-  endTime: Date | null;
-  status: "running" | "completed" | "stopped" | "failed";
-  filesDownloaded: number | null;
-  skippedCount: number | null;
-  postsProcessed: number | null;
-  bytesDownloaded: number | null;
-  errorCount: number | null;
-  cursor: string | null;
-  sourceId: number;
-  taskId: number | null;
-}
 
 function DurationTimer({
   startTime,
@@ -74,93 +63,49 @@ function DurationTimer({
 export default function ScrapeHistoryTable({
   initialHistory,
 }: {
-  initialHistory: HistoryItem[];
+  initialHistory: ScrapeHistoryRecord[];
 }) {
   const [historyItems, setHistoryItems] =
-    useState<HistoryItem[]>(initialHistory);
-  const [selectedLogItem, setSelectedLogItem] = useState<HistoryItem | null>(
-    null,
-  );
-
-  useEffect(() => {
-    setHistoryItems(initialHistory);
-  }, [initialHistory]);
+    useState<ScrapeHistoryRecord[]>(initialHistory);
+  const [selectedLogItem, setSelectedLogItem] =
+    useState<ScrapeHistoryRecord | null>(null);
+  const mountedRef = useRef(false);
+  const refreshInFlightRef = useRef(false);
 
   const refreshHistory = useCallback(async () => {
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+
     try {
-      const freshHistory = await getScrapeHistory();
-      const mapped: HistoryItem[] = freshHistory.map(
-        (h: Record<string, unknown>) => ({
-          id: h.id as number,
-          startTime: h.startTime as Date,
-          endTime: h.endTime as Date | null,
-          status: h.status as "running" | "completed" | "stopped" | "failed",
-          filesDownloaded: h.filesDownloaded as number | null,
-          skippedCount: h.skippedCount as number | null,
-          postsProcessed: h.postsProcessed as number | null,
-          bytesDownloaded: h.bytesDownloaded as number | null,
-          errorCount: h.errorCount as number | null,
-          cursor: (h.cursor as string) || null,
-          sourceId: h.sourceId as number,
-          taskId: (h.taskId as number) || null,
-        }),
-      );
-      setHistoryItems(mapped);
+      const [freshHistory, activeStatuses] = await Promise.all([
+        getScrapeHistory(),
+        getActiveScrapeStatuses(),
+      ]);
+      if (mountedRef.current) {
+        setHistoryItems(
+          mergeHistoryWithActiveStatuses(freshHistory, activeStatuses),
+        );
+      }
     } catch (err) {
       console.error("Failed to refresh history:", err);
+    } finally {
+      refreshInFlightRef.current = false;
     }
   }, []);
 
+  // Poll continuously while the History tab is mounted. This is deliberately
+  // independent of the currently displayed rows so a task started elsewhere
+  // can be discovered even when the previous snapshot had no running rows.
   useEffect(() => {
-    const hasRunning = historyItems.some((i) => i.status === "running");
-    if (!hasRunning) return;
+    mountedRef.current = true;
+    void refreshHistory();
+    const interval = setInterval(() => void refreshHistory(), 1000);
 
-    const interval = setInterval(async () => {
-      try {
-        const active = await getActiveScrapeStatuses();
-        const runningItemIds = historyItems
-          .filter((i) => i.status === "running")
-          .map((i) => i.id);
-
-        // Check if any running items are no longer in the active list
-        const missingIds = runningItemIds.filter(
-          (id) => !active.some((a) => a.historyId === id),
-        );
-
-        if (missingIds.length > 0) {
-          // At least one previously-running task is no longer active.
-          // The DB has the final status, so re-fetch history from DB.
-          await refreshHistory();
-          return;
-        }
-
-        setHistoryItems((prev) =>
-          prev.map((item) => {
-            const activeStatus = active.find((a) => a.historyId === item.id);
-            if (activeStatus) {
-              // If the scraper reports finished, update the item's status and endTime
-              const updates: Partial<HistoryItem> = {
-                filesDownloaded: activeStatus.downloadedCount,
-                skippedCount: activeStatus.skippedCount,
-                postsProcessed: activeStatus.postsProcessed,
-                errorCount: activeStatus.errorCount,
-              };
-              if (activeStatus.isFinished && item.status === "running") {
-                updates.status = activeStatus.status || "completed";
-                updates.endTime = new Date();
-              }
-              return { ...item, ...updates };
-            }
-            return item;
-          }),
-        );
-      } catch (err) {
-        console.error("Failed to poll status:", err);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [historyItems, refreshHistory]);
+    return () => {
+      mountedRef.current = false;
+      clearInterval(interval);
+    };
+  }, [refreshHistory]);
 
   // Helper for bytes formatting
   const formatBytes = (bytes: number) => {
@@ -174,6 +119,7 @@ export default function ScrapeHistoryTable({
   const handleResume = async (historyId: number) => {
     try {
       await resumeFromHistory(historyId);
+      await refreshHistory();
     } catch (error) {
       console.error("Failed to resume scrape:", error);
       alert("Failed to resume scrape");

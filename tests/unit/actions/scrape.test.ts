@@ -42,10 +42,13 @@ import {
   createScrapeTask,
   getScrapeLog,
   getScrapeTask,
+  runTaskNow,
+  stopTask,
   toggleTaskSchedule,
   updateScrapeTask,
 } from "@/app/scrape/actions";
 import { scrapeHistory, scrapingTasks } from "@/lib/db/schema";
+import { scraperManager } from "@/lib/scrapers/manager";
 
 describe("Scrape Server Actions", () => {
   beforeAll(async () => {
@@ -232,6 +235,52 @@ describe("Scrape Server Actions", () => {
       updatedTask = await getScrapeTask(task.id);
       expect(updatedTask?.enabled).toBe(true);
       expect(updatedTask?.nextRunAt).not.toBeNull();
+    });
+  });
+
+  describe("Scrape lifecycle actions", () => {
+    it("returns after launching a manual scrape instead of waiting for completion", async () => {
+      const source = await seedSource(testDb);
+      const [task] = await testDb
+        .insert(scrapingTasks)
+        .values({ sourceId: source.id, name: "Background Task" })
+        .returning();
+
+      vi.mocked(scraperManager.startScrape).mockResolvedValueOnce(undefined);
+
+      await runTaskNow(task.id, "quick");
+
+      expect(scraperManager.startScrape).toHaveBeenLastCalledWith(
+        task.sourceId,
+        "gallery-dl",
+        source.url,
+        expect.any(String),
+        expect.objectContaining({ background: true, mode: "quick" }),
+      );
+    });
+
+    it("waits for the manager to persist a stop before returning", async () => {
+      const source = await seedSource(testDb);
+      const [task] = await testDb
+        .insert(scrapingTasks)
+        .values({ sourceId: source.id, name: "Stopping Task" })
+        .returning();
+      let resolveStop!: (value: boolean) => void;
+      const stopPromise = new Promise<boolean>((resolve) => {
+        resolveStop = resolve;
+      });
+      vi.mocked(scraperManager.stopScrape).mockReturnValueOnce(stopPromise);
+
+      let settled = false;
+      const action = stopTask(task.id).then(() => {
+        settled = true;
+      });
+      await Promise.resolve();
+      expect(settled).toBe(false);
+
+      resolveStop(true);
+      await action;
+      expect(settled).toBe(true);
     });
   });
 });

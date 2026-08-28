@@ -2,7 +2,7 @@
 
 import fs from "node:fs";
 import { and, desc, eq, isNull } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_noStore } from "next/cache";
 import { paths } from "@/lib/config";
 import { db } from "@/lib/db";
 import { scrapeHistory, scrapingTasks, sources } from "@/lib/db/schema";
@@ -201,6 +201,7 @@ export async function runTaskNow(
       taskId: task.id,
       limits: task.downloadOptions || undefined,
       cursor: cursor,
+      background: true,
     },
   );
 
@@ -219,12 +220,15 @@ export async function stopTask(taskId: number) {
   });
 
   if (task) {
-    scraperManager.stopScrape(task.sourceId);
+    await scraperManager.stopScrape(task.sourceId);
     revalidatePath("/scrape");
   }
 }
 
 export async function getScrapeHistory(limit = 50) {
+  // This is called by the client when switching to the History tab. Do not
+  // serve a cached server-action result after a scrape has just started.
+  unstable_noStore();
   return await db.query.scrapeHistory.findMany({
     orderBy: desc(scrapeHistory.startTime),
     limit: limit,
@@ -298,6 +302,7 @@ export async function resumeFromHistory(historyId: number) {
     {
       taskId: history.taskId ?? undefined,
       cursor,
+      background: true,
     },
   );
 

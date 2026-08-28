@@ -2,6 +2,7 @@
 
 import { formatDistanceToNow } from "date-fns";
 import { Check, Pencil, Play, Square, Trash2, X, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import {
   deleteScrapeTask,
@@ -42,6 +43,7 @@ export default function ScrapeTaskList({
   initialTasks: Task[];
   sources: Source[];
 }) {
+  const router = useRouter();
   const [runningTasks, setRunningTasks] = useState<Set<number>>(new Set());
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [savingId, setSavingId] = useState<number | null>(null);
@@ -67,6 +69,9 @@ export default function ScrapeTaskList({
     setRunningTasks((prev) => new Set(prev).add(id));
     try {
       await runTaskNow(id, mode);
+      // Refresh the server-rendered history snapshot before the user switches
+      // tabs; the task action may have started after this page was rendered.
+      router.refresh();
     } catch (error) {
       console.error("Failed to run task:", error);
       alert("Failed to run task");
@@ -84,6 +89,7 @@ export default function ScrapeTaskList({
   const handleStop = async (id: number) => {
     try {
       await stopTask(id);
+      router.refresh();
     } catch (error) {
       console.error("Failed to stop task:", error);
     }
