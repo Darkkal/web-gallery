@@ -1,6 +1,19 @@
 # Changelog
 
 - - -
+## v0.8.1 - 2026-11-09
+#### Bug Fixes
+- (**db**) add gallery group expression index - (e7dfabf) - piclaw
+- (**gallery**) avoid duplicate filtered FTS evaluation - (093d389) - piclaw
+- (**scrape**) keep task history synchronized - (2f74409) - piclaw-worker, *darkkal*
+- (**scraper**) update pinned gallery-dl dependency - (bbe4bd0) - darkkal
+#### Tests
+- (**gallery**) cover filtered FTS grouping - (e173203) - piclaw
+#### Continuous Integration
+- (**release**) isolate manual Cocogitto versioning - (5b3ec11) - piclaw
+
+- - -
+
 ## v0.8.0 - 2026-08-26
 #### Features
 - (**post**) add full post view - (a07504a) - piclaw
