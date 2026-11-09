@@ -558,6 +558,8 @@ docker compose -f compose.debug.yaml up  # With bind-mounted source
 docker compose -f compose.test.yaml up   # E2E test runner
 ```
 
+The development and production image stages install the gallery-dl version pinned by `GALLERY_DL_VERSION` in `Dockerfile` (currently `1.32.19`). Changing that pin invalidates the dependency install layer. Published image updates carry scraper fixes to container deployments; updating gallery-dl on the host does not update the container.
+
 ### Standalone Binary Packaging (Production Releases)
 
 Web Gallery can be compiled into a single executable binary for Linux, macOS, and Windows. This is designed for users who want to run the application natively without setting up a Node.js runtime or Docker.

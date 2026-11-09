@@ -92,7 +92,9 @@ jobs:
           install -Dm755 "/tmp/${COG_BIN}" /usr/local/bin/cog
 
       - name: Validate conventional commit history
-        run: cog check --from-latest-tag
+        # Older branches contain merge commits with Git's default messages.
+        # Validate their constituent commits without rewriting published history.
+        run: cog check --from-latest-tag --ignore-merge-commits
 
       - name: Record pre-bump Git state
         id: before

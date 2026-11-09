@@ -11,7 +11,7 @@ ARCH_NAME=$(uname -m)
 echo "Detected OS: $OS_NAME ($ARCH_NAME)"
 
 # Define download urls
-GALLERY_DL_VERSION="v1.28.5" # Fallback version if API fetch fails
+GALLERY_DL_VERSION="v1.32.19" # Fallback version if API fetch fails
 FFMPEG_URL=""
 FFPROBE_URL=""
 GALLERY_DL_URL=""

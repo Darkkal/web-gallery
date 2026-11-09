@@ -221,6 +221,10 @@ This project supports compiling a dependency-free standalone binary using `@yao-
 - **Rule**: When adding new static files, templates, or folders that must be bundled with the binary, you MUST update the `assets` list in the `"pkg"` config within `package.json` to ensure they are captured by the compiler.
 - **Rule**: Avoid hardcoded references to `process.cwd() + "/public"` or assuming system binaries are globally available. Always check for local binaries in `./bin` using the `getCommandPath` helper and use `path.dirname(paths.downloads)` to resolve public assets correctly.
 
+### Updating gallery-dl
+
+Update the `GALLERY_DL_VERSION` default in `Dockerfile` when releasing scraper fixes. Both development and production stages inherit that pin. Keep the fallback versions in `scripts/setup-deps.sh` and `scripts/setup-deps.ps1` aligned; the native helpers still prefer the latest upstream release when its API is available. Validate the installed version in a disposable image, then use the normal Cocogitto release procedure below. A successful image build does not establish that authenticated scraping works; verify a bounded fetch after deployment.
+
 ### 1.16 Generic Platform Metadata Slots (`GalleryRow`)
 
 `GalleryRow` uses generic `platformDetails` (`extractorType`, `data`) and `platformUser` (`extractorType`, `id`, `name`, `username`, `profileImage`, `data`) slots to decouple UI components (`Lightbox.tsx`, `PostCard.tsx`) from specific database schemas.
@@ -249,6 +253,8 @@ This project supports compiling a dependency-free standalone binary using `@yao-
    5. A **no-op** dispatch is normal and expected (when there is nothing new to release after the latest tag): it produces no push and leaves `master`/tags unchanged.
 
    **Commit message rules:** PR titles stay issue-style (`<number>-<name>`); they never become commits. Inside a PR keep **one short conventional commit**, amending it until review passes; for an intentionally multi-commit PR, clean up locally with autosquash before pushing. PRs merge with **Rebase then fast-forward** so the branch's reviewed commits land verbatim — merge commits and squash subjects (the PR title) would break `cog check` on `master` because they are not conventional.
+
+   The release history check ignores merge commit messages so older branches with Git's default merge subjects remain releasable. It still validates ordinary commits on every merged branch. Continue using Rebase then fast-forward for new PRs.
 
    **Tags are immutable:** once `vX.Y.Z` is pushed, it is never moved or re-used. Verify the GitHub Release assets and GHCR image digest after the mirror publishes, then confirm the tag checksum. Requires a dedicated release credential (`RELEASE_TOKEN` / `RELEASE_USER`) that can authenticate the atomic push; see `.forgejo/workflows/version.yml`.
 9. **Keep Documentation in Sync**: When implementing new features, modifications to subsystems, or introducing new architectural patterns, you MUST update both `ARCHITECTURE.md` and `CONTRIBUTING.md` to reflect these changes. Keeping documentation co-located and synchronized with code changes ensures future contributors (both human and AI) maintain complete context.

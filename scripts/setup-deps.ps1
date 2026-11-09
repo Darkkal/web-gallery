@@ -6,7 +6,7 @@ If (!(Test-Path -Path "bin")) {
 }
 
 Write-Host "Fetching latest gallery-dl release version..."
-$GalleryDlVersion = "v1.28.5" # Fallback version if request fails
+$GalleryDlVersion = "v1.32.19" # Fallback version if request fails
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     $Response = Invoke-RestMethod -Uri "https://codeberg.org/api/v1/repos/mikf/gallery-dl/releases/latest" -UseBasicParsing
