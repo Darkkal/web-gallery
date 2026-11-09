@@ -141,6 +141,8 @@ src/app/gallery/
 - **Rule**: Sub-components import the parent page's `page.module.css` (not their own CSS file) to keep class name hashing consistent.
 - **Rule**: Keep data-fetching orchestration, mutation handlers, and state management in `page-client.tsx`. Extract pure UI rendering into `components/`.
 
+Tag management shares one set of action buttons between cards and table rows. Keep view state independent of list queries so switching views preserves loaded results, filters, selection, and open edits.
+
 ### 1.9 Server Actions — Split by Domain
 
 Server Actions are organized into `src/app/actions/` by domain:
@@ -300,6 +302,8 @@ When running E2E tests locally, Playwright targets the server hosted by the Dock
   docker compose -f compose.test.yaml up --build -d
   ```
   Wait for the build to complete and the container to be healthy before running the E2E tests.
+
+For `tags-manage.serial.spec.ts`, set `PLAYWRIGHT_TAGS_FIXTURE_DB` to the host path of the running test container's SQLite file (by default `test-data/sqlite.db`). The spec creates and removes its own fixture tags. CI configures this path for the server it starts. The read-only `tags-manage.spec.ts` runs in the parallel projects.
 
 ---
 

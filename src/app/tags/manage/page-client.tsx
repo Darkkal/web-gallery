@@ -2,14 +2,14 @@
 
 import {
   ArrowLeft,
-  ChevronDown,
   ChevronUp,
   Edit2,
   FolderEdit,
+  LayoutGrid,
   Link2,
+  List,
   Loader2,
   Merge as MergeIcon,
-  Network,
   Plus,
   RefreshCw,
   Search,
@@ -19,7 +19,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 import {
   addRelatedTag,
   bulkSetTagAlias,
@@ -41,7 +48,24 @@ import {
 } from "@/app/actions/tags";
 import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 import type { TagCategory, TagManageItem } from "@/types/media";
+import TagList from "./components/TagList";
 import styles from "./page.module.css";
+
+const CARD_VIEW_QUERY = "(max-width: 768px)";
+
+function subscribeToViewport(onChange: () => void) {
+  const viewport = window.matchMedia(CARD_VIEW_QUERY);
+  viewport.addEventListener("change", onChange);
+  return () => viewport.removeEventListener("change", onChange);
+}
+
+function prefersCards() {
+  return window.matchMedia(CARD_VIEW_QUERY).matches;
+}
+
+function serverPrefersCards() {
+  return false;
+}
 
 interface TagsManageClientProps {
   initialCategories: TagCategory[];
@@ -56,6 +80,14 @@ export default function TagsManageClient({
   // Categories list state (allowing inline updates)
   const [categoriesList, setCategoriesList] =
     useState<TagCategory[]>(initialCategories);
+
+  const [viewChoice, setViewChoice] = useState<"card" | "table" | null>(null);
+  const mobile = useSyncExternalStore(
+    subscribeToViewport,
+    prefersCards,
+    serverPrefersCards,
+  );
+  const view = viewChoice ?? (mobile ? "card" : "table");
 
   // Tags listing states
   const [tags, setTags] = useState<TagManageItem[]>([]);
@@ -1029,12 +1061,14 @@ export default function TagsManageClient({
               type="text"
               className={styles.input}
               placeholder="Search tags..."
+              aria-label="Search tags"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           <select
             className={styles.select}
+            aria-label="Filter by category"
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
           >
@@ -1048,12 +1082,33 @@ export default function TagsManageClient({
           </select>
           <select
             className={styles.select}
+            aria-label="Sort tags"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as "count" | "name")}
           >
             <option value="count">Most Popular</option>
             <option value="name">Alphabetical</option>
           </select>
+          <div className={styles.viewToggle}>
+            <button
+              type="button"
+              aria-label="Grid View"
+              aria-pressed={view === "card"}
+              title="Grid View"
+              onClick={() => setViewChoice("card")}
+            >
+              <LayoutGrid size={20} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label="List View"
+              aria-pressed={view === "table"}
+              title="List View"
+              onClick={() => setViewChoice("table")}
+            >
+              <List size={20} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </section>
 
@@ -1124,181 +1179,55 @@ export default function TagsManageClient({
         </section>
       )}
 
-      {/* Tags Table */}
-      <section className={styles.tableContainer}>
-        <div className={styles.tableWrapper}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th className={styles.thCheckbox}>
-                  <input
-                    type="checkbox"
-                    className={styles.checkboxInput}
-                    checked={
-                      tags.length > 0 && selectedTagIds.size === tags.length
-                    }
-                    onChange={handleSelectAll}
-                  />
-                </th>
-                <th className={styles.th}>Tag Name</th>
-                <th className={styles.th}>Category</th>
-                <th className={styles.th}>Post Count</th>
-                <th className={styles.th} style={{ textAlign: "right" }}>
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {tags.map((tag) => (
-                <tr
-                  key={tag.id}
-                  className={`${styles.tr} ${selectedTagIds.has(tag.id) ? styles.trSelected : ""}`}
-                >
-                  <td className={styles.tdCheckbox}>
-                    <input
-                      type="checkbox"
-                      className={styles.checkboxInput}
-                      checked={selectedTagIds.has(tag.id)}
-                      onChange={() => handleSelectTag(tag.id)}
-                    />
-                  </td>
-                  <td className={`${styles.td} ${styles.tagNameCell}`}>
-                    <div className={styles.tagNameContainer}>
-                      <Link
-                        href={`/gallery?search=${encodeURIComponent(`tag:${tag.name} `)}`}
-                        className={styles.tagNameLink}
-                        style={{ color: "inherit", textDecoration: "none" }}
-                      >
-                        {tag.name}
-                      </Link>
-                      {tag.aliasName && (
-                        <span
-                          className={styles.aliasIndicator}
-                          title={`Alias of ${tag.aliasName}`}
-                        >
-                          <Link2 size={12} style={{ marginRight: "2px" }} />↳{" "}
-                          {tag.aliasName}
-                        </span>
-                      )}
-                      {tag.parentName && (
-                        <span
-                          className={styles.aliasIndicator}
-                          style={{ marginLeft: "6px" }}
-                          title={`Child of ${tag.parentName}`}
-                        >
-                          <ChevronUp size={12} style={{ marginRight: "2px" }} />
-                          {tag.parentName}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className={styles.td}>
-                    {tag.category ? (
-                      <span
-                        className={styles.categoryBadge}
-                        style={
-                          {
-                            "--tag-hue": tag.category.colorHue,
-                            "--tag-sat": `${tag.category.colorSaturation}%`,
-                            "--tag-lgt": `${tag.category.colorLightness}%`,
-                          } as React.CSSProperties
-                        }
-                      >
-                        {tag.category.name}
-                      </span>
-                    ) : (
-                      <span className={styles.noCategory}>uncategorized</span>
-                    )}
-                  </td>
-                  <td className={styles.td}>{tag.postCount}</td>
-                  <td className={`${styles.td} ${styles.actionsCell}`}>
-                    <button
-                      type="button"
-                      className={styles.iconButton}
-                      title="Rename"
-                      onClick={() => {
-                        setRenameTagItem(tag);
-                        setNewTagNameInput(tag.name);
-                      }}
-                      disabled={isPending}
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.iconButton}
-                      title="Merge into target"
-                      onClick={() => {
-                        setMergeTagItem(tag);
-                        setMergeTargetInput("");
-                      }}
-                      disabled={isPending}
-                    >
-                      <MergeIcon size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.iconButton}
-                      title="Set Alias"
-                      onClick={() => {
-                        setAliasTagItem(tag);
-                        setAliasTargetInput(tag.aliasName || "");
-                      }}
-                      disabled={isPending}
-                    >
-                      <Link2 size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.iconButton}
-                      title="Set Parent"
-                      onClick={() => {
-                        setParentTagItem(tag);
-                        setParentTargetInput(tag.parentName || "");
-                      }}
-                      disabled={isPending || tag.aliasOfTagId !== null}
-                    >
-                      <ChevronUp size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.iconButton}
-                      title="Manage Related"
-                      onClick={() => {
-                        setRelatedTagItem(tag);
-                        setRelatedTargetInput("");
-                      }}
-                      disabled={isPending || tag.aliasOfTagId !== null}
-                    >
-                      <Network size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.iconButton}
-                      title="Set Category"
-                      onClick={() => {
-                        setCategoryTagItem(tag);
-                        setCategoryTargetInput(tag.category?.name || "");
-                      }}
-                      disabled={isPending || tag.aliasOfTagId !== null}
-                    >
-                      <FolderEdit size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.iconButton} ${styles.iconButtonDanger}`}
-                      title="Delete"
-                      onClick={() => handleDeleteSingleTag(tag.id, tag.name)}
-                      disabled={isPending}
-                    >
-                      <Trash size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <section className={view === "table" ? styles.tableContainer : undefined}>
+        <TagList
+          view={view}
+          tags={tags}
+          selectedIds={selectedTagIds}
+          onSelect={handleSelectTag}
+          selectAll={
+            <input
+              type="checkbox"
+              className={styles.checkboxInput}
+              id="select-loaded-tags"
+              aria-label="Select all loaded tags"
+              disabled={tags.length === 0}
+              checked={
+                tags.length > 0 &&
+                tags.every((tag) => selectedTagIds.has(tag.id))
+              }
+              onChange={handleSelectAll}
+            />
+          }
+          pending={isPending}
+          actions={{
+            rename: (tag) => {
+              setRenameTagItem(tag);
+              setNewTagNameInput(tag.name);
+            },
+            merge: (tag) => {
+              setMergeTagItem(tag);
+              setMergeTargetInput("");
+            },
+            alias: (tag) => {
+              setAliasTagItem(tag);
+              setAliasTargetInput(tag.aliasName || "");
+            },
+            parent: (tag) => {
+              setParentTagItem(tag);
+              setParentTargetInput(tag.parentName || "");
+            },
+            related: (tag) => {
+              setRelatedTagItem(tag);
+              setRelatedTargetInput("");
+            },
+            category: (tag) => {
+              setCategoryTagItem(tag);
+              setCategoryTargetInput(tag.category?.name || "");
+            },
+            delete: (tag) => handleDeleteSingleTag(tag.id, tag.name),
+          }}
+        />
 
         {tags.length === 0 && !loading && (
           <div className={styles.emptyState}>

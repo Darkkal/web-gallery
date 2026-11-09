@@ -327,6 +327,8 @@ src/app/gallery/
 
 Sub-components import the parent page's `page.module.css` to keep class name hashing consistent.
 
+On `/tags/manage`, `page-client.tsx` owns pagination, selection, dialogs, and mutations. The tag list renders cards at widths up to 768 CSS pixels and a table at wider widths. Both views use the same data and actions, and an explicit view choice lasts for the current page visit.
+
 ### 3.6 Avatar Proxy & Request Queue
 
 **Location**: [`src/app/api/avatar/`](./src/app/api/avatar/), [`src/lib/request-queue.ts`](./src/lib/request-queue.ts)
@@ -624,6 +626,7 @@ Testing in Web Gallery is split into two primary layers: **E2E Tests** (via Play
 - **Scope**: Validates complete user-facing browser flows (e.g. settings updates, gallery interaction, media deletion, scraper scheduling) on a running production Next.js build.
 - **Isolation**: Runs against a pre-built Docker container defined in `compose.test.yaml`, pointing to a dedicated test SQLite file and downloads folder.
 - **Concurrency**: State-modifying tests (scrapers, settings) are run sequentially (via Playwright serial projects configured in `playwright.config.ts`) to avoid SQLite file lock contentions.
+- **Tag management**: The parallel spec serves controlled list responses for layout and interaction checks. The serial spec inserts its own tags into the disposable database and verifies edits through the UI and in SQLite.
 
 ### 9.2 Vitest Unit/Integration Tests
 - **Scope**: Directly tests database repositories (`src/lib/db/repositories/`) and Server Actions (`src/app/actions/`) in isolation.

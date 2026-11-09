@@ -1,7 +1,14 @@
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 // List of tests that modify global settings or system state and must run sequentially
-const SERIAL_TESTS = ["**/settings.spec.ts", "**/timeline.spec.ts"];
+const SERIAL_TESTS = [
+  "**/settings.spec.ts",
+  "**/timeline.spec.ts",
+  "**/tags-manage.serial.spec.ts",
+];
+
+const ciDataDir = process.env.CI ? path.resolve("test-data") : undefined;
 
 /**
  * Read environment variables from file.
@@ -14,6 +21,11 @@ const SERIAL_TESTS = ["**/settings.spec.ts", "**/timeline.spec.ts"];
  */
 export default defineConfig({
   testDir: "./tests",
+  metadata: {
+    tagsFixtureDb:
+      process.env.PLAYWRIGHT_TAGS_FIXTURE_DB ??
+      (ciDataDir && path.join(ciDataDir, "sqlite.db")),
+  },
   /* Only run E2E spec files, ignoring unit tests ending in .test.ts */
   testMatch: "**/*.spec.ts",
   /* Run tests in files in parallel */
@@ -116,7 +128,8 @@ export default defineConfig({
   webServer: {
     command: "npm start",
     url: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3001",
-    reuseExistingServer: true,
+    env: ciDataDir ? { DATA_DIR: ciDataDir } : undefined,
+    reuseExistingServer: !ciDataDir,
     timeout: 120 * 1000,
   },
 });
