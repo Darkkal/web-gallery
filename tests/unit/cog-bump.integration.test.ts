@@ -209,6 +209,36 @@ describe("cocogitto real bump (#167)", () => {
     }
   }, 240_000);
 
+  it("accepts merge history but rejects nonconventional ordinary commits", () => {
+    const { dir, clone } = buildSyntheticRepo("v0.1.0");
+    try {
+      const cog = installCog(version as string, digest as string, dir);
+      const checkArgs = versionYaml
+        .match(/run: cog (check[^\n]+)/)?.[1]
+        .trim()
+        .split(/\s+/);
+      expect(checkArgs).toBeDefined();
+      run("git", ["switch", "-c", "side", "HEAD~1"], { cwd: clone });
+      run("git", ["commit", "--allow-empty", "-qm", "fix: side change"], {
+        cwd: clone,
+      });
+      run("git", ["switch", "-"], { cwd: clone });
+      run("git", ["merge", "--no-ff", "side", "-m", "Merge branch 'side'"], {
+        cwd: clone,
+      });
+      run(cog, checkArgs as string[], { cwd: clone });
+
+      run(
+        "git",
+        ["commit", "--allow-empty", "-qm", "Invalid ordinary commit"],
+        { cwd: clone },
+      );
+      expect(() => run(cog, checkArgs as string[], { cwd: clone })).toThrow();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 240_000);
+
   it("is a clean no-op when the latest tag equals HEAD (already released)", () => {
     const { dir, clone } = buildSyntheticRepo("v0.1.0");
     try {
